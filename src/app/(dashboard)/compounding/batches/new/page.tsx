@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createBatch } from "@/app/(dashboard)/compounding/actions";
 import { searchFormulas } from "@/app/(dashboard)/compounding/actions";
 
 export default function NewBatchPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#40721D]" />
+      </div>
+    }>
+      <NewBatchContent />
+    </Suspense>
+  );
+}
+
+function NewBatchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const preselectedFormulaId = searchParams.get("formulaId") || "";
