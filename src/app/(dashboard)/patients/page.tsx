@@ -27,7 +27,7 @@ export default async function PatientsPage({
         </div>
         <Link
           href="/patients/new"
-          className="px-4 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] transition-colors"
+          className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
         >
           + Add Patient
         </Link>
@@ -49,7 +49,7 @@ export default async function PatientsPage({
                 href={`/patients?status=${s}${search ? `&search=${search}` : ""}`}
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                   status === s
-                    ? "bg-[#1B4F72] text-white border-[#1B4F72]"
+                    ? "bg-[#40721D] text-white border-[#40721D]"
                     : "border-gray-300 text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -70,7 +70,7 @@ export default async function PatientsPage({
             {!search && (
               <Link
                 href="/patients/new"
-                className="text-[#1B4F72] text-sm font-medium hover:underline"
+                className="text-[#40721D] text-sm font-medium hover:underline"
               >
                 Add your first patient
               </Link>
@@ -100,7 +100,7 @@ export default async function PatientsPage({
                     <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
                         <Link href={`/patients/${patient.id}`} className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-[#1B4F72] flex items-center justify-center flex-shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-[#40721D] flex items-center justify-center flex-shrink-0">
                             <span className="text-xs font-bold text-white">
                               {getInitials(patient.firstName, patient.lastName)}
                             </span>

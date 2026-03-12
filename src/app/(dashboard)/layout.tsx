@@ -1,5 +1,10 @@
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
+"use client";
+
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import QueueBar from "@/components/dashboard/QueueBar";
+import DashboardSearch from "@/components/dashboard/DashboardSearch";
+import RealtimeProvider from "@/components/providers/RealtimeProvider";
+import ToastContainer from "@/components/ui/ToastContainer";
 
 export default function DashboardLayout({
   children,
@@ -7,10 +12,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <Header />
-      <main className="ml-64 pt-16 p-6">{children}</main>
+    <div className="min-h-screen bg-[var(--page-bg)]">
+      <DashboardHeader />
+      <QueueBar />
+      <DashboardSearch />
+      <main className="p-0">
+        <RealtimeProvider>{children}</RealtimeProvider>
+      </main>
+      <ToastContainer />
     </div>
   );
 }

@@ -58,7 +58,7 @@ export default function NewItemPage() {
     }
   }
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent";
+  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent";
 
   return (
     <div>
@@ -195,25 +195,25 @@ export default function NewItemPage() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isCompoundIngredient}
                 onChange={(e) => updateField("isCompoundIngredient", e.target.checked)}
-                className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded focus:ring-[#1B4F72]" />
+                className="w-4 h-4 text-[#40721D] border-gray-300 rounded focus:ring-[#40721D]" />
               <span className="text-sm text-gray-700">Compound Ingredient</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isRefrigerated}
                 onChange={(e) => updateField("isRefrigerated", e.target.checked)}
-                className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded focus:ring-[#1B4F72]" />
+                className="w-4 h-4 text-[#40721D] border-gray-300 rounded focus:ring-[#40721D]" />
               <span className="text-sm text-gray-700">Requires Refrigeration</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isControlled}
                 onChange={(e) => updateField("isControlled", e.target.checked)}
-                className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded focus:ring-[#1B4F72]" />
+                className="w-4 h-4 text-[#40721D] border-gray-300 rounded focus:ring-[#40721D]" />
               <span className="text-sm text-gray-700">Controlled Substance</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isOtc}
                 onChange={(e) => updateField("isOtc", e.target.checked)}
-                className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded focus:ring-[#1B4F72]" />
+                className="w-4 h-4 text-[#40721D] border-gray-300 rounded focus:ring-[#40721D]" />
               <span className="text-sm text-gray-700">OTC</span>
             </label>
           </div>
@@ -225,7 +225,7 @@ export default function NewItemPage() {
             Cancel
           </button>
           <button type="submit" disabled={loading}
-            className="px-6 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
             {loading ? "Saving..." : "Add Item"}
           </button>
         </div>

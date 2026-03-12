@@ -62,7 +62,7 @@ export default function NewShipmentPage() {
     }
   }
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent";
+  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent";
 
   return (
     <div>
@@ -158,12 +158,12 @@ export default function NewShipmentPage() {
           <div className="flex gap-6 mt-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.requiresColdChain} onChange={(e) => updateField("requiresColdChain", e.target.checked)}
-                className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded focus:ring-[#1B4F72]" />
+                className="w-4 h-4 text-[#40721D] border-gray-300 rounded focus:ring-[#40721D]" />
               <span className="text-sm text-gray-700">Requires Cold Chain</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.requiresSignature} onChange={(e) => updateField("requiresSignature", e.target.checked)}
-                className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded focus:ring-[#1B4F72]" />
+                className="w-4 h-4 text-[#40721D] border-gray-300 rounded focus:ring-[#40721D]" />
               <span className="text-sm text-gray-700">Requires Signature</span>
             </label>
           </div>
@@ -173,7 +173,7 @@ export default function NewShipmentPage() {
           <button type="button" onClick={() => router.back()}
             className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
           <button type="submit" disabled={loading}
-            className="px-6 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50 transition-colors">
+            className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50 transition-colors">
             {loading ? "Creating..." : "Create Shipment"}
           </button>
         </div>

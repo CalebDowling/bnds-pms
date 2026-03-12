@@ -40,7 +40,7 @@ export default async function ShippingPage({
           <p className="text-sm text-gray-500 mt-1">Manage shipments and deliveries</p>
         </div>
         <Link href="/shipping/new"
-          className="px-4 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] transition-colors">
+          className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors">
           + New Shipment
         </Link>
       </div>
@@ -76,7 +76,7 @@ export default async function ShippingPage({
           {STATUS_FILTERS.map((s) => (
             <Link key={s} href={`/shipping?status=${s}${search ? `&search=${search}` : ""}`}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                status === s ? "bg-[#1B4F72] text-white border-[#1B4F72]" : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                status === s ? "bg-[#40721D] text-white border-[#40721D]" : "border-gray-300 text-gray-600 hover:bg-gray-50"
               }`}>
               {s === "all" ? "All" : s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
             </Link>
@@ -89,7 +89,7 @@ export default async function ShippingPage({
         {shipments.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-400 text-lg mb-2">{search ? "No shipments match your search" : "No shipments yet"}</p>
-            {!search && <Link href="/shipping/new" className="text-[#1B4F72] text-sm font-medium hover:underline">Create first shipment</Link>}
+            {!search && <Link href="/shipping/new" className="text-[#40721D] text-sm font-medium hover:underline">Create first shipment</Link>}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -111,7 +111,7 @@ export default async function ShippingPage({
                   return (
                     <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
-                        <Link href={`/shipping/${s.id}`} className="text-sm font-medium text-gray-900 hover:text-[#1B4F72]">
+                        <Link href={`/shipping/${s.id}`} className="text-sm font-medium text-gray-900 hover:text-[#40721D]">
                           {s.patient.lastName}, {s.patient.firstName}
                         </Link>
                         <p className="text-xs text-gray-400 font-mono">{s.patient.mrn}</p>

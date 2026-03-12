@@ -48,7 +48,7 @@ export default async function PosPage({
           {[{ id: "transactions", label: "Transactions" }, { id: "sessions", label: "Sessions" }].map((t) => (
             <Link key={t.id} href={`/pos?tab=${t.id}`}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                tab === t.id ? "border-[#1B4F72] text-[#1B4F72]" : "border-transparent text-gray-500 hover:text-gray-700"
+                tab === t.id ? "border-[#40721D] text-[#40721D]" : "border-transparent text-gray-500 hover:text-gray-700"
               }`}>{t.label}</Link>
           ))}
         </div>

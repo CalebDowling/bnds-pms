@@ -73,7 +73,7 @@ export default function NewFormulaPage() {
               </label>
               <input type="text" value={form.name} onChange={(e) => updateField("name", e.target.value)} required
                 placeholder="e.g. Progesterone 200mg Capsules"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -82,18 +82,18 @@ export default function NewFormulaPage() {
               <input type="text" value={form.formulaCode}
                 onChange={(e) => updateField("formulaCode", e.target.value.toUpperCase())} required
                 placeholder="e.g. PROG-200-CAP"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent font-mono" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent font-mono" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
               <input type="text" value={form.category} onChange={(e) => updateField("category", e.target.value)}
                 placeholder="e.g. HRT, Pain, Derm"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Dosage Form</label>
               <select value={form.dosageForm} onChange={(e) => updateField("dosageForm", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent">
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent">
                 <option value="">Select</option>
                 <option value="capsule">Capsule</option>
                 <option value="cream">Cream</option>
@@ -114,7 +114,7 @@ export default function NewFormulaPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Route</label>
               <select value={form.route} onChange={(e) => updateField("route", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent">
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent">
                 <option value="">Select</option>
                 <option value="oral">Oral</option>
                 <option value="topical">Topical</option>
@@ -134,20 +134,20 @@ export default function NewFormulaPage() {
               <input type="number" value={form.defaultBudDays}
                 onChange={(e) => updateField("defaultBudDays", e.target.value)}
                 placeholder="e.g. 180"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Storage Conditions</label>
               <input type="text" value={form.storageConditions}
                 onChange={(e) => updateField("storageConditions", e.target.value)}
                 placeholder="e.g. Room temp, Refrigerate"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.isSterile}
                   onChange={(e) => updateField("isSterile", e.target.checked)}
-                  className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded focus:ring-[#1B4F72]" />
+                  className="w-4 h-4 text-[#40721D] border-gray-300 rounded focus:ring-[#40721D]" />
                 <span className="text-sm text-gray-700">Sterile Preparation</span>
               </label>
             </div>
@@ -166,7 +166,7 @@ export default function NewFormulaPage() {
             Cancel
           </button>
           <button type="submit" disabled={loading}
-            className="px-6 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
             {loading ? "Creating..." : "Create Formula"}
           </button>
         </div>

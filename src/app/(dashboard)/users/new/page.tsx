@@ -47,8 +47,8 @@ export default function NewUserPage() {
       if (!form.firstName.trim()) throw new Error("First name is required");
       if (!form.lastName.trim()) throw new Error("Last name is required");
 
-      const user = await createUser({ ...form, roleIds: selectedRoles });
-      router.push(`/users/${user.id}`);
+      const result = await createUser({ ...form, roleIds: selectedRoles });
+      router.push(`/users/${result.user.id}`);
       router.refresh();
     } catch (err: any) {
       setError(err.message || "Failed to create user");
@@ -56,7 +56,7 @@ export default function NewUserPage() {
     }
   }
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72]";
+  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D]";
 
   return (
     <div>
@@ -113,7 +113,7 @@ export default function NewUserPage() {
             <div className="flex items-center">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.isPharmacist} onChange={e => updateField("isPharmacist", e.target.checked)}
-                  className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded" />
+                  className="w-4 h-4 text-[#40721D] border-gray-300 rounded" />
                 <span className="text-sm text-gray-700">Licensed Pharmacist (RPh)</span>
               </label>
             </div>
@@ -129,7 +129,7 @@ export default function NewUserPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Roles</h2>
-            {!showNewRole && <button type="button" onClick={() => setShowNewRole(true)} className="text-sm text-[#1B4F72] font-medium hover:underline">+ New Role</button>}
+            {!showNewRole && <button type="button" onClick={() => setShowNewRole(true)} className="text-sm text-[#40721D] font-medium hover:underline">+ New Role</button>}
           </div>
           {showNewRole && (
             <div className="bg-blue-50 rounded-lg p-3 mb-4 flex items-end gap-2">
@@ -141,17 +141,17 @@ export default function NewUserPage() {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
                 <input type="text" value={newRoleDesc} onChange={e => setNewRoleDesc(e.target.value)} placeholder="Optional" className={inputClass} />
               </div>
-              <button type="button" onClick={handleAddRole} className="px-3 py-2 bg-[#1B4F72] text-white text-sm rounded-lg hover:bg-[#154360]">Add</button>
+              <button type="button" onClick={handleAddRole} className="px-3 py-2 bg-[#40721D] text-white text-sm rounded-lg hover:bg-[#2D5114]">Add</button>
               <button type="button" onClick={() => setShowNewRole(false)} className="text-sm text-gray-400">Cancel</button>
             </div>
           )}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {roles.map((role: any) => (
               <label key={role.id} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
-                selectedRoles.includes(role.id) ? "border-[#1B4F72] bg-blue-50" : "border-gray-200 hover:bg-gray-50"
+                selectedRoles.includes(role.id) ? "border-[#40721D] bg-blue-50" : "border-gray-200 hover:bg-gray-50"
               }`}>
                 <input type="checkbox" checked={selectedRoles.includes(role.id)} onChange={() => toggleRole(role.id)}
-                  className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded" />
+                  className="w-4 h-4 text-[#40721D] border-gray-300 rounded" />
                 <div>
                   <p className="text-sm font-medium text-gray-900">{role.name}</p>
                   {role.description && <p className="text-xs text-gray-400">{role.description}</p>}
@@ -164,7 +164,7 @@ export default function NewUserPage() {
 
         <div className="flex items-center justify-end gap-3">
           <button type="button" onClick={() => router.back()} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="px-6 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50">
+          <button type="submit" disabled={loading} className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50">
             {loading ? "Creating..." : "Create User"}
           </button>
         </div>

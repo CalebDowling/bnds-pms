@@ -55,7 +55,7 @@ export default function SearchBar({
       value={query}
       onChange={(e) => setQuery(e.target.value)}
       placeholder={placeholder}
-      className="w-full max-w-sm px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+      className="w-full max-w-sm px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
     />
   );
 }

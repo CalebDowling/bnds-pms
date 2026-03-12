@@ -30,7 +30,7 @@ export default function PatientTabs({ patient }: { patient: any }) {
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? "border-[#1B4F72] text-[#1B4F72]"
+                  ? "border-[#40721D] text-[#40721D]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
@@ -205,18 +205,18 @@ function AllergiesTab({ patient }: { patient: any }) {
 
   async function handleDelete(id: string) {
     if (!confirm("Remove this allergy?")) return;
-    await deleteAllergy(id);
+    await deleteAllergy(id, patient.id);
     router.refresh();
   }
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72]";
+  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D]";
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-700">Allergies</h3>
         {!showAdd && (
-          <button onClick={() => setShowAdd(true)} className="text-sm text-[#1B4F72] font-medium hover:underline">+ Add Allergy</button>
+          <button onClick={() => setShowAdd(true)} className="text-sm text-[#40721D] font-medium hover:underline">+ Add Allergy</button>
         )}
       </div>
 
@@ -251,7 +251,7 @@ function AllergiesTab({ patient }: { patient: any }) {
           </div>
           <div className="flex justify-end gap-2 mt-3">
             <button type="button" onClick={() => setShowAdd(false)} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-1.5 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50">
+            <button type="submit" disabled={saving} className="px-4 py-1.5 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50">
               {saving ? "Saving..." : "Add Allergy"}
             </button>
           </div>
@@ -369,7 +369,7 @@ function ContactsTab({ patient }: { patient: any }) {
                   </p>
                 </div>
                 {p.isPrimary && (
-                  <span className="text-xs font-medium text-[#1B4F72]">Primary</span>
+                  <span className="text-xs font-medium text-[#40721D]">Primary</span>
                 )}
               </div>
             ))}
@@ -386,7 +386,7 @@ function ContactsTab({ patient }: { patient: any }) {
               <div key={a.id} className="py-2 border-b border-gray-100 last:border-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-medium text-gray-500 capitalize">{a.addressType}</span>
-                  {a.isDefault && <span className="text-xs font-medium text-[#1B4F72]">Default</span>}
+                  {a.isDefault && <span className="text-xs font-medium text-[#40721D]">Default</span>}
                 </div>
                 <p className="text-sm text-gray-900">{a.line1}</p>
                 {a.line2 && <p className="text-sm text-gray-900">{a.line2}</p>}

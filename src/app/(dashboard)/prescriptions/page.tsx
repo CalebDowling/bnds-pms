@@ -55,7 +55,7 @@ export default async function PrescriptionsPage({
         </div>
         <Link
           href="/prescriptions/new"
-          className="px-4 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] transition-colors"
+          className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
         >
           + New Prescription
         </Link>
@@ -78,7 +78,7 @@ export default async function PrescriptionsPage({
               href={`/prescriptions?status=${f.value}${search ? `&search=${search}` : ""}`}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                 status === f.value
-                  ? "bg-[#1B4F72] text-white border-[#1B4F72]"
+                  ? "bg-[#40721D] text-white border-[#40721D]"
                   : "border-gray-300 text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -96,7 +96,7 @@ export default async function PrescriptionsPage({
               {search ? "No prescriptions match your search" : "No prescriptions yet"}
             </p>
             {!search && (
-              <Link href="/prescriptions/new" className="text-[#1B4F72] text-sm font-medium hover:underline">
+              <Link href="/prescriptions/new" className="text-[#40721D] text-sm font-medium hover:underline">
                 Create the first prescription
               </Link>
             )}
@@ -128,7 +128,7 @@ export default async function PrescriptionsPage({
                   return (
                     <tr key={rx.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
-                        <Link href={`/prescriptions/${rx.id}`} className="text-sm font-mono text-[#1B4F72] font-medium hover:underline">
+                        <Link href={`/prescriptions/${rx.id}`} className="text-sm font-mono text-[#40721D] font-medium hover:underline">
                           {rx.rxNumber}
                         </Link>
                       </td>

@@ -110,7 +110,7 @@ export default function NewPrescriptionPage() {
     }
   }
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent";
+  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent";
 
   function renderSearchField(label: string, selected: any, onClear: () => void, query: string, setQuery: (v: string) => void, results: any[], showDD: boolean, setShowDD: (v: boolean) => void, onSelect: (item: any) => void, placeholder: string, renderItem: (item: any) => React.ReactNode, selectedDisplay: React.ReactNode) {
     return (
@@ -177,7 +177,7 @@ export default function NewPrescriptionPage() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isCompound}
                 onChange={(e) => updateField("isCompound", e.target.checked)}
-                className="w-4 h-4 text-[#1B4F72] border-gray-300 rounded focus:ring-[#1B4F72]" />
+                className="w-4 h-4 text-[#40721D] border-gray-300 rounded focus:ring-[#40721D]" />
               <span className="text-sm text-gray-700">Compound</span>
             </label>
           </div>
@@ -264,7 +264,7 @@ export default function NewPrescriptionPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Directions (SIG)</label>
             <textarea value={form.directions} onChange={(e) => updateField("directions", e.target.value)}
               rows={2} placeholder="Take 1 capsule by mouth twice daily..."
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#1B4F72]" />
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#40721D]" />
           </div>
         </div>
 
@@ -274,11 +274,11 @@ export default function NewPrescriptionPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Prescriber Notes</label>
-              <textarea value={form.prescriberNotes} onChange={(e) => updateField("prescriberNotes", e.target.value)} rows={3} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#1B4F72]" />
+              <textarea value={form.prescriberNotes} onChange={(e) => updateField("prescriberNotes", e.target.value)} rows={3} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#40721D]" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Internal Notes</label>
-              <textarea value={form.internalNotes} onChange={(e) => updateField("internalNotes", e.target.value)} rows={3} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#1B4F72]" />
+              <textarea value={form.internalNotes} onChange={(e) => updateField("internalNotes", e.target.value)} rows={3} className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#40721D]" />
             </div>
           </div>
         </div>
@@ -286,7 +286,7 @@ export default function NewPrescriptionPage() {
         <div className="flex items-center justify-end gap-3">
           <button type="button" onClick={() => router.back()} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
           <button type="submit" disabled={loading}
-            className="px-6 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50">
+            className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50">
             {loading ? "Creating..." : "Create Prescription"}
           </button>
         </div>

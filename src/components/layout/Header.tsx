@@ -23,7 +23,7 @@ export default async function Header() {
           <p className="text-sm font-medium text-gray-900">{displayName}</p>
           <p className="text-xs text-gray-400">{roleLabel}</p>
         </div>
-        <div className="w-8 h-8 rounded-full bg-[#1B4F72] flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full bg-[#40721D] flex items-center justify-center">
           <span className="text-xs font-bold text-white">{initials}</span>
         </div>
         <LogoutButton />

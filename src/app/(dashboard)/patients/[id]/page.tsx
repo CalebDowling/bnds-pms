@@ -28,7 +28,7 @@ export default async function PatientDetailPage({
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-[#1B4F72] flex items-center justify-center">
+          <div className="w-14 h-14 rounded-full bg-[#40721D] flex items-center justify-center">
             <span className="text-xl font-bold text-white">
               {getInitials(patient.firstName, patient.lastName)}
             </span>

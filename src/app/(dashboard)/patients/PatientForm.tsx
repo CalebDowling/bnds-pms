@@ -94,7 +94,7 @@ export default function PatientForm({
               value={form.firstName}
               onChange={(e) => updateField("firstName", e.target.value)}
               required
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
             />
           </div>
           <div>
@@ -103,7 +103,7 @@ export default function PatientForm({
               type="text"
               value={form.middleName}
               onChange={(e) => updateField("middleName", e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
             />
           </div>
           <div>
@@ -115,7 +115,7 @@ export default function PatientForm({
               value={form.lastName}
               onChange={(e) => updateField("lastName", e.target.value)}
               required
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
             />
           </div>
           <div>
@@ -123,7 +123,7 @@ export default function PatientForm({
             <select
               value={form.suffix}
               onChange={(e) => updateField("suffix", e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
             >
               <option value="">None</option>
               <option value="Jr">Jr</option>
@@ -142,7 +142,7 @@ export default function PatientForm({
               value={form.dateOfBirth}
               onChange={(e) => updateField("dateOfBirth", e.target.value)}
               required
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
             />
           </div>
           <div>
@@ -150,7 +150,7 @@ export default function PatientForm({
             <select
               value={form.gender}
               onChange={(e) => updateField("gender", e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
             >
               <option value="">Select</option>
               <option value="male">Male</option>
@@ -167,7 +167,7 @@ export default function PatientForm({
               onChange={(e) => updateField("ssnLastFour", e.target.value.replace(/\D/g, "").slice(0, 4))}
               maxLength={4}
               placeholder="••••"
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
             />
           </div>
           <div>
@@ -176,7 +176,7 @@ export default function PatientForm({
               type="email"
               value={form.email}
               onChange={(e) => updateField("email", e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
             />
           </div>
           <div>
@@ -184,7 +184,7 @@ export default function PatientForm({
             <select
               value={form.preferredContact}
               onChange={(e) => updateField("preferredContact", e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
             >
               <option value="phone">Phone</option>
               <option value="email">Email</option>
@@ -205,7 +205,7 @@ export default function PatientForm({
               <select
                 value={form.phoneType}
                 onChange={(e) => updateField("phoneType", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               >
                 <option value="mobile">Mobile</option>
                 <option value="home">Home</option>
@@ -219,7 +219,7 @@ export default function PatientForm({
                 value={form.phone}
                 onChange={(e) => updateField("phone", e.target.value)}
                 placeholder="(555) 555-5555"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               />
             </div>
           </div>
@@ -237,7 +237,7 @@ export default function PatientForm({
                 type="text"
                 value={form.addressLine1}
                 onChange={(e) => updateField("addressLine1", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               />
             </div>
             <div className="md:col-span-2">
@@ -246,7 +246,7 @@ export default function PatientForm({
                 type="text"
                 value={form.addressLine2}
                 onChange={(e) => updateField("addressLine2", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               />
             </div>
             <div>
@@ -255,7 +255,7 @@ export default function PatientForm({
                 type="text"
                 value={form.city}
                 onChange={(e) => updateField("city", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -264,7 +264,7 @@ export default function PatientForm({
                 <select
                   value={form.state}
                   onChange={(e) => updateField("state", e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
                 >
                   <option value="">Select</option>
                   {US_STATES.map((s) => (
@@ -279,7 +279,7 @@ export default function PatientForm({
                   value={form.zip}
                   onChange={(e) => updateField("zip", e.target.value.replace(/\D/g, "").slice(0, 5))}
                   maxLength={5}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
                 />
               </div>
             </div>
@@ -295,7 +295,7 @@ export default function PatientForm({
           onChange={(e) => updateField("notes", e.target.value)}
           rows={3}
           placeholder="General notes about this patient..."
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent resize-none"
+          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent resize-none"
         />
       </div>
 
@@ -311,7 +311,7 @@ export default function PatientForm({
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? "Saving..." : isEdit ? "Update Patient" : "Create Patient"}
         </button>

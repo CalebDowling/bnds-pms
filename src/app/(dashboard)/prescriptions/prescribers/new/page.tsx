@@ -83,7 +83,7 @@ export default function NewPrescriberPage() {
                 required
                 maxLength={10}
                 placeholder="10-digit NPI"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               />
             </div>
             <div>
@@ -93,7 +93,7 @@ export default function NewPrescriberPage() {
                 value={form.deaNumber}
                 onChange={(e) => updateField("deaNumber", e.target.value)}
                 maxLength={15}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               />
             </div>
             <div>
@@ -103,7 +103,7 @@ export default function NewPrescriberPage() {
                 value={form.specialty}
                 onChange={(e) => updateField("specialty", e.target.value)}
                 placeholder="e.g. Family Medicine"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               />
             </div>
             <div>
@@ -115,7 +115,7 @@ export default function NewPrescriberPage() {
                 value={form.firstName}
                 onChange={(e) => updateField("firstName", e.target.value)}
                 required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               />
             </div>
             <div>
@@ -125,7 +125,7 @@ export default function NewPrescriberPage() {
                 value={form.lastName}
                 onChange={(e) => updateField("lastName", e.target.value)}
                 required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               />
             </div>
             <div>
@@ -133,7 +133,7 @@ export default function NewPrescriberPage() {
               <select
                 value={form.suffix}
                 onChange={(e) => updateField("suffix", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
               >
                 <option value="">None</option>
                 <option value="MD">MD</option>
@@ -154,33 +154,33 @@ export default function NewPrescriberPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
               <input type="tel" value={form.phone} onChange={(e) => updateField("phone", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Fax</label>
               <input type="tel" value={form.fax} onChange={(e) => updateField("fax", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input type="email" value={form.email} onChange={(e) => updateField("email", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
               <input type="text" value={form.addressLine1} onChange={(e) => updateField("addressLine1", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
               <input type="text" value={form.city} onChange={(e) => updateField("city", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
                 <select value={form.state} onChange={(e) => updateField("state", e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent">
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent">
                   <option value="">Select</option>
                   {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -188,18 +188,18 @@ export default function NewPrescriberPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
                 <input type="text" value={form.zip} onChange={(e) => updateField("zip", e.target.value.replace(/\D/g, "").slice(0, 5))}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">State License #</label>
               <input type="text" value={form.stateLicense} onChange={(e) => updateField("stateLicense", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent" />
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">License State</label>
               <select value={form.licenseState} onChange={(e) => updateField("licenseState", e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent">
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent">
                 <option value="">Select</option>
                 {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -213,7 +213,7 @@ export default function NewPrescriberPage() {
             Cancel
           </button>
           <button type="submit" disabled={loading}
-            className="px-6 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
             {loading ? "Saving..." : "Add Prescriber"}
           </button>
         </div>

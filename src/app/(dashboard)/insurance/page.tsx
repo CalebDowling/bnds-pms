@@ -18,7 +18,7 @@ export default async function InsurancePage({
           <h1 className="text-2xl font-bold text-gray-900">Insurance Plans</h1>
           <p className="text-sm text-gray-500 mt-1">{total} third-party plan{total !== 1 ? "s" : ""}</p>
         </div>
-        <Link href="/insurance/plans/new" className="px-4 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360]">
+        <Link href="/insurance/plans/new" className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114]">
           + Add Plan
         </Link>
       </div>
@@ -46,7 +46,7 @@ export default async function InsurancePage({
             ) : plans.map((plan: any) => (
               <tr key={plan.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
-                  <Link href={`/insurance/plans/${plan.id}`} className="text-sm font-medium text-[#1B4F72] hover:underline">
+                  <Link href={`/insurance/plans/${plan.id}`} className="text-sm font-medium text-[#40721D] hover:underline">
                     {plan.planName}
                   </Link>
                 </td>

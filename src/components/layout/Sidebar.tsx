@@ -34,16 +34,10 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0">
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#1B4F72] flex items-center justify-center">
-            <span className="text-sm font-bold text-white">B</span>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900">BNDS Pharmacy</p>
-            <p className="text-xs text-gray-400">Management System</p>
-          </div>
-        </div>
+      <div className="h-16 flex items-center px-4 border-b border-gray-200">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <img src="/logo.webp" alt="Boudreaux's" className="h-10" />
+        </Link>
       </div>
 
       {/* Navigation */}
@@ -57,7 +51,7 @@ export default function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors ${
                 isActive
-                  ? "bg-[#1B4F72] text-white"
+                  ? "bg-[#40721D] text-white"
                   : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               }`}
             >

@@ -41,7 +41,7 @@ export default async function CompoundingPage({
           </Link>
           <Link
             href="/compounding/batches/new"
-            className="px-4 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] transition-colors"
+            className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
           >
             + New Batch
           </Link>
@@ -60,7 +60,7 @@ export default async function CompoundingPage({
               href={`/compounding?tab=${t.id}`}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 tab === t.id
-                  ? "border-[#1B4F72] text-[#1B4F72]"
+                  ? "border-[#40721D] text-[#40721D]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
@@ -94,7 +94,7 @@ async function FormulasTab({ search, page }: { search: string; page: number }) {
         {formulas.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-400 text-lg mb-2">No formulas yet</p>
-            <Link href="/compounding/formulas/new" className="text-[#1B4F72] text-sm font-medium hover:underline">
+            <Link href="/compounding/formulas/new" className="text-[#40721D] text-sm font-medium hover:underline">
               Create your first formula
             </Link>
           </div>
@@ -121,7 +121,7 @@ async function FormulasTab({ search, page }: { search: string; page: number }) {
                   return (
                     <tr key={f.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
-                        <Link href={`/compounding/formulas/${f.id}`} className="text-sm font-mono text-[#1B4F72] font-medium hover:underline">
+                        <Link href={`/compounding/formulas/${f.id}`} className="text-sm font-mono text-[#40721D] font-medium hover:underline">
                           {f.formulaCode}
                         </Link>
                       </td>
@@ -175,7 +175,7 @@ async function BatchesTab({ search, page, status }: { search: string; page: numb
               href={`/compounding?tab=batches&status=${s}${search ? `&search=${search}` : ""}`}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                 status === s
-                  ? "bg-[#1B4F72] text-white border-[#1B4F72]"
+                  ? "bg-[#40721D] text-white border-[#40721D]"
                   : "border-gray-300 text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -189,7 +189,7 @@ async function BatchesTab({ search, page, status }: { search: string; page: numb
         {batches.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-400 text-lg mb-2">No batches yet</p>
-            <Link href="/compounding/batches/new" className="text-[#1B4F72] text-sm font-medium hover:underline">
+            <Link href="/compounding/batches/new" className="text-[#40721D] text-sm font-medium hover:underline">
               Compound your first batch
             </Link>
           </div>
@@ -215,7 +215,7 @@ async function BatchesTab({ search, page, status }: { search: string; page: numb
                   return (
                     <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
-                        <Link href={`/compounding/batches/${b.id}`} className="text-sm font-mono text-[#1B4F72] font-medium hover:underline">
+                        <Link href={`/compounding/batches/${b.id}`} className="text-sm font-mono text-[#40721D] font-medium hover:underline">
                           {b.batchNumber}
                         </Link>
                       </td>

@@ -65,7 +65,7 @@ export default function WeighIngredientForm({
   if (!open) {
     return (
       <button onClick={() => setOpen(true)}
-        className="text-xs text-[#1B4F72] font-medium hover:underline">Weigh</button>
+        className="text-xs text-[#40721D] font-medium hover:underline">Weigh</button>
     );
   }
 
@@ -92,7 +92,7 @@ export default function WeighIngredientForm({
             className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg" />
         </div>
         <button type="submit" disabled={loading}
-          className="px-3 py-1.5 bg-[#1B4F72] text-white text-xs font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50">
+          className="px-3 py-1.5 bg-[#40721D] text-white text-xs font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50">
           {loading ? "..." : "Record"}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>

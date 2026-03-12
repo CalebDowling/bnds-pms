@@ -111,7 +111,7 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
                 <tbody className="divide-y divide-gray-100">
                   {shipment.packingList.items.map((item: any) => (
                     <tr key={item.id}>
-                      <td className="py-2.5 text-sm font-mono text-[#1B4F72]">{item.fill.prescription.rxNumber}</td>
+                      <td className="py-2.5 text-sm font-mono text-[#40721D]">{item.fill.prescription.rxNumber}</td>
                       <td className="py-2.5 text-sm text-gray-900">
                         {item.fill.prescription.item?.name || "Compound"} {item.fill.prescription.item?.strength || ""}
                       </td>
@@ -138,7 +138,7 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Patient</h3>
             <p className="text-sm font-medium text-gray-900">
-              <Link href={`/patients/${shipment.patient.id}`} className="hover:text-[#1B4F72] hover:underline">
+              <Link href={`/patients/${shipment.patient.id}`} className="hover:text-[#40721D] hover:underline">
                 {shipment.patient.lastName}, {shipment.patient.firstName}
               </Link>
             </p>

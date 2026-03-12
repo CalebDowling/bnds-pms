@@ -162,7 +162,7 @@ export default async function ItemDetailPage({
                 {item.prescriptions.map((rx: any) => (
                   <div key={rx.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                     <div>
-                      <Link href={`/prescriptions/${rx.id}`} className="text-sm text-[#1B4F72] hover:underline">
+                      <Link href={`/prescriptions/${rx.id}`} className="text-sm text-[#40721D] hover:underline">
                         Rx# {rx.rxNumber}
                       </Link>
                       <p className="text-xs text-gray-400">
@@ -216,7 +216,7 @@ export default async function ItemDetailPage({
                 {item.formulaIngredients.map((fi: any) => (
                   <div key={fi.id} className="py-1">
                     <Link href={`/compounding/formulas/${fi.formulaVersion.formula.id}`}
-                      className="text-sm text-[#1B4F72] hover:underline">
+                      className="text-sm text-[#40721D] hover:underline">
                       {fi.formulaVersion.formula.name}
                     </Link>
                     <p className="text-xs text-gray-400">

@@ -65,7 +65,7 @@ export default async function BillingPage({
           {[{ id: "claims", label: "Claims" }, { id: "payments", label: "Payments" }].map((t) => (
             <Link key={t.id} href={`/billing?tab=${t.id}`}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                tab === t.id ? "border-[#1B4F72] text-[#1B4F72]" : "border-transparent text-gray-500 hover:text-gray-700"
+                tab === t.id ? "border-[#40721D] text-[#40721D]" : "border-transparent text-gray-500 hover:text-gray-700"
               }`}>{t.label}</Link>
           ))}
         </div>
@@ -95,7 +95,7 @@ async function ClaimsTab({ search, page, status }: { search: string; page: numbe
           {CLAIM_FILTERS.map((s) => (
             <Link key={s} href={`/billing?tab=claims&status=${s}${search ? `&search=${search}` : ""}`}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                status === s ? "bg-[#1B4F72] text-white border-[#1B4F72]" : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                status === s ? "bg-[#40721D] text-white border-[#40721D]" : "border-gray-300 text-gray-600 hover:bg-gray-50"
               }`}>
               {s === "all" ? "All" : s.replace(/\b\w/g, (c) => c.toUpperCase())}
             </Link>

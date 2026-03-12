@@ -103,7 +103,7 @@ export default async function FormulaDetailPage({
               <div className="space-y-3">
                 {currentVersion.steps.map((step) => (
                   <div key={step.id} className="flex gap-4 p-3 bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 rounded-full bg-[#1B4F72] flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[#40721D] flex items-center justify-center flex-shrink-0">
                       <span className="text-xs font-bold text-white">{step.stepNumber}</span>
                     </div>
                     <div className="flex-1">
@@ -136,7 +136,7 @@ export default async function FormulaDetailPage({
                 {currentVersion.batches.map((b: any) => (
                   <div key={b.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                     <div>
-                      <Link href={`/compounding/batches/${b.id}`} className="text-sm font-mono text-[#1B4F72] hover:underline">
+                      <Link href={`/compounding/batches/${b.id}`} className="text-sm font-mono text-[#40721D] hover:underline">
                         {b.batchNumber}
                       </Link>
                       <p className="text-xs text-gray-400">

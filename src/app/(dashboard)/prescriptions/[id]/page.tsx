@@ -100,7 +100,7 @@ export default async function PrescriptionDetailPage({
             {drugName}
             {rx.isCompound && " (Compound)"}
             {" — "}
-            <Link href={`/patients/${rx.patient.id}`} className="text-[#1B4F72] hover:underline">
+            <Link href={`/patients/${rx.patient.id}`} className="text-[#40721D] hover:underline">
               {rx.patient.lastName}, {rx.patient.firstName}
             </Link>
             {" "}({rx.patient.mrn})
@@ -288,7 +288,7 @@ export default async function PrescriptionDetailPage({
               <div className="space-y-3">
                 {rx.statusLog.map((log: any) => (
                   <div key={log.id} className="flex gap-3">
-                    <div className="w-2 h-2 rounded-full bg-[#1B4F72] mt-1.5 flex-shrink-0" />
+                    <div className="w-2 h-2 rounded-full bg-[#40721D] mt-1.5 flex-shrink-0" />
                     <div>
                       <p className="text-xs text-gray-900">
                         <span className="capitalize">{log.fromStatus?.replace(/_/g, " ")}</span>

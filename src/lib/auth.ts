@@ -2,47 +2,49 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
 export async function getCurrentUser() {
-  const supabase = await createClient();
-  const { data: { user: authUser } } = await supabase.auth.getUser();
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
 
-  if (!authUser) return null;
+    if (!authUser) return null;
 
-  // Find or create our User record linked to Supabase auth
-  let user = await prisma.user.findUnique({
-    where: { supabaseId: authUser.id },
-    include: { roles: true },
-  });
-
-  if (!user) {
-    // Auto-create user record on first login
-    const email = authUser.email || "";
-    const nameParts = email.split("@")[0].split(".");
-    const firstName = nameParts[0]
-      ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1)
-      : "User";
-    const lastName = nameParts[1]
-      ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1)
-      : "";
-
-    user = await prisma.user.create({
-      data: {
-        supabaseId: authUser.id,
-        email,
-        firstName,
-        lastName,
-        isPharmacist: true, // Default for first user
+    // Look up the user in our database by supabaseId
+    const dbUser = await prisma.user.findUnique({
+      where: { supabaseId: authUser.id },
+      include: {
+        roles: {
+          include: { role: true },
+        },
       },
-      include: { roles: true },
     });
+
+    if (!dbUser) return null;
+
+    // Update lastLogin
+    await prisma.user.update({
+      where: { id: dbUser.id },
+      data: { lastLogin: new Date() },
+    }).catch(() => {
+      // Non-critical — don't fail the request if lastLogin update fails
+    });
+
+    return {
+      id: dbUser.id,
+      supabaseId: dbUser.supabaseId,
+      email: dbUser.email,
+      firstName: dbUser.firstName,
+      lastName: dbUser.lastName,
+      isPharmacist: dbUser.isPharmacist,
+      isAdmin: dbUser.roles.some((r) => r.role.name === "admin"),
+      roles: dbUser.roles.map((r) => r.role.name),
+      lastLogin: dbUser.lastLogin,
+      createdAt: dbUser.createdAt,
+    };
+  } catch {
+    return null;
   }
-
-  // Update last login
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLogin: new Date() },
-  }).catch(() => {}); // Non-blocking
-
-  return user;
 }
 
 export async function requireUser() {

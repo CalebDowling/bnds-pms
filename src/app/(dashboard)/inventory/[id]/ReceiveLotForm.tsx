@@ -53,13 +53,13 @@ export default function ReceiveLotForm({ itemId, unitOfMeasure }: { itemId: stri
   if (!open) {
     return (
       <button onClick={() => setOpen(true)}
-        className="px-4 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] transition-colors">
+        className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors">
         + Receive Lot
       </button>
     );
   }
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent";
+  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent";
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
@@ -97,7 +97,7 @@ export default function ReceiveLotForm({ itemId, unitOfMeasure }: { itemId: stri
           <button type="button" onClick={() => { setOpen(false); setError(null); }}
             className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
           <button type="submit" disabled={loading}
-            className="px-4 py-1.5 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50 transition-colors">
+            className="px-4 py-1.5 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50 transition-colors">
             {loading ? "Saving..." : "Receive"}
           </button>
         </div>

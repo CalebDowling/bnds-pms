@@ -1,0 +1,105 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=staging-
+            type=raw,value=staging-latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_APP_URL=${{ vars.STAGING_APP_URL }}
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.STAGING_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+
+  deploy:
+    name: Deploy Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy notification
+        run: echo "Deploying ${{ needs.build-and-push.outputs.image_tag }} to staging"
+
+      # ------------------------------------------------
+      # Uncomment and configure for your hosting platform:
+      #
+      # Option A: Deploy to Railway
+      # - uses: bervProject/railway-deploy@main
+      #   with:
+      #     railway_token: ${{ secrets.RAILWAY_TOKEN }}
+      #     service: bnds-pms-staging
+      #
+      # Option B: Deploy to Render
+      # - name: Trigger Render Deploy
+      #   run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      #
+      # Option C: Deploy to a VPS via SSH
+      # - name: Deploy via SSH
+      #   uses: appleboy/ssh-action@v1
+      #   with:
+      #     host: ${{ secrets.STAGING_HOST }}
+      #     username: ${{ secrets.STAGING_USER }}
+      #     key: ${{ secrets.STAGING_SSH_KEY }}
+      #     script: |
+      #       cd /opt/bnds-pms
+      #       docker compose pull
+      #       docker compose up -d
+      # ------------------------------------------------
+
+      - name: Run Prisma Migrations
+        run: echo "TODO - Run prisma migrate deploy against staging DB"
+
+      - name: Health Check
+        run: |
+          echo "TODO - Configure STAGING_URL in repo variables"
+          # for i in {1..30}; do
+          #   STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.STAGING_APP_URL }}/api/health || true)
+          #   if [ "$STATUS" = "200" ]; then echo "Staging is healthy"; exit 0; fi
+          #   sleep 2
+          # done
+          # echo "Health check failed"; exit 1

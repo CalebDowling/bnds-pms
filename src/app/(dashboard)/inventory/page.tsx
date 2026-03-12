@@ -37,7 +37,7 @@ export default async function InventoryPage({
         </div>
         <Link
           href="/inventory/new"
-          className="px-4 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] transition-colors"
+          className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
         >
           + Add Item
         </Link>
@@ -81,7 +81,7 @@ export default async function InventoryPage({
               href={`/inventory?category=${f.value}${search ? `&search=${search}` : ""}`}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                 category === f.value
-                  ? "bg-[#1B4F72] text-white border-[#1B4F72]"
+                  ? "bg-[#40721D] text-white border-[#40721D]"
                   : "border-gray-300 text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -99,7 +99,7 @@ export default async function InventoryPage({
               {search ? "No items match your search" : "No items yet"}
             </p>
             {!search && (
-              <Link href="/inventory/new" className="text-[#1B4F72] text-sm font-medium hover:underline">
+              <Link href="/inventory/new" className="text-[#40721D] text-sm font-medium hover:underline">
                 Add your first item
               </Link>
             )}
@@ -123,7 +123,7 @@ export default async function InventoryPage({
                 {items.map((item) => (
                   <tr key={item.id} className={`hover:bg-gray-50 transition-colors ${item.isLow ? "bg-red-50/50" : ""}`}>
                     <td className="px-4 py-3">
-                      <Link href={`/inventory/${item.id}`} className="text-sm font-medium text-gray-900 hover:text-[#1B4F72]">
+                      <Link href={`/inventory/${item.id}`} className="text-sm font-medium text-gray-900 hover:text-[#40721D]">
                         {item.name}
                       </Link>
                       {item.genericName && item.genericName !== item.name && (

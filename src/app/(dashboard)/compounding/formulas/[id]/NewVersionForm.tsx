@@ -133,16 +133,16 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
   if (!open) {
     return (
       <button onClick={() => setOpen(true)}
-        className="px-4 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] transition-colors">
+        className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors">
         + New Version
       </button>
     );
   }
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72] focus:border-transparent";
+  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent";
 
   return (
-    <div className="bg-white rounded-xl border-2 border-[#1B4F72] p-6 mb-6">
+    <div className="bg-white rounded-xl border-2 border-[#40721D] p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-900">Create New Version</h2>
         <button onClick={() => setOpen(false)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
@@ -171,7 +171,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-gray-900 uppercase">Ingredients</h3>
-            <button type="button" onClick={addIngredient} className="text-xs text-[#1B4F72] font-medium hover:underline">+ Add Ingredient</button>
+            <button type="button" onClick={addIngredient} className="text-xs text-[#40721D] font-medium hover:underline">+ Add Ingredient</button>
           </div>
           <div className="space-y-2">
             {ingredients.map((ing, idx) => (
@@ -218,7 +218,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
                 <label className="flex items-center gap-1 cursor-pointer whitespace-nowrap">
                   <input type="checkbox" checked={ing.isActiveIngredient}
                     onChange={(e) => updateIngredient(ing.key, "isActiveIngredient", e.target.checked)}
-                    className="w-3.5 h-3.5 text-[#1B4F72] border-gray-300 rounded" />
+                    className="w-3.5 h-3.5 text-[#40721D] border-gray-300 rounded" />
                   <span className="text-xs text-gray-500">Active</span>
                 </label>
 
@@ -233,7 +233,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-gray-900 uppercase">Compounding Steps</h3>
-            <button type="button" onClick={addStep} className="text-xs text-[#1B4F72] font-medium hover:underline">+ Add Step</button>
+            <button type="button" onClick={addStep} className="text-xs text-[#40721D] font-medium hover:underline">+ Add Step</button>
           </div>
           <div className="space-y-2">
             {steps.map((step, idx) => (
@@ -243,7 +243,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
                   <textarea value={step.instruction}
                     onChange={(e) => updateStep(step.key, "instruction", e.target.value)}
                     rows={2} placeholder="Describe this step..."
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#1B4F72]" />
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#40721D]" />
                   <div className="flex gap-2">
                     <input type="text" value={step.equipment}
                       onChange={(e) => updateStep(step.key, "equipment", e.target.value)}
@@ -254,7 +254,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
                     <label className="flex items-center gap-1 cursor-pointer whitespace-nowrap">
                       <input type="checkbox" checked={step.requiresPharmacist}
                         onChange={(e) => updateStep(step.key, "requiresPharmacist", e.target.checked)}
-                        className="w-3.5 h-3.5 text-[#1B4F72] border-gray-300 rounded" />
+                        className="w-3.5 h-3.5 text-[#40721D] border-gray-300 rounded" />
                       <span className="text-xs text-gray-500">RPh</span>
                     </label>
                   </div>
@@ -270,7 +270,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
           <button type="button" onClick={() => setOpen(false)}
             className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
           <button type="submit" disabled={loading}
-            className="px-6 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50 transition-colors">
+            className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50 transition-colors">
             {loading ? "Creating..." : "Create Version"}
           </button>
         </div>

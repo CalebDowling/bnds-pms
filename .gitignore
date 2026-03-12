@@ -31,5 +31,4 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
-prisma/migrations/
+# prisma - migrations ARE version controlled (do not ignore)

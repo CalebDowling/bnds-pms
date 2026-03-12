@@ -56,7 +56,7 @@ async function DailyFillsTab({ date }: { date?: string }) {
           <input type="date" name="date" defaultValue={targetDate}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg" />
           <input type="hidden" name="tab" value="fills" />
-          <button type="submit" className="px-3 py-1.5 bg-[#1B4F72] text-white text-sm rounded-lg hover:bg-[#154360]">Go</button>
+          <button type="submit" className="px-3 py-1.5 bg-[#40721D] text-white text-sm rounded-lg hover:bg-[#2D5114]">Go</button>
         </form>
         <p className="text-sm text-gray-500">{fills.length} fill(s) on {targetDate}</p>
       </div>
@@ -82,7 +82,7 @@ async function DailyFillsTab({ date }: { date?: string }) {
                 <td className="px-4 py-3 text-sm text-gray-500">
                   {new Date(fill.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                 </td>
-                <td className="px-4 py-3 text-sm font-mono text-[#1B4F72]">
+                <td className="px-4 py-3 text-sm font-mono text-[#40721D]">
                   <Link href={`/prescriptions/${fill.prescription.id}`} className="hover:underline">
                     {fill.prescription.rxNumber}
                   </Link>
@@ -166,7 +166,7 @@ async function InventoryTab() {
             {items.map((item) => (
               <tr key={item.id} className={`hover:bg-gray-50 ${item.isLow ? "bg-red-50" : ""}`}>
                 <td className="px-4 py-3">
-                  <Link href={`/inventory/${item.id}`} className="text-sm font-medium text-[#1B4F72] hover:underline">
+                  <Link href={`/inventory/${item.id}`} className="text-sm font-medium text-[#40721D] hover:underline">
                     {item.name}
                   </Link>
                   {item.strength && <p className="text-xs text-gray-400">{item.strength}</p>}
@@ -220,7 +220,7 @@ async function BatchTab({ startDate, endDate }: { startDate?: string; endDate?: 
           <input type="date" name="endDate" defaultValue={end}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg" />
           <input type="hidden" name="tab" value="batches" />
-          <button type="submit" className="px-3 py-1.5 bg-[#1B4F72] text-white text-sm rounded-lg hover:bg-[#154360]">Go</button>
+          <button type="submit" className="px-3 py-1.5 bg-[#40721D] text-white text-sm rounded-lg hover:bg-[#2D5114]">Go</button>
         </form>
         <p className="text-sm text-gray-500">{batches.length} batch(es)</p>
       </div>
@@ -245,7 +245,7 @@ async function BatchTab({ startDate, endDate }: { startDate?: string; endDate?: 
             ) : batches.map((b: any) => (
               <tr key={b.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
-                  <Link href={`/compounding/batches/${b.id}`} className="text-sm font-mono text-[#1B4F72] hover:underline">
+                  <Link href={`/compounding/batches/${b.id}`} className="text-sm font-mono text-[#40721D] hover:underline">
                     {b.batchNumber}
                   </Link>
                 </td>

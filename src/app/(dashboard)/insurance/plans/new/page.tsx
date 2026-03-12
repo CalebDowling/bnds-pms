@@ -26,7 +26,7 @@ export default function NewPlanPage() {
     } catch (err: any) { setError(err.message); setLoading(false); }
   }
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1B4F72]";
+  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D]";
 
   return (
     <div>
@@ -70,7 +70,7 @@ export default function NewPlanPage() {
         </div>
         <div className="flex items-center justify-end gap-3">
           <button type="button" onClick={() => router.back()} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="px-6 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360] disabled:opacity-50">
+          <button type="submit" disabled={loading} className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50">
             {loading ? "Creating..." : "Create Plan"}
           </button>
         </div>

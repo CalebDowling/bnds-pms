@@ -21,7 +21,7 @@ export default async function UsersPage({
           <h1 className="text-2xl font-bold text-gray-900">Users & Roles</h1>
           <p className="text-sm text-gray-500 mt-1">{total} staff member{total !== 1 ? "s" : ""}</p>
         </div>
-        <Link href="/users/new" className="px-4 py-2 bg-[#1B4F72] text-white text-sm font-medium rounded-lg hover:bg-[#154360]">
+        <Link href="/users/new" className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114]">
           + Add User
         </Link>
       </div>
@@ -48,7 +48,7 @@ export default async function UsersPage({
             ) : users.map((user) => (
               <tr key={user.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
-                  <Link href={`/users/${user.id}`} className="text-sm font-medium text-[#1B4F72] hover:underline">
+                  <Link href={`/users/${user.id}`} className="text-sm font-medium text-[#40721D] hover:underline">
                     {user.lastName}, {user.firstName}
                   </Link>
                   {user.isPharmacist && <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">RPh</span>}

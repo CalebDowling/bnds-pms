@@ -52,7 +52,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
             <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${si.color}`}>{si.label}</span>
           </div>
           <p className="text-sm text-gray-500">
-            <Link href={`/compounding/formulas/${formula.id}`} className="text-[#1B4F72] hover:underline">{formula.name}</Link>
+            <Link href={`/compounding/formulas/${formula.id}`} className="text-[#40721D] hover:underline">{formula.name}</Link>
             {" "}({formula.formulaCode}) — v{batch.formulaVersion.versionNumber}
           </p>
         </div>
@@ -211,7 +211,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
               <div className="space-y-3">
                 {batch.formulaVersion.steps.map((step: any) => (
                   <div key={step.id} className="flex gap-3">
-                    <div className="w-6 h-6 rounded-full bg-[#1B4F72] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-[#40721D] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
                       {step.stepNumber}
                     </div>
                     <div>
@@ -243,7 +243,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Linked Prescription</h3>
               <Link href={`/prescriptions/${batch.prescription.rxNumber}`}
-                className="text-sm text-[#1B4F72] hover:underline">
+                className="text-sm text-[#40721D] hover:underline">
                 Rx# {batch.prescription.rxNumber}
               </Link>
               <p className="text-xs text-gray-400">
