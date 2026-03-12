@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 interface UserInfo {
@@ -10,7 +11,15 @@ interface UserInfo {
   isPharmacist: boolean;
 }
 
+const navTabs = [
+  { label: "Workflow", href: "/dashboard" },
+  { label: "Phone", href: "/phone" },
+  { label: "Reports", href: "/reports" },
+  { label: "Settings", href: "/settings" },
+];
+
 export default function DashboardHeader() {
+  const pathname = usePathname();
   const [user, setUser] = useState<UserInfo | null>(null);
 
   useEffect(() => {
@@ -30,34 +39,65 @@ export default function DashboardHeader() {
   const initials = user
     ? `${user.firstName?.charAt(0) || ""}${user.lastName?.charAt(0) || ""}`.toUpperCase()
     : "U";
-  const roleLabel = user?.isPharmacist ? "Pharmacist" : "Staff";
+
+  function isActive(href: string) {
+    if (href === "/dashboard") return pathname === "/dashboard" || pathname === "/";
+    return pathname.startsWith(href);
+  }
 
   return (
-    <>
-      <header className="flex items-center justify-between bg-[var(--card-bg)] px-6 h-[60px]">
-        <Link href="/dashboard" className="flex items-center">
-          <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[38px]" />
+    <header className="bg-[#2D5114] text-white">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-5 h-[56px]">
+        {/* Left: Logo */}
+        <Link href="/dashboard" className="flex items-center gap-3 no-underline">
+          <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[36px] brightness-0 invert" />
         </Link>
-        <div className="flex items-center gap-4">
-          <div className="w-9 h-9 rounded-full bg-[var(--green-50)] border border-[var(--border)] flex items-center justify-center cursor-pointer hover:bg-[var(--green-100)] transition-colors" title="Help">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+
+        {/* Center: Nav tabs */}
+        <nav className="flex items-center gap-1">
+          {navTabs.map((tab) => (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`px-4 py-1.5 rounded-md text-[13px] font-semibold no-underline transition-all ${
+                isActive(tab.href)
+                  ? "bg-white/20 text-white"
+                  : "text-white/75 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Right: Actions + User */}
+        <div className="flex items-center gap-3">
+          <Link
+            href="/prescriptions/new"
+            className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-bold bg-[#4cb868] hover:bg-[#3da557] text-white no-underline transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Prescription
+          </Link>
+
+          {/* Notification bell */}
+          <div className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors" title="Notifications">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <div className="absolute top-[3px] right-[3px] w-2 h-2 rounded-full bg-[#E74C3C] border-2 border-[#2D5114]" />
           </div>
-          <div className="relative w-9 h-9 rounded-full bg-[var(--green-50)] border border-[var(--border)] flex items-center justify-center cursor-pointer hover:bg-[var(--green-100)] transition-colors" title="Notifications">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <div className="absolute top-[5px] right-[5px] w-2 h-2 rounded-full bg-[var(--red-600)] border-2 border-white" />
-          </div>
-          <div className="flex items-center gap-2.5 text-[13px] font-medium text-[var(--text-secondary)] cursor-pointer px-2 py-1 rounded-lg hover:bg-[var(--green-50)] transition-colors">
-            <div className="w-[34px] h-[34px] rounded-full bg-[var(--green-700)] text-white flex items-center justify-center text-xs font-bold">
+
+          {/* User */}
+          <div className="flex items-center gap-2 text-[13px] cursor-pointer px-2 py-1 rounded-lg hover:bg-white/10 transition-colors">
+            <div className="w-[32px] h-[32px] rounded-full bg-white/20 text-white flex items-center justify-center text-xs font-bold border border-white/30">
               {initials}
             </div>
             <div className="leading-tight">
-              <div>{displayName}</div>
-              <div className="text-[11px] text-[var(--text-muted)] font-normal">{roleLabel}</div>
+              <div className="text-[13px] font-medium text-white">{displayName}</div>
             </div>
           </div>
         </div>
-      </header>
-      <div className="h-[3px] bg-gradient-to-r from-[var(--green-700)] via-[var(--green-600)] to-[var(--green-700)]" />
-    </>
+      </div>
+    </header>
   );
 }

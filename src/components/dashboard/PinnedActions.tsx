@@ -47,7 +47,7 @@ export default function PinnedActions() {
           className={`inline-flex items-center gap-1.5 px-4 py-[7px] rounded-md text-xs font-semibold cursor-pointer transition-all no-underline border ${
             action.primary
               ? "bg-[var(--green-700)] text-white border-[var(--green-700)] hover:bg-[var(--green-900)]"
-              : "bg-[var(--card-bg)] text-[var(--text-primary)] border-[var(--border)] hover:border-[var(--green-700)] hover:bg-[var(--green-100)] hover:text-[var(--green-900)]"
+              : "bg-[var(--green-50)] text-[var(--green-900)] border-[var(--border)] hover:border-[var(--green-700)] hover:bg-[var(--green-100)]"
           }`}
         >
           {getIcon(action.label)}

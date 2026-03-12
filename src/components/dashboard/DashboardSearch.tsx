@@ -35,7 +35,7 @@ export default function DashboardSearch() {
   ];
 
   return (
-    <div className="flex items-center justify-between bg-[var(--card-bg)] px-6 py-2.5 border-b border-[var(--border)]">
+    <div className="flex items-center justify-between bg-[var(--card-bg)] px-6 py-2.5 border-b border-[var(--border-light)]">
       <div ref={wrapperRef} className="flex-1 max-w-[600px] relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
