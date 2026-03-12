@@ -1,16 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { getQueueCounts } from "@/app/(dashboard)/dashboard/actions";
 
-const queueItems = [
-  { label: "Intake", status: "intake", count: 20, tooltip: "View Intake Queue" },
+interface QueueItem {
+  label: string;
+  status: string;
+  count: number;
+  tooltip: string;
+}
+
+const defaultQueueItems: QueueItem[] = [
+  { label: "Intake", status: "intake", count: 0, tooltip: "View Intake Queue" },
   { label: "Sync", status: "sync", count: 0, tooltip: "View Sync Queue" },
   { label: "Reject", status: "reject", count: 0, tooltip: "View Rejected Items" },
-  { label: "Print", status: "print", count: 129, tooltip: "View Print Queue" },
-  { label: "Scan", status: "scan", count: 273, tooltip: "View Scan Queue" },
-  { label: "Verify", status: "verify", count: 347, tooltip: "View Verification Queue" },
-  { label: "OOS", status: "oos", count: 29, tooltip: "View Out of Stock Items" },
-  { label: "Waiting", status: "waiting", count: 235, tooltip: "View Waiting Bin" },
+  { label: "Print", status: "print", count: 0, tooltip: "View Print Queue" },
+  { label: "Scan", status: "scan", count: 0, tooltip: "View Scan Queue" },
+  { label: "Verify", status: "verify", count: 0, tooltip: "View Verification Queue" },
+  { label: "OOS", status: "oos", count: 0, tooltip: "View Out of Stock Items" },
+  { label: "Waiting", status: "waiting", count: 0, tooltip: "View Waiting Bin" },
   { label: "Renewals", status: "renewals", count: 0, tooltip: "View Renewal Requests" },
   { label: "Todo", status: "todo", count: 0, tooltip: "View Todo List" },
 ];
@@ -42,6 +51,19 @@ const pillStyles = {
 };
 
 export default function QueueBar() {
+  const [queueItems, setQueueItems] = useState<QueueItem[]>(defaultQueueItems);
+
+  useEffect(() => {
+    getQueueCounts().then((counts) => {
+      setQueueItems((prev) =>
+        prev.map((item) => ({
+          ...item,
+          count: counts[item.status as keyof typeof counts] ?? 0,
+        }))
+      );
+    });
+  }, []);
+
   return (
     <div className="bg-[var(--card-bg)] px-6 py-2.5 border-b border-[var(--border)] flex items-center gap-[5px] overflow-x-auto">
       <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] mr-2 whitespace-nowrap">

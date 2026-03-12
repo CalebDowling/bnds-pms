@@ -11,7 +11,7 @@ export default function RightRail() {
   ];
 
   return (
-    <div className="w-[280px] flex-shrink-0">
+    <div>
       {/* Recent Activity */}
       <div className="bg-[var(--card-bg)] rounded-[10px] border border-[var(--border)] mb-4 overflow-hidden">
         <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] px-4 pt-3.5 pb-2">

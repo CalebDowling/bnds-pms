@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import PinnedActions from "@/components/dashboard/PinnedActions";
 import CardGrid, { type DashboardData } from "@/components/dashboard/CardGrid";
 import RightRail from "@/components/dashboard/RightRail";
+import PhoneDialer from "@/components/dashboard/PhoneDialer";
 import { getDashboardData } from "./actions";
 
 const DEFAULT_DATA: DashboardData = {
@@ -39,7 +40,10 @@ export default function DashboardPage() {
         <div className="flex-1">
           <CardGrid data={data} />
         </div>
-        <RightRail />
+        <div className="w-[280px] flex-shrink-0 space-y-4">
+          <PhoneDialer />
+          <RightRail />
+        </div>
       </div>
     </div>
   );
