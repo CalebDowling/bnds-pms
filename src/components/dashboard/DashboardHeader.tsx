@@ -36,7 +36,7 @@ export default function DashboardHeader() {
     <>
       <header className="flex items-center justify-between bg-[var(--card-bg)] px-6 h-[60px]">
         <Link href="/dashboard" className="flex items-center">
-          <img src="/logo.png" alt="Boudreaux's New Drug Store" className="h-[38px]" />
+          <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[38px]" />
         </Link>
         <div className="flex items-center gap-4">
           <div className="w-9 h-9 rounded-full bg-[var(--green-50)] border border-[var(--border)] flex items-center justify-center cursor-pointer hover:bg-[var(--green-100)] transition-colors" title="Help">
