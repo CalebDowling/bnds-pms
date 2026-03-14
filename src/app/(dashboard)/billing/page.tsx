@@ -52,11 +52,12 @@ async function BillingPageContent({
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold text-gray-400 uppercase">Outstanding</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalOutstanding}</p>
+          <p className={`text-2xl font-bold mt-1 ${stats.totalOutstanding > 0 ? "text-orange-600" : "text-gray-900"}`}>${stats.totalOutstanding.toFixed(2)}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold text-gray-400 uppercase">Payments (Month)</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">{stats.paymentsThisMonth}</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">${stats.paymentsThisMonthAmount.toFixed(2)}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{stats.paymentsThisMonth} transactions</p>
         </div>
       </div>
 
@@ -128,14 +129,22 @@ async function ClaimsTab({ search, page, status }: { search: string; page: numbe
               <tbody className="divide-y divide-gray-100">
                 {claims.map((c) => {
                   const si = CLAIM_STATUS[c.status] || { label: c.status, color: "bg-gray-100 text-gray-700" };
+                  const fill = c.fills?.[0];
+                  const drugName = fill?.prescription?.item?.name || fill?.prescription?.formula?.name || "—";
+                  const rxNumber = fill?.prescription?.rxNumber;
                   return (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-sm font-mono text-gray-900">{c.claimNumber || "—"}</td>
+                    <tr key={c.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => {}}>
+                      <td className="px-4 py-3">
+                        <Link href={`/billing/${c.id}`} className="text-sm font-mono text-[#40721D] hover:underline">{c.claimNumber || c.id.slice(0, 8)}</Link>
+                      </td>
                       <td className="px-4 py-3">
                         <p className="text-sm text-gray-900">{c.insurance.patient.lastName}, {c.insurance.patient.firstName}</p>
                         <p className="text-xs text-gray-400 font-mono">{c.insurance.patient.mrn}</p>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">—</td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-gray-900">{drugName}</p>
+                        {rxNumber && <p className="text-xs text-gray-400">Rx# {rxNumber}</p>}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{c.insurance.thirdPartyPlan?.planName || "—"}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 font-medium">${Number(c.amountBilled).toFixed(2)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{c.amountPaid ? `$${Number(c.amountPaid).toFixed(2)}` : "—"}</td>

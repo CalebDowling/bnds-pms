@@ -37,6 +37,18 @@ export async function getClaims({
             patient: { select: { id: true, firstName: true, lastName: true, mrn: true } },
           },
         },
+        fills: {
+          take: 1,
+          include: {
+            prescription: {
+              select: {
+                rxNumber: true,
+                item: { select: { name: true } },
+                formula: { select: { name: true } },
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       skip,
@@ -194,12 +206,25 @@ export async function getBillingStats() {
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  const [pendingClaims, rejectedClaims, paymentsThisMonth, totalOutstanding] = await Promise.all([
+  const [pendingClaims, rejectedClaims, paymentsThisMonth, outstandingAgg] = await Promise.all([
     prisma.claim.count({ where: { status: "pending" } }),
     prisma.claim.count({ where: { status: "rejected" } }),
-    prisma.payment.count({ where: { processedAt: { gte: startOfMonth } } }),
-    prisma.claim.count({ where: { status: { in: ["submitted", "pending"] } } }),
+    prisma.payment.aggregate({
+      where: { processedAt: { gte: startOfMonth }, status: "completed" },
+      _sum: { amount: true },
+      _count: true,
+    }),
+    prisma.claim.aggregate({
+      where: { status: { in: ["submitted", "pending"] } },
+      _sum: { amountBilled: true },
+    }),
   ]);
 
-  return { pendingClaims, rejectedClaims, paymentsThisMonth, totalOutstanding };
+  return {
+    pendingClaims,
+    rejectedClaims,
+    paymentsThisMonth: paymentsThisMonth._count,
+    paymentsThisMonthAmount: Number(paymentsThisMonth._sum.amount || 0),
+    totalOutstanding: Number(outstandingAgg._sum.amountBilled || 0),
+  };
 }

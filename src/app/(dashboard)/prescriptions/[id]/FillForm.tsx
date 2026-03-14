@@ -106,26 +106,51 @@ export default function FillForm({
           {isCompound ? (
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-600 mb-1">Batch</label>
-              <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} className={inputClass}>
-                <option value="">Select batch...</option>
-                {batches.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.batchNumber} — {Number(b.quantityPrepared)} prepared — {b.status}
-                  </option>
-                ))}
-              </select>
+              {batches.length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-xs text-yellow-800">
+                  No verified or completed batches available. A batch must be compounded and verified before filling.
+                </div>
+              ) : (
+                <>
+                  <select value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)} className={inputClass}>
+                    <option value="">Select batch...</option>
+                    {batches.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.batchNumber} — {Number(b.quantityPrepared)} prepared — {b.status === "verified" ? "✓ Verified" : b.status}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedBatch && batches.find(b => b.id === selectedBatch)?.status !== "verified" && (
+                    <p className="text-xs text-yellow-700 mt-1">⚠ This batch is not yet verified by a pharmacist. Verification is recommended before dispensing.</p>
+                  )}
+                </>
+              )}
             </div>
           ) : (
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-600 mb-1">Lot</label>
-              <select value={selectedLot} onChange={(e) => setSelectedLot(e.target.value)} className={inputClass}>
-                <option value="">Select lot...</option>
-                {lots.map(l => (
-                  <option key={l.id} value={l.id}>
-                    {l.lotNumber} — {l.quantityOnHand} on hand — exp {l.expirationDate}
-                  </option>
-                ))}
-              </select>
+              {lots.length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-xs text-yellow-800">
+                  No available inventory lots for this item. Check inventory or receive new stock.
+                </div>
+              ) : (
+                <>
+                  <select value={selectedLot} onChange={(e) => setSelectedLot(e.target.value)} className={inputClass}>
+                    <option value="">Select lot...</option>
+                    {lots.map(l => (
+                      <option key={l.id} value={l.id}>
+                        {l.lotNumber} — {l.quantityOnHand} on hand — exp {l.expirationDate}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedLot && quantity && (() => {
+                    const lot = lots.find(l => l.id === selectedLot);
+                    return lot && parseFloat(quantity) > lot.quantityOnHand ? (
+                      <p className="text-xs text-red-700 mt-1">⚠ Fill quantity ({quantity}) exceeds available quantity ({lot.quantityOnHand})</p>
+                    ) : null;
+                  })()}
+                </>
+              )}
             </div>
           )}
           <div>
