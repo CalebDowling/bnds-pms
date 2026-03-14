@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPrescriber } from "@/app/(dashboard)/prescriptions/prescriber-actions";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
@@ -11,7 +12,7 @@ const US_STATES = [
   "VA","WA","WV","WI","WY","DC",
 ];
 
-export default function NewPrescriberPage() {
+function NewPrescriberPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -219,5 +220,12 @@ export default function NewPrescriberPage() {
         </div>
       </form>
     </div>
+  );
+}
+export default function NewPrescriberPage() {
+  return (
+    <PermissionGuard resource="prescriptions" action="write">
+      <NewPrescriberPageContent />
+    </PermissionGuard>
   );
 }

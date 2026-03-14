@@ -3,8 +3,9 @@ import Link from "next/link";
 import { getPatient } from "../actions";
 import { formatDate, formatPhone, calculateAge, getInitials } from "@/lib/utils";
 import PatientTabs from "./PatientTabs";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default async function PatientDetailPage({
+async function PatientDetailPageContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -148,5 +149,16 @@ export default async function PatientDetailPage({
       {/* Tabbed Content */}
       <PatientTabs patient={patient} />
     </div>
+  );
+}
+export default function PatientDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <PermissionGuard resource="patients" action="read">
+      <PatientDetailPageContent params={params} />
+    </PermissionGuard>
   );
 }

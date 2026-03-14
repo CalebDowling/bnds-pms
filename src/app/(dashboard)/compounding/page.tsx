@@ -4,6 +4,7 @@ import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import { Suspense } from "react";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const BATCH_STATUS: Record<string, { label: string; color: string }> = {
   in_progress: { label: "In Progress", color: "bg-blue-50 text-blue-700" },
@@ -13,7 +14,7 @@ const BATCH_STATUS: Record<string, { label: string; color: string }> = {
   quarantined: { label: "Quarantined", color: "bg-orange-50 text-orange-700" },
 };
 
-export default async function CompoundingPage({
+async function CompoundingPageContent({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string; search?: string; page?: string; status?: string }>;
@@ -263,5 +264,16 @@ async function BatchesTab({ search, page, status }: { search: string; page: numb
         </div>
       </div>
     </>
+  );
+}
+export default function CompoundingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; search?: string; page?: string; status?: string }>;
+}) {
+  return (
+    <PermissionGuard resource="compounding" action="read">
+      <CompoundingPageContent searchParams={searchParams} />
+    </PermissionGuard>
   );
 }

@@ -3,7 +3,9 @@ import { getItems, getInventoryStats } from "./actions";
 import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
+import ExportButton from "@/components/ui/ExportButton";
 import { Suspense } from "react";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const CATEGORY_FILTERS = [
   { value: "all", label: "All Items" },
@@ -12,7 +14,7 @@ const CATEGORY_FILTERS = [
   { value: "refrigerated", label: "Refrigerated" },
 ];
 
-export default async function InventoryPage({
+async function InventoryPageContent({
   searchParams,
 }: {
   searchParams: Promise<{ search?: string; page?: string; category?: string }>;
@@ -35,12 +37,23 @@ export default async function InventoryPage({
           <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
           <p className="text-sm text-gray-500 mt-1">{stats.totalItems} items in catalog</p>
         </div>
-        <Link
-          href="/inventory/new"
-          className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
-        >
-          + Add Item
-        </Link>
+        <div className="flex items-center gap-3">
+          <ExportButton
+            endpoint="/api/export/inventory"
+            filename={`inventory_${new Date().toISOString().split("T")[0]}`}
+            sheetName="Inventory"
+            params={{
+              category,
+              search,
+            }}
+          />
+          <Link
+            href="/inventory/new"
+            className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
+          >
+            + Add Item
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -176,5 +189,16 @@ export default async function InventoryPage({
         </div>
       </div>
     </div>
+  );
+}
+export default function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; page?: string; category?: string }>;
+}) {
+  return (
+    <PermissionGuard resource="inventory" action="read">
+      <InventoryPageContent searchParams={searchParams} />
+    </PermissionGuard>
   );
 }

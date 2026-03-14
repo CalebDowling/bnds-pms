@@ -4,8 +4,9 @@ import { getFormula } from "@/app/(dashboard)/compounding/actions";
 import { formatDate } from "@/lib/utils";
 import { getCurrentUser } from "@/lib/auth";
 import NewVersionForm from "./NewVersionForm";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default async function FormulaDetailPage({
+async function FormulaDetailPageContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -236,5 +237,12 @@ export default async function FormulaDetailPage({
         </div>
       </div>
     </div>
+  );
+}
+export default function FormulaDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <PermissionGuard resource="compounding" action="read">
+      <FormulaDetailPageContent params={params} />
+    </PermissionGuard>
   );
 }

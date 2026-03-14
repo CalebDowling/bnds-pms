@@ -3,6 +3,8 @@ import { getPatients } from "./actions";
 import { formatDate, formatPhone, calculateAge, getInitials } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
+import ExportButton from "@/components/ui/ExportButton";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 import { Suspense } from "react";
 
 export default async function PatientsPage({
@@ -17,7 +19,7 @@ export default async function PatientsPage({
 
   const { patients, total, pages } = await getPatients({ search, status, page });
 
-  return (
+  const content = (
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -25,12 +27,23 @@ export default async function PatientsPage({
           <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
           <p className="text-sm text-gray-500 mt-1">{total} patients</p>
         </div>
-        <Link
-          href="/patients/new"
-          className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
-        >
-          + Add Patient
-        </Link>
+        <div className="flex items-center gap-3">
+          <ExportButton
+            endpoint="/api/export/patients"
+            filename={`patients_${new Date().toISOString().split("T")[0]}`}
+            sheetName="Patients"
+            params={{
+              status,
+              search,
+            }}
+          />
+          <Link
+            href="/patients/new"
+            className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
+          >
+            + Add Patient
+          </Link>
+        </div>
       </div>
 
       {/* Search & Filters */}
@@ -166,5 +179,11 @@ export default async function PatientsPage({
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <PermissionGuard resource="patients" action="read">
+      {content}
+    </PermissionGuard>
   );
 }

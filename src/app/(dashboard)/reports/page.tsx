@@ -1,8 +1,10 @@
 import { getDailyFillReport, getInventoryReport, getBatchReport } from "./actions";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
+import ReportsExportButton from "@/components/dashboard/ReportsExportButton";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default async function ReportsPage({
+async function ReportsPageContent({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string; date?: string; startDate?: string; endDate?: string }>;
@@ -50,7 +52,7 @@ async function DailyFillsTab({ date }: { date?: string }) {
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center justify-between gap-4 mb-4">
         <form className="flex items-center gap-2">
           <label className="text-sm text-gray-600">Date:</label>
           <input type="date" name="date" defaultValue={targetDate}
@@ -58,7 +60,10 @@ async function DailyFillsTab({ date }: { date?: string }) {
           <input type="hidden" name="tab" value="fills" />
           <button type="submit" className="px-3 py-1.5 bg-[#40721D] text-white text-sm rounded-lg hover:bg-[#2D5114]">Go</button>
         </form>
-        <p className="text-sm text-gray-500">{fills.length} fill(s) on {targetDate}</p>
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-gray-500">{fills.length} fill(s) on {targetDate}</p>
+          <ReportsExportButton tab="fills" date={targetDate} />
+        </div>
       </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full">
@@ -130,23 +135,26 @@ async function InventoryTab() {
 
   return (
     <div>
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Total Items</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{items.length}</p>
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="grid grid-cols-4 gap-4 flex-1">
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase">Total Items</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{items.length}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-red-200 p-4">
+            <p className="text-xs font-semibold text-red-400 uppercase">Low Stock</p>
+            <p className="text-2xl font-bold text-red-600 mt-1">{lowStock.length}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-yellow-200 p-4">
+            <p className="text-xs font-semibold text-yellow-500 uppercase">Expiring (90d)</p>
+            <p className="text-2xl font-bold text-yellow-600 mt-1">{expiring.length}</p>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase">Compound Items</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{items.filter(i => i.isCompoundIngredient).length}</p>
+          </div>
         </div>
-        <div className="bg-white rounded-xl border border-red-200 p-4">
-          <p className="text-xs font-semibold text-red-400 uppercase">Low Stock</p>
-          <p className="text-2xl font-bold text-red-600 mt-1">{lowStock.length}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-yellow-200 p-4">
-          <p className="text-xs font-semibold text-yellow-500 uppercase">Expiring (90d)</p>
-          <p className="text-2xl font-bold text-yellow-600 mt-1">{expiring.length}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Compound Items</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{items.filter(i => i.isCompoundIngredient).length}</p>
-        </div>
+        <ReportsExportButton tab="inventory" />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -211,7 +219,7 @@ async function BatchTab({ startDate, endDate }: { startDate?: string; endDate?: 
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center justify-between gap-4 mb-4">
         <form className="flex items-center gap-2">
           <label className="text-sm text-gray-600">From:</label>
           <input type="date" name="startDate" defaultValue={start}
@@ -222,7 +230,10 @@ async function BatchTab({ startDate, endDate }: { startDate?: string; endDate?: 
           <input type="hidden" name="tab" value="batches" />
           <button type="submit" className="px-3 py-1.5 bg-[#40721D] text-white text-sm rounded-lg hover:bg-[#2D5114]">Go</button>
         </form>
-        <p className="text-sm text-gray-500">{batches.length} batch(es)</p>
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-gray-500">{batches.length} batch(es)</p>
+          <ReportsExportButton tab="batches" startDate={start} endDate={end} />
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -269,5 +280,16 @@ async function BatchTab({ startDate, endDate }: { startDate?: string; endDate?: 
         </table>
       </div>
     </div>
+  );
+}
+export default function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; date?: string; startDate?: string; endDate?: string }>;
+}) {
+  return (
+    <PermissionGuard resource="reports" action="read">
+      <ReportsPageContent searchParams={searchParams} />
+    </PermissionGuard>
   );
 }

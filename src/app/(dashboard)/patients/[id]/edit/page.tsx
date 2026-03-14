@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { getPatient } from "../../actions";
 import PatientForm from "../../PatientForm";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default async function EditPatientPage({
+async function EditPatientPageContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -39,5 +40,12 @@ export default async function EditPatientPage({
         }}
       />
     </div>
+  );
+}
+export default function EditPatientPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <PermissionGuard resource="patients" action="write">
+      <EditPatientPageContent params={params} />
+    </PermissionGuard>
   );
 }

@@ -4,8 +4,9 @@ import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import { Suspense } from "react";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default async function PosPage({
+async function PosPageContent({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string; search?: string; page?: string }>;
@@ -178,5 +179,16 @@ async function SessionsTab({ page }: { page: number }) {
         <Suspense fallback={null}><Pagination total={total} pages={pages} page={page} basePath="/pos?tab=sessions" /></Suspense>
       </div>
     </div>
+  );
+}
+export default function PosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; search?: string; page?: string }>;
+}) {
+  return (
+    <PermissionGuard resource="pos" action="read">
+      <PosPageContent searchParams={searchParams} />
+    </PermissionGuard>
   );
 }

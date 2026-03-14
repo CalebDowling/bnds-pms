@@ -4,8 +4,9 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createBatch } from "@/app/(dashboard)/compounding/actions";
 import { searchFormulas } from "@/app/(dashboard)/compounding/actions";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default function NewBatchPage() {
+function NewBatchPageContent() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center py-12">
@@ -217,5 +218,12 @@ function NewBatchContent() {
         </div>
       </form>
     </div>
+  );
+}
+export default function NewBatchPage() {
+  return (
+    <PermissionGuard resource="compounding" action="write">
+      <NewBatchPageContent />
+    </PermissionGuard>
   );
 }

@@ -4,6 +4,7 @@ import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import { Suspense } from "react";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const CLAIM_STATUS: Record<string, { label: string; color: string }> = {
   pending: { label: "Pending", color: "bg-yellow-50 text-yellow-700" },
@@ -17,7 +18,7 @@ const CLAIM_STATUS: Record<string, { label: string; color: string }> = {
 
 const CLAIM_FILTERS = ["all", "pending", "submitted", "paid", "rejected"];
 
-export default async function BillingPage({
+async function BillingPageContent({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string; search?: string; page?: string; status?: string }>;
@@ -218,5 +219,16 @@ async function PaymentsTab({ search, page }: { search: string; page: number }) {
         </div>
       </div>
     </>
+  );
+}
+export default function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; search?: string; page?: string; status?: string }>;
+}) {
+  return (
+    <PermissionGuard resource="billing" action="read">
+      <BillingPageContent searchParams={searchParams} />
+    </PermissionGuard>
   );
 }

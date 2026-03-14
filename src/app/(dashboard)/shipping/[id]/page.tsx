@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getShipment } from "@/app/(dashboard)/shipping/actions";
 import { formatDate, formatPhone } from "@/lib/utils";
 import ShipmentActions from "./ShipmentActions";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   pending: { label: "Pending", color: "bg-yellow-50 text-yellow-700" },
@@ -14,7 +15,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   cancelled: { label: "Cancelled", color: "bg-gray-100 text-gray-500" },
 };
 
-export default async function ShipmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+async function ShipmentDetailPageContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const shipment = await getShipment(id);
   if (!shipment) notFound();
@@ -159,5 +160,12 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
         </div>
       </div>
     </div>
+  );
+}
+export default function ShipmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <PermissionGuard resource="shipping" action="read">
+      <ShipmentDetailPageContent params={params} />
+    </PermissionGuard>
   );
 }

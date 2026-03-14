@@ -1,6 +1,7 @@
 import PatientForm from "../PatientForm";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default function NewPatientPage() {
+function NewPatientPageContent() {
   return (
     <div>
       <div className="mb-6">
@@ -9,5 +10,12 @@ export default function NewPatientPage() {
       </div>
       <PatientForm />
     </div>
+  );
+}
+export default function NewPatientPage() {
+  return (
+    <PermissionGuard resource="patients" action="write">
+      <NewPatientPageContent />
+    </PermissionGuard>
   );
 }

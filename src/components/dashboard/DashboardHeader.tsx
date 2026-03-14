@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { usePermissions } from "@/components/providers/PermissionsProvider";
 
 interface UserInfo {
   firstName: string;
@@ -14,13 +15,14 @@ interface UserInfo {
 const navTabs = [
   { label: "Workflow", href: "/dashboard" },
   { label: "Phone", href: "/phone" },
-  { label: "Reports", href: "/reports" },
-  { label: "Settings", href: "/settings" },
+  { label: "Reports", href: "/reports", resource: "reports" as const, action: "read" as const },
+  { label: "Settings", href: "/settings", resource: "settings" as const, action: "read" as const },
 ];
 
 export default function DashboardHeader() {
   const pathname = usePathname();
   const [user, setUser] = useState<UserInfo | null>(null);
+  const { canAccess } = usePermissions();
 
   useEffect(() => {
     const supabase = createClient();
@@ -56,30 +58,39 @@ export default function DashboardHeader() {
 
         {/* Center: Nav tabs */}
         <nav className="flex items-center gap-1">
-          {navTabs.map((tab) => (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={`px-4 py-1.5 rounded-md text-[13px] font-semibold no-underline transition-all ${
-                isActive(tab.href)
-                  ? "bg-white/20 text-white"
-                  : "text-white/75 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          ))}
+          {navTabs.map((tab) => {
+            // Check if tab has permission requirements
+            if (tab.resource && !canAccess(tab.resource, tab.action)) {
+              return null;
+            }
+
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`px-4 py-1.5 rounded-md text-[13px] font-semibold no-underline transition-all ${
+                  isActive(tab.href)
+                    ? "bg-white/20 text-white"
+                    : "text-white/75 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Right: Actions + User */}
         <div className="flex items-center gap-3">
-          <Link
-            href="/prescriptions/new"
-            className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-bold bg-[#4cb868] hover:bg-[#3da557] text-white no-underline transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            New Prescription
-          </Link>
+          {canAccess("prescriptions", "write") && (
+            <Link
+              href="/prescriptions/new"
+              className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-bold bg-[#4cb868] hover:bg-[#3da557] text-white no-underline transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Prescription
+            </Link>
+          )}
 
           {/* Notification bell */}
           <div className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors" title="Notifications">

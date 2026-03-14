@@ -1,7 +1,12 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Use standalone output for Docker deployments, skip for Vercel
   ...(process.env.VERCEL ? {} : { output: "standalone" }),
+
+  // Turbopack config (Next.js 16 default bundler) — required when webpack config also present
+  turbopack: {},
 
   experimental: {
     serverActions: {
@@ -63,4 +68,16 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// Only wrap with Sentry when DSN is configured — avoids build issues when Sentry isn't set up yet
+const sentryEnabled = !!process.env.NEXT_PUBLIC_SENTRY_DSN;
+
+export default sentryEnabled
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: !(process.env.CI === "true"),
+      widenClientFileUpload: true,
+      tunnelRoute: "/monitoring",
+      hideSourceMaps: true,
+    })
+  : nextConfig;

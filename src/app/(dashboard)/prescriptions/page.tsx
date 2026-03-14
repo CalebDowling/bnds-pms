@@ -3,6 +3,8 @@ import { getPrescriptions } from "./actions";
 import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
+import ExportButton from "@/components/ui/ExportButton";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 import { Suspense } from "react";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -33,7 +35,7 @@ const STATUS_FILTERS = [
   { value: "shipped", label: "Shipped" },
 ];
 
-export default async function PrescriptionsPage({
+async function PrescriptionsContent({
   searchParams,
 }: {
   searchParams: Promise<{ search?: string; page?: string; status?: string }>;
@@ -53,12 +55,23 @@ export default async function PrescriptionsPage({
           <h1 className="text-2xl font-bold text-gray-900">Prescriptions</h1>
           <p className="text-sm text-gray-500 mt-1">{total} prescriptions</p>
         </div>
-        <Link
-          href="/prescriptions/new"
-          className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
-        >
-          + New Prescription
-        </Link>
+        <div className="flex items-center gap-3">
+          <ExportButton
+            endpoint="/api/export/prescriptions"
+            filename={`prescriptions_${new Date().toISOString().split("T")[0]}`}
+            sheetName="Prescriptions"
+            params={{
+              status,
+              search,
+            }}
+          />
+          <Link
+            href="/prescriptions/new"
+            className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
+          >
+            + New Prescription
+          </Link>
+        </div>
       </div>
 
       {/* Search & Status Filters */}
@@ -108,69 +121,39 @@ export default async function PrescriptionsPage({
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rx #</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Drug / Compound</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Medication</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Prescriber</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Received</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Refills</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Created</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {prescriptions.map((rx) => {
-                  const statusInfo = STATUS_CONFIG[rx.status] || { label: rx.status, color: "bg-gray-100 text-gray-700" };
-                  const drugName = rx.isCompound
-                    ? rx.formula?.name || "Compound"
-                    : rx.item
-                    ? `${rx.item.name} ${rx.item.strength || ""}`
-                    : "—";
-
+                  const statusConfig = STATUS_CONFIG[rx.status] || { label: rx.status, color: "bg-gray-100 text-gray-700" };
                   return (
                     <tr key={rx.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
-                        <Link href={`/prescriptions/${rx.id}`} className="text-sm font-mono text-[#40721D] font-medium hover:underline">
+                        <Link href={`/prescriptions/${rx.id}`} className="text-sm font-mono font-semibold text-[#40721D] hover:underline">
                           {rx.rxNumber}
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/patients/${rx.patient.id}`} className="text-sm text-gray-900 hover:underline">
-                          {rx.patient.lastName}, {rx.patient.firstName}
-                        </Link>
-                        <p className="text-xs text-gray-400 font-mono">{rx.patient.mrn}</p>
+                        <p className="text-sm font-medium text-gray-900">{rx.patient.firstName} {rx.patient.lastName}</p>
+                        <p className="text-xs text-gray-400">{rx.patient.mrn}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-gray-900">{drugName}</p>
-                        {rx.isCompound && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-purple-50 text-purple-700 rounded">
-                            COMPOUND
-                          </span>
-                        )}
+                        <p className="text-sm text-gray-600">{rx.item?.name || rx.formula?.name || "—"}</p>
+                        {rx.item?.strength && <p className="text-xs text-gray-400">{rx.item.strength}</p>}
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-gray-600">
-                          Dr. {rx.prescriber.lastName}{rx.prescriber.suffix ? `, ${rx.prescriber.suffix}` : ""}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {formatDate(rx.dateReceived)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {rx.refillsRemaining}/{rx.refillsAuthorized}
+                        <p className="text-sm text-gray-600">{rx.prescriber.firstName} {rx.prescriber.lastName}{rx.prescriber.suffix ? `, ${rx.prescriber.suffix}` : ""}</p>
                       </td>
                       <td className="px-4 py-3">
-                        {rx.priority === "urgent" || rx.priority === "stat" ? (
-                          <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                            rx.priority === "stat" ? "bg-red-100 text-red-800" : "bg-orange-50 text-orange-700"
-                          }`}>
-                            {rx.priority.toUpperCase()}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">Normal</span>
-                        )}
+                        <span className="text-sm text-gray-600">{formatDate(rx.createdAt)}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${statusInfo.color}`}>
-                          {statusInfo.label}
+                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${statusConfig.color}`}>
+                          {statusConfig.label}
                         </span>
                       </td>
                     </tr>
@@ -187,5 +170,17 @@ export default async function PrescriptionsPage({
         </div>
       </div>
     </div>
+  );
+}
+
+export default async function PrescriptionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; page?: string; status?: string }>;
+}) {
+  return (
+    <PermissionGuard resource="prescriptions" action="read">
+      <PrescriptionsContent searchParams={searchParams} />
+    </PermissionGuard>
   );
 }

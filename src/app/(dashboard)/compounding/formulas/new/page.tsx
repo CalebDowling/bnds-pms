@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createFormula } from "@/app/(dashboard)/compounding/actions";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default function NewFormulaPage() {
+function NewFormulaPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,5 +173,12 @@ export default function NewFormulaPage() {
         </div>
       </form>
     </div>
+  );
+}
+export default function NewFormulaPage() {
+  return (
+    <PermissionGuard resource="compounding" action="write">
+      <NewFormulaPageContent />
+    </PermissionGuard>
   );
 }

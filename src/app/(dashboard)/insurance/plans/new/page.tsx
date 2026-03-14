@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPlan } from "../../actions";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default function NewPlanPage() {
+function NewPlanPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,5 +77,12 @@ export default function NewPlanPage() {
         </div>
       </form>
     </div>
+  );
+}
+export default function NewPlanPage() {
+  return (
+    <PermissionGuard resource="insurance" action="write">
+      <NewPlanPageContent />
+    </PermissionGuard>
   );
 }

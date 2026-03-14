@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createShipment } from "@/app/(dashboard)/shipping/actions";
 import { searchPatients } from "@/app/(dashboard)/prescriptions/actions";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default function NewShipmentPage() {
+function NewShipmentPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,5 +180,12 @@ export default function NewShipmentPage() {
         </div>
       </form>
     </div>
+  );
+}
+export default function NewShipmentPage() {
+  return (
+    <PermissionGuard resource="shipping" action="write">
+      <NewShipmentPageContent />
+    </PermissionGuard>
   );
 }

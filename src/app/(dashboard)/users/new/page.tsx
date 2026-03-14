@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createUser, getRoles, createRole } from "../actions";
+import { getRoles, createRole } from "../actions";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default function NewUserPage() {
+function NewUserPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [roles, setRoles] = useState<any[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [showNewRole, setShowNewRole] = useState(false);
@@ -41,17 +43,53 @@ export default function NewUserPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       if (!form.email.trim()) throw new Error("Email is required");
       if (!form.firstName.trim()) throw new Error("First name is required");
       if (!form.lastName.trim()) throw new Error("Last name is required");
 
-      const result = await createUser({ ...form, roleIds: selectedRoles });
-      router.push(`/users/${result.user.id}`);
-      router.refresh();
+      const response = await fetch("/api/users/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          roles: selectedRoles,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to invite user");
+      }
+
+      const data = await response.json();
+
+      // Show success message
+      setError(null);
+      setSuccess(
+        `Invitation sent to ${form.email}. They'll receive an email to set their password.`
+      );
+      setForm({
+        email: "",
+        firstName: "",
+        lastName: "",
+        phone: "",
+        department: "",
+        isPharmacist: false,
+        licenseNumber: "",
+        pin: "",
+      });
+      setSelectedRoles([]);
+
+      // Redirect after a short delay to show success
+      setTimeout(() => {
+        router.push(`/users/${data.user.id}`);
+        router.refresh();
+      }, 2000);
     } catch (err: any) {
-      setError(err.message || "Failed to create user");
+      setError(err.message || "Failed to invite user");
       setLoading(false);
     }
   }
@@ -66,7 +104,16 @@ export default function NewUserPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">{error}</div>}
+        {error && (
+          <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="bg-green-50 text-green-700 text-sm px-4 py-3 rounded-lg border border-green-200">
+            ✓ {success}
+          </div>
+        )}
 
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h2>
@@ -170,5 +217,12 @@ export default function NewUserPage() {
         </div>
       </form>
     </div>
+  );
+}
+export default function NewUserPage() {
+  return (
+    <PermissionGuard resource="users" action="write">
+      <NewUserPageContent />
+    </PermissionGuard>
   );
 }

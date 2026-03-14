@@ -3,8 +3,9 @@ import Link from "next/link";
 import { getItem } from "@/app/(dashboard)/inventory/actions";
 import { formatDate } from "@/lib/utils";
 import ReceiveLotForm from "./ReceiveLotForm";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default async function ItemDetailPage({
+async function ItemDetailPageContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -232,5 +233,12 @@ export default async function ItemDetailPage({
         </div>
       </div>
     </div>
+  );
+}
+export default function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <PermissionGuard resource="inventory" action="read">
+      <ItemDetailPageContent params={params} />
+    </PermissionGuard>
   );
 }

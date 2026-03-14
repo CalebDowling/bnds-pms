@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import BatchStatusBar from "./BatchStatusBar";
 import WeighIngredientForm from "./WeighIngredientForm";
 import QaCheckForm from "./QaCheckForm";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   in_progress: { label: "In Progress", color: "bg-yellow-50 text-yellow-700" },
@@ -14,7 +15,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   failed: { label: "Failed", color: "bg-red-50 text-red-700" },
 };
 
-export default async function BatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
+async function BatchDetailPageContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const batch = await getBatch(id);
   if (!batch) notFound();
@@ -277,5 +278,12 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
     </div>
+  );
+}
+export default function BatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <PermissionGuard resource="compounding" action="read">
+      <BatchDetailPageContent params={params} />
+    </PermissionGuard>
   );
 }

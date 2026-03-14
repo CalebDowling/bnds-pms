@@ -3,8 +3,9 @@ import { getUsers, getRoles, createRole } from "./actions";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import { formatDate } from "@/lib/utils";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default async function UsersPage({
+async function UsersPageContent({
   searchParams,
 }: { searchParams: Promise<{ search?: string; page?: string }> }) {
   const params = await searchParams;
@@ -94,5 +95,16 @@ export default async function UsersPage({
         )}
       </div>
     </div>
+  );
+}
+export default function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; page?: string }>;
+}) {
+  return (
+    <PermissionGuard resource="users" action="read">
+      <UsersPageContent searchParams={searchParams} />
+    </PermissionGuard>
   );
 }

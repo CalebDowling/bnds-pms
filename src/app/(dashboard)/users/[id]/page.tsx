@@ -3,8 +3,9 @@ import Link from "next/link";
 import { getUser, getRoles } from "../actions";
 import { formatDate } from "@/lib/utils";
 import UserEditForm from "./UserEditForm";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
+async function UserDetailPageContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [user, roles] = await Promise.all([getUser(id), getRoles()]);
   if (!user) notFound();
@@ -50,5 +51,12 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
 
       <UserEditForm user={user} roles={roles} />
     </div>
+  );
+}
+export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <PermissionGuard resource="users" action="read">
+      <UserDetailPageContent params={params} />
+    </PermissionGuard>
   );
 }

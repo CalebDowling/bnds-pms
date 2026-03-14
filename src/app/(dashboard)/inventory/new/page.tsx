@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createItem } from "@/app/(dashboard)/inventory/actions";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default function NewItemPage() {
+function NewItemPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -231,5 +232,12 @@ export default function NewItemPage() {
         </div>
       </form>
     </div>
+  );
+}
+export default function NewItemPage() {
+  return (
+    <PermissionGuard resource="inventory" action="write">
+      <NewItemPageContent />
+    </PermissionGuard>
   );
 }

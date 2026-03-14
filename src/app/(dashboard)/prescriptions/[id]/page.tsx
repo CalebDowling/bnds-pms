@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import PrescriptionStatusBar from "./PrescriptionStatusBar";
 import FillForm from "./FillForm";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   intake: { label: "Intake", color: "bg-gray-100 text-gray-700" },
@@ -23,7 +24,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   cancelled: { label: "Cancelled", color: "bg-gray-100 text-gray-500" },
 };
 
-export default async function PrescriptionDetailPage({
+async function PrescriptionDetailPageContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -310,5 +311,16 @@ export default async function PrescriptionDetailPage({
         </div>
       </div>
     </div>
+  );
+}
+export default function PrescriptionDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <PermissionGuard resource="prescriptions" action="read">
+      <PrescriptionDetailPageContent params={params} />
+    </PermissionGuard>
   );
 }

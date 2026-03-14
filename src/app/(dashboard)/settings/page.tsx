@@ -1,6 +1,7 @@
 import Link from "next/link";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default function SettingsPage() {
+function SettingsPageContent() {
   return (
     <div>
       <div className="mb-6">
@@ -10,6 +11,18 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pharmacy Info */}
+        {/* Audit Log */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Audit Log</h2>
+          <p className="text-sm text-gray-500 mb-4">View system activity and user actions</p>
+          <Link
+            href="/settings/audit-log"
+            className="inline-flex items-center px-4 py-2 rounded-lg bg-[#40721D] text-white text-sm font-medium hover:bg-[#2D5114] transition-colors"
+          >
+            View Audit Log →
+          </Link>
+        </div>
+
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Pharmacy Information</h2>
           <dl className="space-y-3">
@@ -140,5 +153,12 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+export default function SettingsPage() {
+  return (
+    <PermissionGuard resource="settings" action="read">
+      <SettingsPageContent />
+    </PermissionGuard>
   );
 }

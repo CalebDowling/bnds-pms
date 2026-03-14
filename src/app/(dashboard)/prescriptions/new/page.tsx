@@ -6,8 +6,9 @@ import { createPrescription, searchPatients } from "@/app/(dashboard)/prescripti
 import { searchPrescribers } from "@/app/(dashboard)/prescriptions/prescriber-actions";
 import { searchItems } from "@/app/(dashboard)/inventory/actions";
 import { searchFormulas } from "@/app/(dashboard)/compounding/actions";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default function NewPrescriptionPage() {
+function NewPrescriptionPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -292,5 +293,12 @@ export default function NewPrescriptionPage() {
         </div>
       </form>
     </div>
+  );
+}
+export default function NewPrescriptionPage() {
+  return (
+    <PermissionGuard resource="prescriptions" action="write">
+      <NewPrescriptionPageContent />
+    </PermissionGuard>
   );
 }

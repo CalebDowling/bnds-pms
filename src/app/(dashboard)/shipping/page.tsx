@@ -4,6 +4,7 @@ import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import { Suspense } from "react";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   pending: { label: "Pending", color: "bg-yellow-50 text-yellow-700" },
@@ -17,7 +18,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 const STATUS_FILTERS = ["all", "pending", "packed", "shipped", "in_transit", "delivered", "returned"];
 
-export default async function ShippingPage({
+async function ShippingPageContent({
   searchParams,
 }: {
   searchParams: Promise<{ search?: string; page?: string; status?: string }>;
@@ -149,5 +150,16 @@ export default async function ShippingPage({
         </div>
       </div>
     </div>
+  );
+}
+export default function ShippingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; page?: string; status?: string }>;
+}) {
+  return (
+    <PermissionGuard resource="shipping" action="read">
+      <ShippingPageContent searchParams={searchParams} />
+    </PermissionGuard>
   );
 }

@@ -2,8 +2,9 @@ import Link from "next/link";
 import { getPlans } from "./actions";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
+import PermissionGuard from "@/components/auth/PermissionGuard";
 
-export default async function InsurancePage({
+async function InsurancePageContent({
   searchParams,
 }: { searchParams: Promise<{ search?: string; page?: string }> }) {
   const params = await searchParams;
@@ -67,5 +68,16 @@ export default async function InsurancePage({
       </div>
       {pages > 1 && <div className="mt-4"><Pagination total={total} pages={pages} page={page} basePath="/insurance" /></div>}
     </div>
+  );
+}
+export default function InsurancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; page?: string }>;
+}) {
+  return (
+    <PermissionGuard resource="insurance" action="read">
+      <InsurancePageContent searchParams={searchParams} />
+    </PermissionGuard>
   );
 }
