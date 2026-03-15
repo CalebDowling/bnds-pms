@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -10,6 +10,15 @@ interface UserInfo {
   firstName: string;
   lastName: string;
   isPharmacist: boolean;
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 const navTabs = [
@@ -22,8 +31,85 @@ const navTabs = [
 export default function DashboardHeader() {
   const pathname = usePathname();
   const [user, setUser] = useState<UserInfo | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
   const { canAccess } = usePermissions();
 
+  // Fetch unread count
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await fetch("/api/notifications/unread-count");
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch unread count:", error);
+    }
+  };
+
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    setLoadingNotifications(true);
+    try {
+      const response = await fetch("/api/notifications?limit=10&unreadOnly=true");
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  // Mark notifications as read
+  const handleMarkAsRead = async (notificationIds: string[]) => {
+    try {
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationIds }),
+      });
+      fetchUnreadCount();
+      fetchNotifications();
+    } catch (error) {
+      console.error("Failed to mark notifications as read:", error);
+    }
+  };
+
+  // Mark all as read
+  const handleMarkAllAsRead = async () => {
+    try {
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markAll: true }),
+      });
+      fetchUnreadCount();
+      fetchNotifications();
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotificationDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Initial load
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user: authUser } }) => {
@@ -35,6 +121,12 @@ export default function DashboardHeader() {
         });
       }
     });
+
+    fetchUnreadCount();
+
+    // Poll for unread count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : "User";
@@ -93,9 +185,117 @@ export default function DashboardHeader() {
           )}
 
           {/* Notification bell */}
-          <div className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors" title="Notifications">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <div className="absolute top-[3px] right-[3px] w-2 h-2 rounded-full bg-[#E74C3C] border-2 border-[#2D5114]" />
+          <div
+            ref={notificationRef}
+            className="relative"
+            title="Notifications"
+          >
+            <button
+              onClick={() => {
+                setShowNotificationDropdown(!showNotificationDropdown);
+                if (!showNotificationDropdown) {
+                  fetchNotifications();
+                }
+              }}
+              className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors relative"
+              aria-label="Notifications"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              {unreadCount > 0 && (
+                <div className="absolute top-[3px] right-[3px] w-5 h-5 rounded-full bg-[#E74C3C] border-2 border-[#2D5114] flex items-center justify-center text-white text-[10px] font-bold">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </div>
+              )}
+            </button>
+
+            {/* Notification dropdown */}
+            {showNotificationDropdown && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50 overflow-hidden">
+                {/* Header */}
+                <div className="bg-[#2D5114] text-white px-4 py-3 flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Notifications</h3>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllAsRead}
+                      className="text-xs text-white/70 hover:text-white"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
+
+                {/* Notifications list */}
+                <div className="max-h-96 overflow-y-auto">
+                  {loadingNotifications ? (
+                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                      Loading...
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                      No unread notifications
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`px-4 py-3 border-b last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors ${
+                          !notification.isRead ? "bg-blue-50" : ""
+                        }`}
+                        onClick={() => {
+                          if (!notification.isRead) {
+                            handleMarkAsRead([notification.id]);
+                          }
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Icon based on type */}
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{
+                            backgroundColor: notification.type === "low_stock" ? "#FFA500" :
+                                           notification.type === "expiring_lot" ? "#FF4444" :
+                                           notification.type === "refill_due" ? "#4CAF50" :
+                                           notification.type === "claim_rejected" ? "#FF6B6B" : "#666"
+                          }}>
+                            {notification.type === "low_stock" && "📦"}
+                            {notification.type === "expiring_lot" && "⏰"}
+                            {notification.type === "refill_due" && "💊"}
+                            {notification.type === "claim_rejected" && "❌"}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm text-gray-900 truncate">
+                              {notification.title}
+                            </h4>
+                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(notification.createdAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+
+                          {!notification.isRead && (
+                            <div className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1" />
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer */}
+                <Link
+                  href="/notifications"
+                  className="block px-4 py-3 text-center text-sm font-semibold text-[#2D5114] hover:bg-gray-50 transition-colors border-t"
+                >
+                  View all notifications
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* User */}
