@@ -76,6 +76,7 @@ export async function getClaim(id: string) {
             include: {
               patient: { select: { firstName: true, lastName: true, mrn: true } },
               item: true,
+              formula: { select: { name: true } },
               prescriber: { select: { firstName: true, lastName: true, npi: true } },
             },
           },
