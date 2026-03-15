@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getClaim, getClaimStatusHistory, lookupRejectionCode, updateClaimStatus } from "../actions";
+import { getClaim, getClaimStatusHistory, updateClaimStatus } from "../actions";
+import { lookupRejectionCode } from "../ncpdp-codes";
 import { formatDate } from "@/lib/utils";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 

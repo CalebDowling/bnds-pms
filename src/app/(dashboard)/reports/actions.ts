@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 
 export async function getDailyFillReport(date?: string) {
   const targetDate = date || new Date().toISOString().split("T")[0];
