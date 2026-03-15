@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import BatchStatusBar from "./BatchStatusBar";
 import WeighIngredientForm from "./WeighIngredientForm";
 import QaCheckForm from "./QaCheckForm";
+import PrintBatchRecordButton from "./PrintBatchRecordButton";
 import type { IngredientLotRecord, BatchFormulaIngredient, BatchQACheck, FormulaStep, BatchIngredient } from "@/types";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
@@ -58,7 +59,10 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
             {" "}({formula.formulaCode}) — v{batch.formulaVersion.versionNumber}
           </p>
         </div>
-        <Link href="/compounding" className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Back to Compounding</Link>
+        <div className="flex items-center gap-2">
+          <PrintBatchRecordButton batchId={batch.id} />
+          <Link href="/compounding" className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Back to Compounding</Link>
+        </div>
       </div>
 
       {/* Status Bar */}
