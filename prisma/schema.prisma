@@ -17,6 +17,7 @@ model Store {
   name          String   @db.VarChar(255)
   npi           String?  @db.VarChar(10)
   dea           String?  @db.VarChar(15)
+  ncpdpId       String?  @map("ncpdp_id") @db.VarChar(10)
   stateLicense  String?  @map("state_license") @db.VarChar(30)
   phone         String?  @db.VarChar(20)
   fax           String?  @db.VarChar(20)
@@ -120,6 +121,7 @@ model User {
   paymentsProcessed Payment[] @relation("PaymentProcessor")
   formulaVersionsCreated FormulaVersion[] @relation("FormulaVersionCreator")
   auditLogs        AuditLog[]
+  claimStatusChanges ClaimStatusLog[] @relation("ClaimStatusChanger")
 
   @@map("users")
 }
@@ -951,14 +953,16 @@ model EligibilityCheck {
 // ═══════════════════════════════════════════════
 
 model ThirdPartyPlan {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  planName  String   @map("plan_name") @db.VarChar(255)
-  bin       String   @db.VarChar(10)
-  pcn       String?  @db.VarChar(20)
-  phone     String?  @db.VarChar(20)
-  planType  String?  @map("plan_type") @db.VarChar(30)
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planName         String   @map("plan_name") @db.VarChar(255)
+  bin              String   @db.VarChar(10)
+  pcn              String?  @db.VarChar(20)
+  phone            String?  @db.VarChar(20)
+  planType         String?  @map("plan_type") @db.VarChar(30)
+  helpDeskPhone    String?  @map("help_desk_phone") @db.VarChar(20)
+  submissionFormat String?  @map("submission_format") @db.VarChar(30)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   patientInsurance PatientInsurance[]
 
@@ -984,11 +988,30 @@ model Claim {
   paidAt           DateTime? @map("paid_at") @db.Timestamptz
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
+  notes            String?  @db.Text
+
   fills            PrescriptionFill[]
   insurance        PatientInsurance @relation(fields: [insuranceId], references: [id])
+  statusLogs       ClaimStatusLog[]
 
   @@index([status])
   @@map("claims")
+}
+
+model ClaimStatusLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claimId     String   @map("claim_id") @db.Uuid
+  fromStatus  String?  @map("from_status") @db.VarChar(20)
+  toStatus    String   @map("to_status") @db.VarChar(20)
+  reason      String?  @db.Text
+  changedBy   String?  @map("changed_by") @db.Uuid
+  changedAt   DateTime @default(now()) @map("changed_at") @db.Timestamptz
+
+  claim       Claim    @relation(fields: [claimId], references: [id])
+  changer     User?    @relation("ClaimStatusChanger", fields: [changedBy], references: [id])
+
+  @@index([claimId])
+  @@map("claim_status_logs")
 }
 
 model ChargeAccount {

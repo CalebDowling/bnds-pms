@@ -38,7 +38,12 @@ async function PrescriptionDetailPageContent({
   let availableLots: any[] = [];
   if (rx.itemId) {
     const lots = await prisma.itemLot.findMany({
-      where: { itemId: rx.itemId, quantityOnHand: { gt: 0 }, status: "available" },
+      where: {
+        itemId: rx.itemId,
+        quantityOnHand: { gt: 0 },
+        status: "available",
+        expirationDate: { gt: new Date() },
+      },
       select: { id: true, lotNumber: true, quantityOnHand: true, expirationDate: true },
       orderBy: { expirationDate: "asc" },
     });

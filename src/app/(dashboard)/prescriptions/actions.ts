@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getCurrentUser } from "@/lib/auth";
 
 // ─── Types ──────────────────────────────────
 
@@ -242,6 +243,8 @@ export async function createFill(
     batchId?: string;
   }
 ) {
+  const user = await getCurrentUser();
+
   const rx = await prisma.prescription.findUnique({
     where: { id: prescriptionId },
     select: { refillsRemaining: true, fills: { select: { fillNumber: true }, orderBy: { fillNumber: "desc" }, take: 1 } },
@@ -255,6 +258,41 @@ export async function createFill(
     throw new Error("No refills remaining");
   }
 
+  // ─── Server-side lot validation ───
+  if (data.itemLotId) {
+    const lot = await prisma.itemLot.findUnique({
+      where: { id: data.itemLotId },
+      select: { quantityOnHand: true, expirationDate: true, status: true },
+    });
+    if (!lot) throw new Error("Inventory lot not found");
+    if (lot.status !== "available") throw new Error("This lot is no longer available");
+    if (lot.expirationDate < new Date()) throw new Error("Cannot dispense from an expired lot");
+    if (Number(lot.quantityOnHand) < data.quantity) {
+      throw new Error(`Insufficient lot quantity: ${Number(lot.quantityOnHand)} available, ${data.quantity} requested`);
+    }
+  }
+
+  // ─── Server-side batch validation ───
+  if (data.batchId) {
+    const batch = await prisma.batch.findUnique({
+      where: { id: data.batchId },
+      select: { status: true, quantityPrepared: true, budDate: true },
+    });
+    if (!batch) throw new Error("Batch not found");
+    if (batch.status !== "verified" && batch.status !== "completed") {
+      throw new Error("Only verified or completed batches can be used for fills");
+    }
+    if (batch.budDate && batch.budDate < new Date()) {
+      throw new Error("Cannot dispense from a batch past its Beyond Use Date");
+    }
+  }
+
+  // ─── Transactional fill creation ───
+  const newQtyOnHand = data.itemLotId
+    ? await prisma.itemLot.findUnique({ where: { id: data.itemLotId }, select: { quantityOnHand: true } })
+        .then(l => l ? Number(l.quantityOnHand) - data.quantity : 0)
+    : null;
+
   const [fill] = await prisma.$transaction([
     prisma.prescriptionFill.create({
       data: {
@@ -267,6 +305,8 @@ export async function createFill(
         ndc: data.ndc || null,
         batchId: data.batchId || null,
         status: "pending",
+        filledBy: user?.id || null,
+        filledAt: new Date(),
       },
     }),
     ...(nextFillNumber > 0
@@ -277,16 +317,34 @@ export async function createFill(
           }),
         ]
       : []),
-    // Decrement inventory lot quantity when dispensing from a specific lot
+    // Decrement inventory lot quantity and auto-deplete if empty
     ...(data.itemLotId
       ? [
           prisma.itemLot.update({
             where: { id: data.itemLotId },
-            data: { quantityOnHand: { decrement: data.quantity } },
+            data: {
+              quantityOnHand: { decrement: data.quantity },
+              ...(newQtyOnHand !== null && newQtyOnHand <= 0 ? { status: "depleted" } : {}),
+            },
           }),
         ]
       : []),
   ]);
+
+  // ─── Log inventory transaction (non-blocking) ───
+  if (data.itemLotId && user) {
+    prisma.inventoryTransaction.create({
+      data: {
+        itemLotId: data.itemLotId,
+        transactionType: "used_fill",
+        quantity: data.quantity,
+        referenceType: "prescription_fill",
+        referenceId: fill.id,
+        performedBy: user.id,
+        notes: `Fill #${nextFillNumber} for Rx ${prescriptionId}`,
+      },
+    }).catch(() => { /* non-critical */ });
+  }
 
   revalidatePath(`/prescriptions/${prescriptionId}`);
   return fill;

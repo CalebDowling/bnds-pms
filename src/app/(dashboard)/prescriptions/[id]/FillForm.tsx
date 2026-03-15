@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createFill } from "@/app/(dashboard)/prescriptions/actions";
 
 type LotOption = {
@@ -52,6 +53,8 @@ export default function FillForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!quantity || parseFloat(quantity) <= 0) { setError("Quantity is required"); return; }
+    if (!isCompound && lots.length > 0 && !selectedLot) { setError("Select an inventory lot before filling"); return; }
+    if (isCompound && batches.length > 0 && !selectedBatch) { setError("Select a compounding batch before filling"); return; }
     setLoading(true);
     setError(null);
 
@@ -108,7 +111,12 @@ export default function FillForm({
               <label className="block text-xs font-medium text-gray-600 mb-1">Batch</label>
               {batches.length === 0 ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-xs text-yellow-800">
-                  No verified or completed batches available. A batch must be compounded and verified before filling.
+                  No verified or completed batches available.{" "}
+                  {formulaId && (
+                    <Link href={`/compounding?formulaId=${formulaId}`} className="underline font-medium text-yellow-900 hover:text-yellow-700">
+                      Start a new batch →
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <>
@@ -131,7 +139,12 @@ export default function FillForm({
               <label className="block text-xs font-medium text-gray-600 mb-1">Lot</label>
               {lots.length === 0 ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 text-xs text-yellow-800">
-                  No available inventory lots for this item. Check inventory or receive new stock.
+                  No available inventory lots for this item.{" "}
+                  {itemId && (
+                    <Link href={`/inventory/${itemId}`} className="underline font-medium text-yellow-900 hover:text-yellow-700">
+                      Receive new stock →
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <>

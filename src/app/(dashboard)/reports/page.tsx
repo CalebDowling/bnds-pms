@@ -1,4 +1,4 @@
-import { getDailyFillReport, getInventoryReport, getBatchReport } from "./actions";
+import { getDailyFillReport, getInventoryReport, getBatchReport, getAnalytics } from "./actions";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import ReportsExportButton from "@/components/dashboard/ReportsExportButton";
@@ -10,9 +10,10 @@ async function ReportsPageContent({
   searchParams: Promise<{ tab?: string; date?: string; startDate?: string; endDate?: string }>;
 }) {
   const params = await searchParams;
-  const tab = params.tab || "fills";
+  const tab = params.tab || "analytics";
 
   const TABS = [
+    { id: "analytics", label: "Analytics" },
     { id: "fills", label: "Daily Fills" },
     { id: "inventory", label: "Inventory" },
     { id: "batches", label: "Batch Log" },
@@ -39,9 +40,138 @@ async function ReportsPageContent({
         ))}
       </div>
 
+      {tab === "analytics" && <AnalyticsTab />}
       {tab === "fills" && <DailyFillsTab date={params.date} />}
       {tab === "inventory" && <InventoryTab />}
       {tab === "batches" && <BatchTab startDate={params.startDate} endDate={params.endDate} />}
+    </div>
+  );
+}
+
+async function AnalyticsTab() {
+  const data = await getAnalytics();
+  const monthChange = data.revenue.lastMonth > 0
+    ? ((data.revenue.thisMonth - data.revenue.lastMonth) / data.revenue.lastMonth * 100)
+    : 0;
+  const fillChange = data.prescriptions.fillsLastMonth > 0
+    ? ((data.prescriptions.fillsThisMonth - data.prescriptions.fillsLastMonth) / data.prescriptions.fillsLastMonth * 100)
+    : 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Revenue Row */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-400 uppercase mb-3">Revenue</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard label="Today (Payments)" value={`$${data.revenue.today.toFixed(2)}`} sub={`${data.revenue.posTxToday} POS tx — $${data.revenue.posToday.toFixed(2)}`} />
+          <StatCard label="This Month" value={`$${data.revenue.thisMonth.toFixed(2)}`}
+            sub={`${data.revenue.paymentsThisMonth} payments`}
+            trend={monthChange} />
+          <StatCard label="Last Month" value={`$${data.revenue.lastMonth.toFixed(2)}`} sub="Comparison period" />
+          <StatCard label="POS This Month" value={`$${data.revenue.posThisMonth.toFixed(2)}`} sub="Counter sales" />
+        </div>
+      </div>
+
+      {/* Prescription KPIs */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-400 uppercase mb-3">Prescriptions</h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <StatCard label="Fills Today" value={data.prescriptions.fillsToday.toString()} accent />
+          <StatCard label="This Week" value={data.prescriptions.fillsThisWeek.toString()} />
+          <StatCard label="This Month" value={data.prescriptions.fillsThisMonth.toString()} trend={fillChange} />
+          <StatCard label="New Rx" value={data.prescriptions.newRxThisMonth.toString()} sub="This month" />
+          <StatCard label="Refills" value={data.prescriptions.refillsThisMonth.toString()} sub="This month" />
+        </div>
+        {/* Daily fills mini-chart */}
+        {data.prescriptions.dailyFillData.length > 0 && (
+          <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase mb-3">Daily Fills (Last 14 Days)</h3>
+            <div className="flex items-end gap-1 h-24">
+              {data.prescriptions.dailyFillData.map((d, i) => {
+                const max = Math.max(...data.prescriptions.dailyFillData.map(x => x.fills), 1);
+                const height = Math.max((d.fills / max) * 100, 4);
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-[9px] text-gray-500">{d.fills}</span>
+                    <div className="w-full bg-[#40721D] rounded-t" style={{ height: `${height}%` }} />
+                    <span className="text-[8px] text-gray-400 truncate w-full text-center">{d.date}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Claims Performance */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-400 uppercase mb-3">Claims Performance</h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <StatCard label="Collection Rate" value={`${data.claims.collectionRate}%`}
+            sub={`$${data.claims.totalPaid.toFixed(0)} / $${data.claims.totalBilled.toFixed(0)}`}
+            accent={data.claims.collectionRate >= 90} warn={data.claims.collectionRate < 80} />
+          <StatCard label="Rejection Rate" value={`${data.claims.rejectionRate}%`}
+            warn={data.claims.rejectionRate > 5} />
+          <StatCard label="Avg Days to Pay" value={data.claims.avgDaysToPay !== null ? `${data.claims.avgDaysToPay}` : "—"} sub="Submitted → Paid" />
+          <StatCard label="Paid (Month)" value={data.claims.paidThisMonth.toString()} />
+          <StatCard label="Rejected (Month)" value={data.claims.rejectedThisMonth.toString()} warn={data.claims.rejectedThisMonth > 0} />
+        </div>
+        {/* Claims by status breakdown */}
+        {data.claims.byStatus.length > 0 && (
+          <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase mb-3">Claims by Status</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {data.claims.byStatus.map(s => (
+                <div key={s.status} className="flex items-center justify-between py-1 px-2 bg-gray-50 rounded-lg">
+                  <span className="text-xs font-medium text-gray-700 capitalize">{s.status}</span>
+                  <div className="text-right">
+                    <span className="text-sm font-bold text-gray-900">{s.count}</span>
+                    <span className="text-xs text-gray-400 ml-1">(${s.billed.toFixed(0)})</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Inventory Health */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-400 uppercase mb-3">Inventory Health</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard label="Active Lots" value={data.inventory.activeLots.toString()} />
+          <StatCard label="Low Stock Items" value={data.inventory.lowStock.toString()} warn={data.inventory.lowStock > 0} />
+          <StatCard label="Expiring (90d)" value={data.inventory.expiringSoon.toString()} warn={data.inventory.expiringSoon > 0} />
+          <StatCard label="Expired (Still On-Hand)" value={data.inventory.expired.toString()} warn={data.inventory.expired > 0} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub, trend, accent, warn }: {
+  label: string;
+  value: string;
+  sub?: string;
+  trend?: number;
+  accent?: boolean;
+  warn?: boolean;
+}) {
+  const trendColor = trend && trend > 0 ? "text-green-600" : trend && trend < 0 ? "text-red-600" : "";
+  return (
+    <div className={`bg-white rounded-xl border p-4 ${warn ? "border-red-200" : "border-gray-200"}`}>
+      <p className="text-xs font-semibold text-gray-400 uppercase">{label}</p>
+      <p className={`text-2xl font-bold mt-1 ${warn ? "text-red-600" : accent ? "text-[#40721D]" : "text-gray-900"}`}>
+        {value}
+      </p>
+      <div className="flex items-center gap-2 mt-0.5">
+        {sub && <p className="text-xs text-gray-400">{sub}</p>}
+        {trend !== undefined && trend !== 0 && (
+          <span className={`text-xs font-medium ${trendColor}`}>
+            {trend > 0 ? "+" : ""}{Math.round(trend)}%
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getClaim, updateClaimStatus } from "../actions";
+import { getClaim, getClaimStatusHistory, lookupRejectionCode, updateClaimStatus } from "../actions";
 import { formatDate } from "@/lib/utils";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
@@ -26,7 +26,10 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 
 async function ClaimDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const claim = await getClaim(id);
+  const [claim, statusHistory] = await Promise.all([
+    getClaim(id),
+    getClaimStatusHistory(id),
+  ]);
 
   if (!claim) return notFound();
 
@@ -141,34 +144,86 @@ async function ClaimDetailContent({ params }: { params: Promise<{ id: string }> 
             </div>
           )}
 
-          {/* Rejection Info */}
+          {/* Rejection Info with Code Lookup */}
           {claim.status === "rejected" && claim.rejectionCodes && (
             <div className="bg-red-50 rounded-xl border border-red-200 p-6">
               <h2 className="text-lg font-semibold text-red-800 mb-3">Rejection Details</h2>
-              <div className="space-y-2">
-                {(Array.isArray(claim.rejectionCodes) ? claim.rejectionCodes : [claim.rejectionCodes]).map((code: any, i: number) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="text-sm font-mono text-red-700 bg-red-100 px-2 py-0.5 rounded">{String(code)}</span>
-                    {claim.rejectionMessages && (
-                      <span className="text-sm text-red-700">
-                        {Array.isArray(claim.rejectionMessages) ? String(claim.rejectionMessages[i]) : String(claim.rejectionMessages)}
-                      </span>
-                    )}
-                  </div>
-                ))}
+              <div className="space-y-3">
+                {(Array.isArray(claim.rejectionCodes) ? claim.rejectionCodes : [claim.rejectionCodes]).map((code: any, i: number) => {
+                  const codeStr = String(code);
+                  const ncpdpDesc = lookupRejectionCode(codeStr);
+                  const customMsg = claim.rejectionMessages
+                    ? Array.isArray(claim.rejectionMessages)
+                      ? String(claim.rejectionMessages[i] || "")
+                      : String(claim.rejectionMessages)
+                    : "";
+                  return (
+                    <div key={i} className="bg-white rounded-lg p-3 border border-red-200">
+                      <div className="flex items-start gap-3">
+                        <span className="text-sm font-mono text-red-700 bg-red-100 px-2 py-0.5 rounded shrink-0">
+                          Code {codeStr}
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium text-red-800">{ncpdpDesc}</p>
+                          {customMsg && customMsg !== ncpdpDesc && (
+                            <p className="text-xs text-red-600 mt-1">{customMsg}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Timeline */}
+          {/* Status History / Audit Trail */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Timeline</h2>
-            <div className="space-y-3">
-              <TimelineItem label="Created" date={claim.createdAt} />
-              {claim.submittedAt && <TimelineItem label="Submitted" date={claim.submittedAt} />}
-              {claim.adjudicatedAt && <TimelineItem label="Adjudicated" date={claim.adjudicatedAt} />}
-              {claim.paidAt && <TimelineItem label="Paid" date={claim.paidAt} />}
-            </div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Status History</h2>
+            {statusHistory.length > 0 ? (
+              <div className="space-y-3">
+                {statusHistory.map((log) => {
+                  const toSi = CLAIM_STATUS[log.toStatus] || { label: log.toStatus, color: "bg-gray-100 text-gray-600 border-gray-300" };
+                  return (
+                    <div key={log.id} className="flex items-start gap-3">
+                      <div className="w-2 h-2 rounded-full bg-[#40721D] mt-2 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          {log.fromStatus && (
+                            <>
+                              <span className="text-xs text-gray-500 uppercase">{log.fromStatus}</span>
+                              <span className="text-gray-400">→</span>
+                            </>
+                          )}
+                          <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border ${toSi.color}`}>
+                            {toSi.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-500">{formatDate(log.changedAt)}</span>
+                          {log.changer && (
+                            <span className="text-xs text-gray-400">
+                              by {log.changer.firstName} {log.changer.lastName}
+                            </span>
+                          )}
+                        </div>
+                        {log.reason && (
+                          <p className="text-xs text-gray-600 mt-1">{log.reason}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Fallback to simple timeline if no status logs yet */
+              <div className="space-y-3">
+                <TimelineItem label="Created" date={claim.createdAt} />
+                {claim.submittedAt && <TimelineItem label="Submitted" date={claim.submittedAt} />}
+                {claim.adjudicatedAt && <TimelineItem label="Adjudicated" date={claim.adjudicatedAt} />}
+                {claim.paidAt && <TimelineItem label="Paid" date={claim.paidAt} />}
+              </div>
+            )}
           </div>
         </div>
 
@@ -193,7 +248,20 @@ async function ClaimDetailContent({ params }: { params: Promise<{ id: string }> 
               <div className="mt-2 space-y-1 text-sm text-gray-600">
                 {plan.bin && <p>BIN: <span className="font-mono">{plan.bin}</span></p>}
                 {plan.pcn && <p>PCN: <span className="font-mono">{plan.pcn}</span></p>}
+                {plan.helpDeskPhone && <p>Help Desk: <span className="font-mono">{plan.helpDeskPhone}</span></p>}
               </div>
+              {claim.insurance?.memberId && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-400 uppercase font-semibold">Member ID</p>
+                  <p className="text-sm font-mono text-gray-900 mt-1">{claim.insurance.memberId}</p>
+                  {claim.insurance.groupNumber && (
+                    <>
+                      <p className="text-xs text-gray-400 uppercase font-semibold mt-2">Group</p>
+                      <p className="text-sm font-mono text-gray-900 mt-1">{claim.insurance.groupNumber}</p>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
