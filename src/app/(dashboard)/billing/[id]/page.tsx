@@ -151,7 +151,7 @@ async function ClaimDetailContent({ params }: { params: Promise<{ id: string }> 
                     <span className="text-sm font-mono text-red-700 bg-red-100 px-2 py-0.5 rounded">{String(code)}</span>
                     {claim.rejectionMessages && (
                       <span className="text-sm text-red-700">
-                        {Array.isArray(claim.rejectionMessages) ? claim.rejectionMessages[i] : String(claim.rejectionMessages)}
+                        {Array.isArray(claim.rejectionMessages) ? String(claim.rejectionMessages[i]) : String(claim.rejectionMessages)}
                       </span>
                     )}
                   </div>
