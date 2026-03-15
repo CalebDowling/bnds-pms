@@ -169,13 +169,14 @@ async function ClaimsTable({ page = 1, status = "all", search = "" }: { page?: n
 export default async function ClaimsPage({
   searchParams,
 }: {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireUser();
+  const resolvedParams = await searchParams;
 
-  const page = parseInt((searchParams.page as string) || "1", 10);
-  const status = (searchParams.status as string) || "all";
-  const search = (searchParams.search as string) || "";
+  const page = parseInt((resolvedParams.page as string) || "1", 10);
+  const status = (resolvedParams.status as string) || "all";
+  const search = (resolvedParams.search as string) || "";
 
   return (
     <div className="space-y-8">
