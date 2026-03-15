@@ -5,11 +5,15 @@ import Link from "next/link";
 export interface DashboardData {
   patientsToday: number;
   rxToday: number;
+  rxYesterday: number;
   activeItems: number;
   doctorsOnFile: number;
   pendingBatches: number;
   lowStockItems: number;
   salesToday: number;
+  revenueToday: number;
+  pendingRefills: number;
+  expiringLots: number;
   rejectedClaims: number;
 }
 
@@ -75,6 +79,28 @@ const InteractionIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m3.08 3.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m3.08-3.08l4.24-4.24"/></svg>
 );
 
+const TrendUpIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8 10 1 17"/><polyline points="17 6 23 6 23 12"/></svg>
+);
+
+const TrendDownIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 18 13.5 8.5 8 14 1 7"/><polyline points="17 18 23 18 23 12"/></svg>
+);
+
+function formatNumber(n: number): string {
+  return n.toLocaleString('en-US');
+}
+
+function formatCurrency(n: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n);
+}
+
+function calculateTrend(current: number, previous: number): { percent: number; direction: 'up' | 'down' | 'neutral' } {
+  if (previous === 0) return { percent: 0, direction: current > 0 ? 'up' : 'neutral' };
+  const percent = Math.round(((current - previous) / previous) * 100);
+  return { percent: Math.abs(percent), direction: current > previous ? 'up' : current < previous ? 'down' : 'neutral' };
+}
+
 export default function CardGrid({ data }: { data: DashboardData }) {
 
   // Card-level SVG icons (outline style, consistent green)
@@ -114,12 +140,15 @@ export default function CardGrid({ data }: { data: DashboardData }) {
     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   );
 
+  const rxTrend = calculateTrend(data.rxToday, data.rxYesterday);
+  const revenueTrend = data.revenueToday > 0 ? { percent: 0, direction: 'up' as const } : { percent: 0, direction: 'neutral' as const };
+
   const cards: CardConfig[] = [
     {
       id: "patient",
       title: "Patient",
       icon: <PatientCardIcon />,
-      badgeLabel: `+${data.patientsToday} today`,
+      badgeLabel: `+${formatNumber(data.patientsToday)} today`,
       primaryAction: { href: "/patients/new", label: "New Patient" },
       secondaryActions: [
         { href: "/patients", label: "Find Patient", icon: <SearchIcon /> },
@@ -130,7 +159,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       id: "prescription",
       title: "Prescription",
       icon: <RxCardIcon />,
-      badgeLabel: `+${data.rxToday} today`,
+      badgeLabel: `+${formatNumber(data.rxToday)} today`,
       primaryAction: { href: "/prescriptions/new", label: "New Prescription" },
       secondaryActions: [
         { href: "/prescriptions", label: "Find Prescription", icon: <SearchIcon /> },
@@ -143,7 +172,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       id: "item",
       title: "Item",
       icon: <ItemCardIcon />,
-      badgeLabel: `${data.activeItems} active`,
+      badgeLabel: `${formatNumber(data.activeItems)} active`,
       secondaryActions: [
         { href: "/inventory/items", label: "Manage Items", icon: <PlusIcon /> },
         { href: "/inventory/items/find", label: "Find Item", icon: <SearchIcon /> },
@@ -157,7 +186,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       id: "doctor",
       title: "Doctor",
       icon: <DoctorCardIcon />,
-      badgeLabel: `${data.doctorsOnFile} on file`,
+      badgeLabel: `${formatNumber(data.doctorsOnFile)} on file`,
       primaryAction: { href: "/doctors/new", label: "New Prescriber" },
       secondaryActions: [
         { href: "/doctors", label: "Find Prescriber", icon: <SearchIcon /> },
@@ -168,7 +197,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       id: "compounding",
       title: "Compounding",
       icon: <CompoundCardIcon />,
-      badgeLabel: `${data.pendingBatches} pending`,
+      badgeLabel: `${formatNumber(data.pendingBatches)} pending`,
       primaryAction: { href: "/compounding/batches", label: "Batch Manager" },
       secondaryActions: [
         { href: "/compounding/formulas/new", label: "New Formula", icon: <PlusIcon /> },
@@ -179,7 +208,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       id: "inventory",
       title: "Inventory",
       icon: <InventoryCardIcon />,
-      badgeLabel: `${data.lowStockItems} low stock`,
+      badgeLabel: `${formatNumber(data.lowStockItems)} low stock`,
       badgeAlert: true,
       secondaryActions: [
         { href: "/inventory/manual-count", label: "Manual Inventory", icon: <DocIcon /> },
@@ -192,7 +221,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       id: "sale",
       title: "Sale",
       icon: <SaleCardIcon />,
-      badgeLabel: `${data.salesToday} today`,
+      badgeLabel: `${formatNumber(data.salesToday)} today`,
       primaryAction: { href: "/pos", label: "Point of Sale" },
       secondaryActions: [
         { href: "/sales", label: "Find Sale", icon: <SearchIcon /> },
@@ -202,7 +231,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       id: "claims",
       title: "Insurance & Claims",
       icon: <ClaimCardIcon />,
-      badgeLabel: `${data.rejectedClaims} rejects`,
+      badgeLabel: `${formatNumber(data.rejectedClaims)} rejects`,
       badgeAlert: true,
       secondaryActions: [
         { href: "/claims", label: "Find Claim", icon: <SearchIcon /> },
@@ -230,22 +259,31 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       {cards.map((card) => (
         <div
           key={card.id}
-          className="bg-[var(--card-bg)] rounded-[10px] border border-[var(--border)] hover:border-[var(--green-600)] hover:shadow-[0_4px_12px_rgba(0,0,0,.08)] hover:-translate-y-px transition-all overflow-hidden"
+          className="bg-[var(--card-bg)] rounded-[10px] border border-[var(--border)] card-hover transition-all overflow-hidden"
         >
           {/* Card Header */}
           <div className="flex items-start justify-between p-4 border-b border-[var(--border-light)]">
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3 flex-1">
               <div className="w-[44px] h-[44px] rounded-lg bg-[var(--green-50)] border border-[var(--border-light)] flex items-center justify-center flex-shrink-0">
                 {card.icon}
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-semibold text-[var(--text-primary)]">{card.title}</div>
-                <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-1 ${
+                <div className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-1 ${
                   card.badgeAlert
                     ? "bg-[var(--red-100)] text-[var(--red-600)]"
                     : "bg-[var(--green-100)] text-[var(--green-700)]"
                 }`}>
                   {card.badgeLabel}
+                  {card.id === "prescription" && data.rxToday > 0 && rxTrend.direction !== 'neutral' && (
+                    <>
+                      <span className="w-px h-3 bg-current opacity-30"></span>
+                      <span className="inline-flex items-center gap-0.5">
+                        {rxTrend.direction === 'up' ? <TrendUpIcon /> : <TrendDownIcon />}
+                        {rxTrend.percent}%
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -256,7 +294,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
             {card.primaryAction && (
               <Link
                 href={card.primaryAction.href}
-                className="flex items-center justify-center gap-1.5 w-full px-3 py-[7px] rounded-md text-xs font-semibold text-white bg-[var(--green-700)] hover:bg-[var(--green-900)] cursor-pointer transition-all no-underline border-none mb-2"
+                className="flex items-center justify-center gap-1.5 w-full px-3 py-[7px] rounded-md text-xs font-semibold text-white bg-[var(--green-700)] hover:bg-[var(--green-900)] active:scale-98 cursor-pointer transition-all no-underline border-none mb-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 {card.primaryAction.label}

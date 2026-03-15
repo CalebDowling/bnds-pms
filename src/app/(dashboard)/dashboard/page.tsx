@@ -10,11 +10,15 @@ import { getDashboardData } from "./actions";
 const DEFAULT_DATA: DashboardData = {
   patientsToday: 0,
   rxToday: 0,
+  rxYesterday: 0,
   activeItems: 0,
   doctorsOnFile: 0,
   pendingBatches: 0,
   lowStockItems: 0,
   salesToday: 0,
+  revenueToday: 0,
+  pendingRefills: 0,
+  expiringLots: 0,
   rejectedClaims: 0,
 };
 

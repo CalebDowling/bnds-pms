@@ -3,11 +3,11 @@
 import Link from "next/link";
 
 const actions = [
-  { href: "/patients/new", label: "New Patient", primary: true },
-  { href: "/prescriptions/new", label: "New Rx", primary: true },
-  { href: "/compounding/batches", label: "Batch Manager", primary: false },
-  { href: "/pos", label: "Point of Sale", primary: false },
-  { href: "/patients", label: "Find Patient", primary: false },
+  { href: "/patients/new", label: "New Patient", shortcut: "P", primary: true },
+  { href: "/prescriptions/new", label: "New Rx", shortcut: "N", primary: true },
+  { href: "/compounding/batches", label: "Batch Manager", shortcut: "B", primary: false },
+  { href: "/pos", label: "Point of Sale", shortcut: "S", primary: false },
+  { href: "/patients", label: "Find Patient", shortcut: "F", primary: false },
 ];
 
 const PlusIcon = () => (
@@ -44,17 +44,25 @@ export default function PinnedActions() {
         <Link
           key={action.href}
           href={action.href}
-          className={`inline-flex items-center gap-1.5 px-4 py-[7px] rounded-md text-xs font-semibold cursor-pointer transition-all no-underline border ${
+          title={`${action.label} (${action.shortcut})`}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold cursor-pointer transition-all no-underline border group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--green-600)] ${
             action.primary
-              ? "bg-[var(--green-700)] text-white border-[var(--green-700)] hover:bg-[var(--green-900)]"
-              : "bg-[var(--green-50)] text-[var(--green-900)] border-[var(--border)] hover:border-[var(--green-700)] hover:bg-[var(--green-100)]"
+              ? "bg-[var(--green-700)] text-white border-[var(--green-700)] hover:bg-[var(--green-900)] active:scale-95"
+              : "bg-[var(--green-50)] text-[var(--green-900)] border-[var(--border)] hover:border-[var(--green-600)] hover:bg-[var(--green-100)] active:scale-95"
           }`}
         >
           {getIcon(action.label)}
-          {action.label}
+          <span>{action.label}</span>
+          <span className={`text-[9px] font-normal ml-0.5 px-1 py-0.5 rounded ${
+            action.primary
+              ? "bg-[var(--green-800)] text-[var(--green-100)] opacity-75"
+              : "bg-[var(--text-muted)] text-white opacity-50 group-hover:opacity-70"
+          }`}>
+            {action.shortcut}
+          </span>
         </Link>
       ))}
-      <span className="ml-auto text-[11px] text-[var(--text-muted)] cursor-pointer px-2 py-1 rounded hover:bg-[var(--green-100)] hover:text-[var(--green-700)] transition-all">
+      <span className="ml-auto text-[11px] text-[var(--text-muted)] cursor-pointer px-2 py-1 rounded hover:bg-[var(--green-100)] hover:text-[var(--green-700)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--green-600)]">
         Customize
       </span>
     </div>

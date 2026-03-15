@@ -72,3 +72,87 @@ body {
   70% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
   100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
 }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Font Features */
+* {
+  font-feature-settings: 'tnum'; /* Tabular numbers for clean alignment */
+}
+
+/* Selection Color */
+::selection {
+  background-color: var(--green-600);
+  color: white;
+}
+
+/* Focus Visible - Soft Green Glow */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px var(--green-600);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px var(--green-600);
+}
+
+/* Card Hover Utility */
+.card-hover {
+  border-color: var(--border);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  border-color: var(--green-600);
+  box-shadow: 0 4px 12px rgba(26, 127, 55, 0.12);
+  transform: translateY(-1px);
+}
+
+.card-hover:active {
+  transform: translateY(0);
+}
+
+/* Pulsing Dot Animation */
+.animate-pulse {
+  animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth Scroll Behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Scroll Bar Refinement */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+  opacity: 0.3;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  opacity: 0.5;
+}
+
+/* Text Selection */
+input::selection,
+textarea::selection {
+  background-color: var(--green-100);
+  color: var(--green-900);
+}
