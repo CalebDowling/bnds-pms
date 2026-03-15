@@ -5,7 +5,9 @@ export type NotificationType =
   | "expiring_lot"
   | "refill_due"
   | "claim_rejected"
-  | "batch_expiring";
+  | "batch_expiring"
+  | "new_erx"
+  | "erx_needs_review";
 
 export interface NotificationMetadata {
   itemId?: string;

@@ -9,6 +9,7 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: "📊" },
   { label: "Patients", href: "/patients", icon: "👥" },
   { label: "Prescriptions", href: "/prescriptions", icon: "💊" },
+  { label: "eRx Intake", href: "/intake", icon: "📥" },
   { label: "Compounding", href: "/compounding", icon: "🧪" },
   { label: "Inventory", href: "/inventory", icon: "📦" },
   { label: "Shipping", href: "/shipping", icon: "🚚" },
