@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -57,7 +58,7 @@ export async function getPrescriptions({
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.PrescriptionWhereInput = {};
 
   if (status && status !== "all") {
     where.status = status;

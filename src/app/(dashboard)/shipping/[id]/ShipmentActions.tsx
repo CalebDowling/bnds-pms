@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateShipmentStatus } from "@/app/(dashboard)/shipping/actions";
+import { getErrorMessage } from "@/lib/errors";
 
 const TRANSITIONS: Record<string, { label: string; targets: { value: string; label: string; color: string }[] }> = {
   pending: { label: "Awaiting packing", targets: [
@@ -40,8 +41,8 @@ export default function ShipmentActions({ shipmentId, currentStatus }: { shipmen
     try {
       await updateShipmentStatus(shipmentId, newStatus);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to update");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
     } finally { setLoading(false); }
   }
 

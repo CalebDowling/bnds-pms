@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { generateMRN } from "@/lib/utils/mrn";
 import { revalidatePath } from "next/cache";
 import type { PatientFormData, PhoneFormData, AddressFormData, AllergyFormData, InsuranceFormData } from "@/types/patient";
@@ -20,7 +21,7 @@ export async function getPatients({
 } = {}) {
   const skip = (page - 1) * limit;
 
-  const where: any = {};
+  const where: Prisma.PatientWhereInput = {};
 
   if (status && status !== "all") {
     where.status = status;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { formatInventoryForExport } from "@/lib/export";
 
 /**
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search") || "";
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.ItemWhereInput = {};
 
     // Apply category filter
     if (category && category !== "all") {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { addLot } from "@/app/(dashboard)/inventory/actions";
+import { getErrorMessage } from "@/lib/errors";
 
 export default function ReceiveLotForm({ itemId, unitOfMeasure }: { itemId: string; unitOfMeasure: string | null }) {
   const router = useRouter();
@@ -45,8 +46,8 @@ export default function ReceiveLotForm({ itemId, unitOfMeasure }: { itemId: stri
       setForm({ lotNumber: "", expirationDate: "", quantityReceived: "", unitCost: "", dateReceived: new Date().toISOString().split("T")[0] });
       setOpen(false);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to receive lot");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
     } finally { setLoading(false); }
   }
 

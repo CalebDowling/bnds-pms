@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+import type { SearchResult } from "@/types";
 const TYPE_ICONS: Record<string, string> = {
   patient: "👤",
   prescription: "💊",
@@ -22,7 +23,7 @@ const TYPE_COLORS: Record<string, string> = {
 export default function GlobalSearch() {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -88,7 +89,7 @@ export default function GlobalSearch() {
 
       {open && results.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto">
-          {results.map((r: any) => (
+          {results.map((r: SearchResult) => (
             <button
               key={`${r.type}-${r.id}`}
               onClick={() => handleSelect(r.href)}

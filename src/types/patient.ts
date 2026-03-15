@@ -1,5 +1,24 @@
 import { Prisma } from "@prisma/client";
 
+// Partial prescription data as returned from patient query
+export type PatientPrescription = Prisma.PrescriptionGetPayload<{
+  include: {
+    prescriber: {
+      select: {
+        firstName: true;
+        lastName: true;
+        suffix: true;
+      };
+    };
+    item: {
+      select: {
+        name: true;
+        strength: true;
+      };
+    };
+  };
+}>;
+
 // Full patient with all relations
 export type PatientWithRelations = Prisma.PatientGetPayload<{
   include: {
@@ -15,6 +34,25 @@ export type PatientWithRelations = Prisma.PatientGetPayload<{
     encounters: true;
     customStatuses: true;
     facility: true;
+    wing: true;
+    room: true;
+    prescriptions: {
+      include: {
+        prescriber: {
+          select: {
+            firstName: true;
+            lastName: true;
+            suffix: true;
+          };
+        };
+        item: {
+          select: {
+            name: true;
+            strength: true;
+          };
+        };
+      };
+    };
   };
 }>;
 

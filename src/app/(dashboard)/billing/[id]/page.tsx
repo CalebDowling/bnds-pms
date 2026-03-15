@@ -150,7 +150,7 @@ async function ClaimDetailContent({ params }: { params: Promise<{ id: string }> 
             <div className="bg-red-50 rounded-xl border border-red-200 p-6">
               <h2 className="text-lg font-semibold text-red-800 mb-3">Rejection Details</h2>
               <div className="space-y-3">
-                {(Array.isArray(claim.rejectionCodes) ? claim.rejectionCodes : [claim.rejectionCodes]).map((code: any, i: number) => {
+                {(Array.isArray(claim.rejectionCodes) ? claim.rejectionCodes : [claim.rejectionCodes]).map((code, i) => {
                   const codeStr = String(code);
                   const ncpdpDesc = lookupRejectionCode(codeStr);
                   const customMsg = claim.rejectionMessages

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
@@ -13,7 +14,7 @@ export async function getUsers({
   limit = 25,
 }: { search?: string; page?: number; limit?: number } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.UserWhereInput = {};
 
   if (search) {
     where.OR = [

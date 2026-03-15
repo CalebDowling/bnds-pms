@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createItem } from "@/app/(dashboard)/inventory/actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { getErrorMessage } from "@/lib/errors";
 
 function NewItemPageContent() {
   const router = useRouter();
@@ -53,8 +54,8 @@ function NewItemPageContent() {
 
       router.push(`/inventory/${item.id}`);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   }

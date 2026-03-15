@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { addBatchQa } from "@/app/(dashboard)/compounding/actions";
+import { getErrorMessage } from "@/lib/errors";
 
 const CHECK_TYPES = [
   "Weight Verification",
@@ -60,8 +61,8 @@ export default function QaCheckForm({ batchId }: { batchId: string }) {
       setNotes("");
       setOpen(false);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to record");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
     } finally { setLoading(false); }
   }
 

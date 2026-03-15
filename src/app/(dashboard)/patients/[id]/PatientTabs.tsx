@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDate, formatPhone } from "@/lib/utils";
 import type { PatientWithRelations } from "@/types/patient";
+import type { PatientPrescription } from "@/types/patient";
 import { addAllergy, deleteAllergy } from "@/app/(dashboard)/patients/actions";
 
 const TABS = [
@@ -16,7 +17,7 @@ const TABS = [
   { id: "notes", label: "Notes" },
 ];
 
-export default function PatientTabs({ patient }: { patient: any }) {
+export default function PatientTabs({ patient }: { patient: PatientWithRelations }) {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
@@ -54,12 +55,12 @@ export default function PatientTabs({ patient }: { patient: any }) {
   );
 }
 
-function OverviewTab({ patient }: { patient: any }) {
+function OverviewTab({ patient }: { patient: PatientWithRelations }) {
   const rxCount = patient.prescriptions?.length || 0;
-  const activeRx = patient.prescriptions?.filter((rx: any) => !["cancelled", "dispensed", "delivered"].includes(rx.status)).length || 0;
+  const activeRx = patient.prescriptions?.filter((rx: PatientPrescription) => !["cancelled", "dispensed", "delivered"].includes(rx.status)).length || 0;
   const allergyCount = patient.allergies?.length || 0;
   const nkda = allergyCount === 0;
-  const primaryInsurance = patient.insurance?.find((i: any) => i.priority === "primary" && i.isActive);
+  const primaryInsurance = patient.insurance?.find((i: PatientWithRelations["insurance"][number]) => i.priority === "primary" && i.isActive);
 
   return (
     <div className="space-y-6">
@@ -102,7 +103,7 @@ function OverviewTab({ patient }: { patient: any }) {
           <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Recent Prescriptions</h3>
           {patient.prescriptions?.length > 0 ? (
             <div className="space-y-2">
-              {patient.prescriptions.slice(0, 5).map((rx: any) => (
+              {patient.prescriptions.slice(0, 5).map((rx: PatientPrescription) => (
                 <div key={rx.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                   <div>
                     <p className="text-sm font-medium text-gray-900">
@@ -131,7 +132,7 @@ function OverviewTab({ patient }: { patient: any }) {
   );
 }
 
-function PrescriptionsTab({ patient }: { patient: any }) {
+function PrescriptionsTab({ patient }: { patient: PatientWithRelations }) {
   return (
     <div>
       {patient.prescriptions?.length > 0 ? (
@@ -147,7 +148,7 @@ function PrescriptionsTab({ patient }: { patient: any }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {patient.prescriptions.map((rx: any) => (
+            {patient.prescriptions.map((rx: PatientPrescription) => (
               <tr key={rx.id} className="hover:bg-gray-50">
                 <td className="py-2.5 text-sm font-mono text-gray-600">{rx.rxNumber}</td>
                 <td className="py-2.5 text-sm text-gray-900">
@@ -180,10 +181,10 @@ function PrescriptionsTab({ patient }: { patient: any }) {
   );
 }
 
-function AllergiesTab({ patient }: { patient: any }) {
+function AllergiesTab({ patient }: { patient: PatientWithRelations }) {
   const router = useRouter();
-  const active = patient.allergies.filter((a: any) => a.status === "active");
-  const inactive = patient.allergies.filter((a: any) => a.status !== "active");
+  const active = patient.allergies.filter((a: PatientWithRelations["allergies"][number]) => a.status === "active");
+  const inactive = patient.allergies.filter((a: PatientWithRelations["allergies"][number]) => a.status !== "active");
 
   const [showAdd, setShowAdd] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -270,7 +271,7 @@ function AllergiesTab({ patient }: { patient: any }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {active.map((a: any) => (
+            {active.map((a: PatientWithRelations["allergies"][number]) => (
               <tr key={a.id}>
                 <td className="py-2.5 text-sm font-medium text-gray-900">{a.allergen}</td>
                 <td className="py-2.5 text-sm text-gray-600">{a.reaction || "—"}</td>
@@ -301,7 +302,7 @@ function AllergiesTab({ patient }: { patient: any }) {
             {inactive.length} inactive allerg{inactive.length === 1 ? "y" : "ies"}
           </summary>
           <div className="mt-2 space-y-1">
-            {inactive.map((a: any) => (
+            {inactive.map((a: PatientWithRelations["allergies"][number]) => (
               <p key={a.id} className="text-gray-400 line-through">{a.allergen} — {a.severity}</p>
             ))}
           </div>
@@ -311,15 +312,15 @@ function AllergiesTab({ patient }: { patient: any }) {
   );
 }
 
-function InsuranceTab({ patient }: { patient: any }) {
-  const active = patient.insurance.filter((i: any) => i.isActive);
-  const inactive = patient.insurance.filter((i: any) => !i.isActive);
+function InsuranceTab({ patient }: { patient: PatientWithRelations }) {
+  const active = patient.insurance.filter((i: PatientWithRelations["insurance"][number]) => i.isActive);
+  const inactive = patient.insurance.filter((i: PatientWithRelations["insurance"][number]) => !i.isActive);
 
   return (
     <div>
       {active.length > 0 ? (
         <div className="space-y-4">
-          {active.map((ins: any) => (
+          {active.map((ins: PatientWithRelations["insurance"][number]) => (
             <div key={ins.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-gray-900 capitalize">{ins.priority}</span>
@@ -352,14 +353,14 @@ function InsuranceTab({ patient }: { patient: any }) {
   );
 }
 
-function ContactsTab({ patient }: { patient: any }) {
+function ContactsTab({ patient }: { patient: PatientWithRelations }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
         <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Phone Numbers</h3>
         {patient.phoneNumbers.length > 0 ? (
           <div className="space-y-2">
-            {patient.phoneNumbers.map((p: any) => (
+            {patient.phoneNumbers.map((p: PatientWithRelations["phoneNumbers"][number]) => (
               <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <div>
                   <p className="text-sm text-gray-900">{formatPhone(p.number)}</p>
@@ -382,7 +383,7 @@ function ContactsTab({ patient }: { patient: any }) {
         <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Addresses</h3>
         {patient.addresses.length > 0 ? (
           <div className="space-y-3">
-            {patient.addresses.map((a: any) => (
+            {patient.addresses.map((a: PatientWithRelations["addresses"][number]) => (
               <div key={a.id} className="py-2 border-b border-gray-100 last:border-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-medium text-gray-500 capitalize">{a.addressType}</span>
@@ -402,8 +403,8 @@ function ContactsTab({ patient }: { patient: any }) {
   );
 }
 
-function OutsideMedsTab({ patient }: { patient: any }) {
-  const active = patient.outsideMeds?.filter((m: any) => m.isActive) || [];
+function OutsideMedsTab({ patient }: { patient: PatientWithRelations }) {
+  const active = patient.outsideMeds?.filter((m: PatientWithRelations["outsideMeds"][number]) => m.isActive) || [];
 
   return (
     <div>
@@ -419,7 +420,7 @@ function OutsideMedsTab({ patient }: { patient: any }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {active.map((m: any) => (
+            {active.map((m: PatientWithRelations["outsideMeds"][number]) => (
               <tr key={m.id}>
                 <td className="py-2.5 text-sm font-medium text-gray-900">{m.medicationName}</td>
                 <td className="py-2.5 text-sm text-gray-600">{m.strength || "—"}</td>
@@ -437,7 +438,7 @@ function OutsideMedsTab({ patient }: { patient: any }) {
   );
 }
 
-function NotesTab({ patient }: { patient: any }) {
+function NotesTab({ patient }: { patient: PatientWithRelations }) {
   return (
     <div>
       {patient.notes ? (

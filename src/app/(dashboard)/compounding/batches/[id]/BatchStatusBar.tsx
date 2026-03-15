@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { updateBatchStatus } from "@/app/(dashboard)/compounding/actions";
+import { getErrorMessage } from "@/lib/errors";
 
 const TRANSITIONS: Record<string, { label: string; targets: { value: string; label: string; color: string }[] }> = {
   in_progress: { label: "Compounding in progress", targets: [
@@ -37,8 +38,8 @@ export default function BatchStatusBar({ batchId, currentStatus }: { batchId: st
     try {
       await updateBatchStatus(batchId, newStatus, userId);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to update");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
     } finally { setLoading(false); }
   }
 

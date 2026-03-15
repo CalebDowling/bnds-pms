@@ -5,6 +5,7 @@ import Pagination from "@/components/ui/Pagination";
 import { formatDate } from "@/lib/utils";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
+import type { UserWithRoles, UserRole, Role } from "@/types";
 async function UsersPageContent({
   searchParams,
 }: { searchParams: Promise<{ search?: string; page?: string }> }) {
@@ -58,7 +59,7 @@ async function UsersPageContent({
                 <td className="px-4 py-3 text-sm text-gray-500 capitalize">{user.department || "—"}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 flex-wrap">
-                    {user.roles.length > 0 ? user.roles.map((ur: any) => (
+                    {user.roles.length > 0 ? user.roles.map((ur: UserRole) => (
                       <span key={ur.id} className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{ur.role.name}</span>
                     )) : <span className="text-xs text-gray-400">No roles</span>}
                   </div>
@@ -83,7 +84,7 @@ async function UsersPageContent({
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Roles ({roles.length})</h2>
         {roles.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {roles.map((role: any) => (
+            {roles.map((role: Role) => (
               <div key={role.id} className="border border-gray-200 rounded-lg p-3">
                 <p className="text-sm font-medium text-gray-900">{role.name}</p>
                 {role.description && <p className="text-xs text-gray-400 mt-1">{role.description}</p>}

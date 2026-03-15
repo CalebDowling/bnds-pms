@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { formatAuditLogForExport } from "@/lib/export";
 
 /**
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.AuditLogWhereInput = {};
 
     if (action) {
       where.action = action.toUpperCase();
@@ -57,13 +58,13 @@ export async function GET(req: NextRequest) {
       where.OR = [
         {
           newValues: {
-            search: search.toLowerCase(),
-          },
+            string_contains: search.toLowerCase(),
+          } as any,
         },
         {
           oldValues: {
-            search: search.toLowerCase(),
-          },
+            string_contains: search.toLowerCase(),
+          } as any,
         },
         {
           tableName: {

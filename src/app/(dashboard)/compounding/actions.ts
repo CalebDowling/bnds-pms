@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // ─── Types ──────────────────────────────────
@@ -73,7 +74,7 @@ export async function getFormulas({
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = { isActive: true };
+  const where: Prisma.FormulaWhereInput = { isActive: true };
 
   if (category && category !== "all") {
     where.category = category;
@@ -95,7 +96,7 @@ export async function getFormulas({
           take: 1,
           include: {
             ingredients: {
-              include: { item: { select: { name: true } } },
+              include: { item: { select: { id: true, name: true } } },
               orderBy: { sortOrder: "asc" },
             },
           },
@@ -290,7 +291,7 @@ export async function getBatches({
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.BatchWhereInput = {};
 
   if (status && status !== "all") {
     where.status = status;
@@ -353,7 +354,7 @@ export async function getBatch(id: string) {
       ingredients: {
         include: {
           itemLot: {
-            include: { item: { select: { name: true } } },
+            include: { item: { select: { id: true, name: true } } },
           },
           weigher: { select: { firstName: true, lastName: true } },
         },
@@ -416,12 +417,12 @@ export async function updateBatchStatus(
   status: string,
   userId: string
 ) {
-  const updateData: any = { status };
+  const updateData: Prisma.BatchUpdateInput = { status };
 
   if (status === "completed") {
     updateData.compoundedAt = new Date();
   } else if (status === "verified") {
-    updateData.verifiedBy = userId;
+    updateData.verifier = { connect: { id: userId } };
     updateData.verifiedAt = new Date();
   }
 

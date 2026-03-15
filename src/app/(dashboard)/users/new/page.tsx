@@ -4,13 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getRoles, createRole } from "../actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import type { Role } from "@/types";
+import { getErrorMessage } from "@/lib/errors";
 
 function NewUserPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [roles, setRoles] = useState<any[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [showNewRole, setShowNewRole] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
@@ -88,8 +90,8 @@ function NewUserPageContent() {
         router.push(`/users/${data.user.id}`);
         router.refresh();
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || "Failed to invite user");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   }
@@ -193,7 +195,7 @@ function NewUserPageContent() {
             </div>
           )}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {roles.map((role: any) => (
+            {roles.map((role: Role) => (
               <label key={role.id} className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
                 selectedRoles.includes(role.id) ? "border-[#40721D] bg-blue-50" : "border-gray-200 hover:bg-gray-50"
               }`}>

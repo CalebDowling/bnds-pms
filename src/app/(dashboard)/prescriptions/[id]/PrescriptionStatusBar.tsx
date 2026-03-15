@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { updatePrescriptionStatus } from "@/app/(dashboard)/prescriptions/actions";
+import { getErrorMessage } from "@/lib/errors";
 
 const TRANSITIONS: Record<string, { label: string; targets: { value: string; label: string; color: string }[] }> = {
   intake: {
@@ -117,8 +118,8 @@ export default function PrescriptionStatusBar({
       if (!userId) { setError("User session not found. Please refresh."); return; }
       await updatePrescriptionStatus(prescriptionId, newStatus, userId);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to update status");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
     } finally {
       setLoading(false);
     }

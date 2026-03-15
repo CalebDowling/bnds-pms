@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createBatch } from "@/app/(dashboard)/compounding/actions";
 import { searchFormulas } from "@/app/(dashboard)/compounding/actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { getErrorMessage } from "@/lib/errors";
+import type { FormulaSearchResult } from "@/types";
 
 function NewBatchPageContent() {
   return (
@@ -31,11 +33,11 @@ function NewBatchContent() {
 
   // Formula selection
   const [formulaQuery, setFormulaQuery] = useState("");
-  const [formulaResults, setFormulaResults] = useState<any[]>([]);
+  const [formulaResults, setFormulaResults] = useState<FormulaSearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [selectedFormula, setSelectedFormula] = useState<any>(
+  const [selectedFormula, setSelectedFormula] = useState<FormulaSearchResult | null>(
     preselectedFormulaId
-      ? { id: preselectedFormulaId, name: preselectedFormulaName, formulaCode: "" }
+      ? { id: preselectedFormulaId, name: preselectedFormulaName, formulaCode: "", dosageForm: null, category: null }
       : null
   );
   const [versionId, setVersionId] = useState(preselectedVersionId);
@@ -93,8 +95,8 @@ function NewBatchContent() {
 
       router.push(`/compounding/batches/${batch.id}`);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   }
@@ -133,7 +135,7 @@ function NewBatchContent() {
                 placeholder="Search by formula name or code..." className={inputClass} />
               {showDropdown && formulaResults.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {formulaResults.map((f: any) => (
+                  {formulaResults.map((f: FormulaSearchResult) => (
                     <button key={f.id} type="button"
                       onClick={() => { setSelectedFormula(f); setShowDropdown(false); setFormulaQuery(""); }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">

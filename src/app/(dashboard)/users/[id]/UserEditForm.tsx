@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateUser, toggleUserActive } from "../actions";
+import { getErrorMessage } from "@/lib/errors";
 
-export default function UserEditForm({ user, roles }: { user: any; roles: any[] }) {
+import type { UserWithRoles, Role, UserRole } from "@/types";
+export default function UserEditForm({ user, roles }: { user: UserWithRoles; roles: Role[] }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -15,7 +17,7 @@ export default function UserEditForm({ user, roles }: { user: any; roles: any[] 
     phone: user.phone || "", department: user.department || "",
     isPharmacist: user.isPharmacist, licenseNumber: user.licenseNumber || "", pin: "",
   });
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(user.roles.map((ur: any) => ur.roleId));
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(user.roles.map((ur: UserRole) => ur.roleId));
 
   function updateField(field: string, value: string | boolean) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -27,7 +29,7 @@ export default function UserEditForm({ user, roles }: { user: any; roles: any[] 
       await updateUser(user.id, { ...form, roleIds: selectedRoles });
       setEditing(false);
       router.refresh();
-    } catch (err: any) { setError(err.message); }
+    } catch (error: unknown) { setError(getErrorMessage(error)); }
     finally { setLoading(false); }
   }
 
@@ -104,7 +106,7 @@ export default function UserEditForm({ user, roles }: { user: any; roles: any[] 
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-gray-700 mb-2">Roles</h3>
         <div className="flex flex-wrap gap-2">
-          {roles.map((role: any) => (
+          {roles.map((role: Role) => (
             <label key={role.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${
               selectedRoles.includes(role.id) ? "border-[#40721D] bg-blue-50" : "border-gray-200"
             }`}>

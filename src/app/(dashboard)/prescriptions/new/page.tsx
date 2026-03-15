@@ -8,6 +8,7 @@ import { searchItems } from "@/app/(dashboard)/inventory/actions";
 import { searchFormulas } from "@/app/(dashboard)/compounding/actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
+import type { PatientSearchResult, PrescriberSearchResult, FormulaSearchResult, ItemSearchResult, SearchableItem, DrugSearchResult } from "@/types";
 function NewPrescriptionPageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -15,20 +16,20 @@ function NewPrescriptionPageContent() {
 
   // Patient search
   const [patientQuery, setPatientQuery] = useState("");
-  const [patientResults, setPatientResults] = useState<any[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [patientResults, setPatientResults] = useState<PatientSearchResult[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<PatientSearchResult | null>(null);
   const [showPatientDD, setShowPatientDD] = useState(false);
 
   // Prescriber search
   const [prescriberQuery, setPrescriberQuery] = useState("");
-  const [prescriberResults, setPrescriberResults] = useState<any[]>([]);
-  const [selectedPrescriber, setSelectedPrescriber] = useState<any>(null);
+  const [prescriberResults, setPrescriberResults] = useState<PrescriberSearchResult[]>([]);
+  const [selectedPrescriber, setSelectedPrescriber] = useState<PrescriberSearchResult | null>(null);
   const [showPrescriberDD, setShowPrescriberDD] = useState(false);
 
   // Drug / Formula search
   const [drugQuery, setDrugQuery] = useState("");
-  const [drugResults, setDrugResults] = useState<any[]>([]);
-  const [selectedDrug, setSelectedDrug] = useState<any>(null);
+  const [drugResults, setDrugResults] = useState<DrugSearchResult[]>([]);
+  const [selectedDrug, setSelectedDrug] = useState<DrugSearchResult | null>(null);
   const [showDrugDD, setShowDrugDD] = useState(false);
 
   const [form, setForm] = useState({
@@ -61,10 +62,10 @@ function NewPrescriptionPageContent() {
     const t = setTimeout(async () => {
       if (form.isCompound) {
         const formulas = await searchFormulas(drugQuery);
-        setDrugResults(formulas.map((f: any) => ({ ...f, _type: "formula", label: `${f.name} (${f.formulaCode})`, sub: f.dosageForm || f.category || "" })));
+        setDrugResults(formulas.map((f: FormulaSearchResult) => ({ ...f, _type: "formula", label: `${f.name} (${f.formulaCode})`, sub: f.category || f.dosageForm || "" })));
       } else {
         const items = await searchItems(drugQuery);
-        setDrugResults(items.map((i: any) => ({ ...i, _type: "item", label: `${i.name}${i.strength ? ` ${i.strength}` : ""}`, sub: i.dosageForm || i.manufacturer || "" })));
+        setDrugResults(items.map((i: ItemSearchResult) => ({ ...i, _type: "item", label: `${i.name}${i.strength ? ` ${i.strength}` : ""}`, sub: i.manufacturer || "" })));
       }
       setShowDrugDD(true);
     }, 200);
@@ -105,15 +106,15 @@ function NewPrescriptionPageContent() {
 
       router.push(`/prescriptions/${rx.id}`);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || "Something went wrong");
       setLoading(false);
     }
   }
 
   const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent";
 
-  function renderSearchField(label: string, selected: any, onClear: () => void, query: string, setQuery: (v: string) => void, results: any[], showDD: boolean, setShowDD: (v: boolean) => void, onSelect: (item: any) => void, placeholder: string, renderItem: (item: any) => React.ReactNode, selectedDisplay: React.ReactNode) {
+  function renderSearchField(label: string, selected: SearchableItem | null, onClear: () => void, query: string, setQuery: (v: string) => void, results: SearchableItem[], showDD: boolean, setShowDD: (v: boolean) => void, onSelect: (item: SearchableItem) => void, placeholder: string, renderItem: (item: SearchableItem) => React.ReactNode, selectedDisplay: React.ReactNode) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">{label}</h2>
@@ -156,16 +157,16 @@ function NewPrescriptionPageContent() {
         {/* Patient */}
         {renderSearchField("Patient", selectedPatient, () => { setSelectedPatient(null); setPatientQuery(""); },
           patientQuery, setPatientQuery, patientResults, showPatientDD, setShowPatientDD,
-          (p) => setSelectedPatient(p), "Search by patient name or MRN...",
-          (p) => <><span className="font-medium">{p.lastName}, {p.firstName}</span><span className="text-gray-400 ml-2 font-mono text-xs">{p.mrn}</span></>,
+          (p) => setSelectedPatient(p as PatientSearchResult), "Search by patient name or MRN...",
+          (p: any) => <><span className="font-medium">{p.lastName}, {p.firstName}</span><span className="text-gray-400 ml-2 font-mono text-xs">{p.mrn}</span></>,
           selectedPatient && <div><p className="text-sm font-medium text-gray-900">{selectedPatient.lastName}, {selectedPatient.firstName}</p><p className="text-xs text-gray-500">{selectedPatient.mrn}</p></div>
         )}
 
         {/* Prescriber */}
         {renderSearchField("Prescriber", selectedPrescriber, () => { setSelectedPrescriber(null); setPrescriberQuery(""); },
           prescriberQuery, setPrescriberQuery, prescriberResults, showPrescriberDD, setShowPrescriberDD,
-          (d) => setSelectedPrescriber(d), "Search by prescriber name or NPI...",
-          (d) => <><span className="font-medium">Dr. {d.lastName}, {d.firstName}</span><span className="text-gray-400 ml-2 text-xs">NPI: {d.npi}</span></>,
+          (d) => setSelectedPrescriber(d as PrescriberSearchResult), "Search by prescriber name or NPI...",
+          (d: any) => <><span className="font-medium">Dr. {d.lastName}, {d.firstName}</span><span className="text-gray-400 ml-2 text-xs">NPI: {d.npi}</span></>,
           selectedPrescriber && <div><p className="text-sm font-medium text-gray-900">Dr. {selectedPrescriber.lastName}, {selectedPrescriber.firstName}</p><p className="text-xs text-gray-500">NPI: {selectedPrescriber.npi}</p></div>
         )}
 
@@ -200,7 +201,7 @@ function NewPrescriptionPageContent() {
                 className={inputClass} />
               {showDrugDD && drugResults.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {drugResults.map((d: any) => (
+                  {drugResults.map((d: DrugSearchResult) => (
                     <button key={d.id} type="button" onClick={() => { setSelectedDrug(d); setShowDrugDD(false); setDrugQuery(""); }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
                       <span className="font-medium">{d.label}</span>

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // ─── Types ──────────────────────────────────
@@ -36,7 +37,7 @@ export async function getPrescribers({
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = { isActive: true };
+  const where: Prisma.PrescriberWhereInput = { isActive: true };
 
   if (search) {
     const terms = search.trim().split(/\s+/);

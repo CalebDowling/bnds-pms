@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPrescriber } from "@/app/(dashboard)/prescriptions/prescriber-actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { getErrorMessage } from "@/lib/errors";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
@@ -52,8 +53,8 @@ function NewPrescriberPageContent() {
       await createPrescriber(form);
       router.push("/prescriptions/new");
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   }

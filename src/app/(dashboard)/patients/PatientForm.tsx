@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPatient, updatePatient } from "./actions";
 import type { PatientFormData } from "@/types/patient";
+import { getErrorMessage } from "@/lib/errors";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
@@ -67,8 +68,8 @@ export default function PatientForm({
         router.push(`/patients/${patient.id}`);
       }
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   }

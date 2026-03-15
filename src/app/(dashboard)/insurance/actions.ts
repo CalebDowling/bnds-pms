@@ -1,13 +1,14 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // ─── THIRD PARTY PLANS ──────────────────────
 
 export async function getPlans({ search = "", page = 1, limit = 25 }: { search?: string; page?: number; limit?: number } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.ThirdPartyPlanWhereInput = {};
   if (search) {
     where.OR = [
       { planName: { contains: search, mode: "insensitive" } },

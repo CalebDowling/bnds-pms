@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createShipment } from "@/app/(dashboard)/shipping/actions";
+import type { PatientSearchResult } from "@/types";
 import { searchPatients } from "@/app/(dashboard)/prescriptions/actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { getErrorMessage } from "@/lib/errors";
 
 function NewShipmentPageContent() {
   const router = useRouter();
@@ -12,8 +14,8 @@ function NewShipmentPageContent() {
   const [error, setError] = useState<string | null>(null);
 
   const [patientQuery, setPatientQuery] = useState("");
-  const [patientResults, setPatientResults] = useState<any[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [patientResults, setPatientResults] = useState<PatientSearchResult[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<PatientSearchResult | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
 
   const [form, setForm] = useState({
@@ -57,8 +59,8 @@ function NewShipmentPageContent() {
 
       router.push(`/shipping/${shipment.id}`);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   }
@@ -82,7 +84,7 @@ function NewShipmentPageContent() {
             <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
               <div>
                 <p className="text-sm font-medium text-gray-900">{selectedPatient.lastName}, {selectedPatient.firstName}</p>
-                <p className="text-xs text-gray-500">{selectedPatient.mrn}</p>
+                <p className="text-xs text-gray-500">{selectedPatient.mrn || "—"}</p>
               </div>
               <button type="button" onClick={() => { setSelectedPatient(null); setPatientQuery(""); }}
                 className="text-sm text-red-600 hover:underline">Change</button>

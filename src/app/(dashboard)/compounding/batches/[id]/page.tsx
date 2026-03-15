@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import BatchStatusBar from "./BatchStatusBar";
 import WeighIngredientForm from "./WeighIngredientForm";
 import QaCheckForm from "./QaCheckForm";
+import type { IngredientLotRecord, BatchFormulaIngredient, BatchQACheck, FormulaStep, BatchIngredient } from "@/types";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -24,9 +25,9 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
   const si = STATUS_CONFIG[batch.status] || { label: batch.status, color: "bg-gray-100 text-gray-700" };
 
   // Get available lots for each formula ingredient (for weighing)
-  const ingredientLots: Record<string, any[]> = {};
+  const ingredientLots: Record<string, IngredientLotRecord[]> = {};
   for (const ing of batch.formulaVersion.ingredients) {
-    const itemId = (ing as any).item?.id;
+    const itemId = (ing as BatchFormulaIngredient).item?.id;
     if (!itemId) continue;
     const lots = await prisma.itemLot.findMany({
       where: { itemId, quantityOnHand: { gt: 0 }, status: "available" },
@@ -41,7 +42,7 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
   }
 
   // Check which ingredients have been weighed
-  const weighedItemIds = new Set(batch.ingredients.map((bi: any) => bi.itemLot?.item?.id || bi.itemLotId));
+  const weighedItemIds = new Set(batch.ingredients.map((bi) => bi.itemLot?.item?.id || bi.itemLotId));
 
   return (
     <div>
@@ -108,9 +109,9 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {batch.formulaVersion.ingredients.map((ing: any) => {
+                {batch.formulaVersion.ingredients.map((ing: BatchFormulaIngredient) => {
                   // Find matching weighed ingredient
-                  const weighed = batch.ingredients.find((bi: any) =>
+                  const weighed = batch.ingredients.find((bi) =>
                     bi.itemLot?.item?.id === ing.item?.id
                   );
 
@@ -179,7 +180,7 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {batch.qa.map((qa: any) => (
+                  {batch.qa.map((qa: BatchQACheck) => (
                     <tr key={qa.id}>
                       <td className="py-2.5 text-sm text-gray-900">{qa.checkType}</td>
                       <td className="py-2.5 text-sm text-gray-600">{qa.expectedValue || "—"}</td>
@@ -210,7 +211,7 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
             <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Compounding Steps</h3>
             {batch.formulaVersion.steps.length > 0 ? (
               <div className="space-y-3">
-                {batch.formulaVersion.steps.map((step: any) => (
+                {batch.formulaVersion.steps.map((step: FormulaStep) => (
                   <div key={step.id} className="flex gap-3">
                     <div className="w-6 h-6 rounded-full bg-[#40721D] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
                       {step.stepNumber}

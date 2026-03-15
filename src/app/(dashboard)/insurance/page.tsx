@@ -4,6 +4,7 @@ import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
+import type { ThirdPartyPlanWithCount } from "@/types";
 async function InsurancePageContent({
   searchParams,
 }: { searchParams: Promise<{ search?: string; page?: string }> }) {
@@ -44,7 +45,7 @@ async function InsurancePageContent({
           <tbody className="divide-y divide-gray-100">
             {plans.length === 0 ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No plans found</td></tr>
-            ) : plans.map((plan: any) => (
+            ) : plans.map((plan: ThirdPartyPlanWithCount) => (
               <tr key={plan.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
                   <Link href={`/insurance/plans/${plan.id}`} className="text-sm font-medium text-[#40721D] hover:underline">

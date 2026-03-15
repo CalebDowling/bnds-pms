@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // ─── Types ──────────────────────────────────
@@ -54,7 +55,7 @@ export async function getItems({
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = { isActive: true };
+  const where: Prisma.ItemWhereInput = { isActive: true };
 
   if (category && category !== "all") {
     if (category === "compound_ingredient") {
@@ -200,7 +201,7 @@ export async function updateItem(id: string, data: ItemFormData) {
 export async function searchItems(query: string, compoundOnly = false) {
   if (!query || query.length < 2) return [];
 
-  const where: any = {
+  const where: Prisma.ItemWhereInput = {
     isActive: true,
     OR: [
       { name: { contains: query, mode: "insensitive" } },

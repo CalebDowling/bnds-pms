@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import PrescriptionStatusBar from "./PrescriptionStatusBar";
 import FillForm from "./FillForm";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import type { PrescriptionFillWithRelations, StatusLog } from "@/types";
+import type { PatientWithRelations } from "@/types/patient";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   intake: { label: "Intake", color: "bg-gray-100 text-gray-700" },
@@ -35,7 +37,7 @@ async function PrescriptionDetailPageContent({
   if (!rx) notFound();
 
   // Fetch available lots for the item (non-compound Rx)
-  let availableLots: any[] = [];
+  let availableLots: Array<{ id: string; lotNumber: string; quantityOnHand: number; expirationDate: string }> = [];
   if (rx.itemId) {
     const lots = await prisma.itemLot.findMany({
       where: {
@@ -55,7 +57,7 @@ async function PrescriptionDetailPageContent({
   }
 
   // Fetch available batches for the formula (compound Rx)
-  let availableBatches: any[] = [];
+  let availableBatches: Array<{ id: string; batchNumber: string; quantityPrepared: number; status: string }> = [];
   if (rx.formulaId) {
     const batches = await prisma.batch.findMany({
       where: {
@@ -125,7 +127,7 @@ async function PrescriptionDetailPageContent({
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
           <p className="text-sm font-semibold text-red-800 mb-1">Allergy Alert</p>
           <div className="flex flex-wrap gap-2">
-            {activeAllergies.map((a: any) => (
+            {activeAllergies.map((a: PatientWithRelations["allergies"][number]) => (
               <span key={a.id} className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
                 a.severity === "life_threatening" || a.severity === "severe"
                   ? "bg-red-200 text-red-900"
@@ -206,13 +208,13 @@ async function PrescriptionDetailPageContent({
                   daysSupply={rx.daysSupply}
                   lots={availableLots}
                   batches={availableBatches}
-                  allergies={activeAllergies.map((a: any) => ({ allergen: a.allergen, severity: a.severity }))}
+                  allergies={activeAllergies.map((a: PatientWithRelations["allergies"][number]) => ({ allergen: a.allergen, severity: a.severity }))}
                 />
               )}
             </div>
             {rx.fills.length > 0 ? (
               <div className="space-y-3">
-                {rx.fills.map((fill: any) => (
+                {rx.fills.map((fill: PrescriptionFillWithRelations) => (
                   <div key={fill.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-semibold text-gray-900">
@@ -292,7 +294,7 @@ async function PrescriptionDetailPageContent({
             <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Activity Log</h3>
             {rx.statusLog.length > 0 ? (
               <div className="space-y-3">
-                {rx.statusLog.map((log: any) => (
+                {rx.statusLog.map((log: StatusLog) => (
                   <div key={log.id} className="flex gap-3">
                     <div className="w-2 h-2 rounded-full bg-[#40721D] mt-1.5 flex-shrink-0" />
                     <div>

@@ -3,6 +3,7 @@ import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import ReportsExportButton from "@/components/dashboard/ReportsExportButton";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import type { PrescriptionFillWithRelations, CompoundingBatchWithRelations } from "@/types";
 
 async function ReportsPageContent({
   searchParams,
@@ -397,8 +398,8 @@ async function BatchTab({ startDate, endDate }: { startDate?: string; endDate?: 
                 <td className="px-4 py-3 text-sm text-gray-900">{Number(b.quantityPrepared)} {b.unit}</td>
                 <td className="px-4 py-3 text-sm text-gray-500">{formatDate(b.budDate)}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{b.compounder.firstName} {b.compounder.lastName}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{b._count.qa}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{b._count.fills}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{b.qa.length}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{b.fills.length}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_COLORS[b.status] || "bg-gray-100 text-gray-700"}`}>
                     {b.status}

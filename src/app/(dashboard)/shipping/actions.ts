@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export type ShipmentFormData = {
@@ -28,7 +29,7 @@ export async function getShipments({
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.ShipmentWhereInput = {};
 
   if (status && status !== "all") where.status = status;
 
@@ -117,11 +118,11 @@ export async function updateShipmentStatus(
   userId?: string,
   trackingNumber?: string
 ) {
-  const updateData: any = { status };
+  const updateData: Prisma.ShipmentUpdateInput = { status };
 
   if (status === "shipped") {
     updateData.shipDate = new Date();
-    if (userId) updateData.shippedBy = userId;
+    if (userId) updateData.shipper = { connect: { id: userId } };
     if (trackingNumber) updateData.trackingNumber = trackingNumber.trim();
   } else if (status === "delivered") {
     updateData.actualDelivery = new Date();

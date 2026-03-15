@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createFill } from "@/app/(dashboard)/prescriptions/actions";
+import { getErrorMessage } from "@/lib/errors";
 
 type LotOption = {
   id: string;
@@ -69,8 +70,8 @@ export default function FillForm({
 
       setOpen(false);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to create fill");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
     } finally { setLoading(false); }
   }
 

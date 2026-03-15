@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPlan } from "../../actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { getErrorMessage } from "@/lib/errors";
 
 function NewPlanPageContent() {
   const router = useRouter();
@@ -24,7 +25,7 @@ function NewPlanPageContent() {
       await createPlan(form);
       router.push("/insurance");
       router.refresh();
-    } catch (err: any) { setError(err.message); setLoading(false); }
+    } catch (error: unknown) { setError(getErrorMessage(error)); setLoading(false); }
   }
 
   const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D]";

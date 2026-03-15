@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export async function getDailyFillReport(date?: string) {
   const targetDate = date || new Date().toISOString().split("T")[0];
@@ -71,14 +72,19 @@ export async function getInventoryReport() {
     };
   });
 }
-
 export async function getBatchReport(startDate?: string, endDate?: string) {
-  const where: any = {};
+  const where: Prisma.BatchWhereInput = {};
+  const dateFilter: any = {};
+  
   if (startDate) {
-    where.createdAt = { ...(where.createdAt || {}), gte: new Date(`${startDate}T00:00:00.000-06:00`) };
+    dateFilter.gte = new Date(`${startDate}T00:00:00.000-06:00`);
   }
   if (endDate) {
-    where.createdAt = { ...(where.createdAt || {}), lte: new Date(`${endDate}T23:59:59.999-06:00`) };
+    dateFilter.lte = new Date(`${endDate}T23:59:59.999-06:00`);
+  }
+  
+  if (Object.keys(dateFilter).length > 0) {
+    where.createdAt = dateFilter;
   }
 
   return prisma.batch.findMany({

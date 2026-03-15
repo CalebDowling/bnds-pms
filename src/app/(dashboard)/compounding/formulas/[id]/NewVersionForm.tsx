@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createFormulaVersion } from "@/app/(dashboard)/compounding/actions";
 import { searchItems } from "@/app/(dashboard)/inventory/actions";
+import { getErrorMessage } from "@/lib/errors";
+import type { ItemSearchResult } from "@/types";
 
 type IngredientRow = {
   key: number;
@@ -45,7 +47,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
   // Ingredient search
   const [searchIdx, setSearchIdx] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<ItemSearchResult[]>([]);
 
   useEffect(() => {
     if (searchQuery.length < 2) { setSearchResults([]); return; }
@@ -65,11 +67,11 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
     setIngredients(ingredients.filter(i => i.key !== key));
   }
 
-  function updateIngredient(key: number, field: string, value: any) {
+  function updateIngredient(key: number, field: string, value: string | boolean) {
     setIngredients(ingredients.map(i => i.key === key ? { ...i, [field]: value } : i));
   }
 
-  function selectItem(key: number, item: any) {
+  function selectItem(key: number, item: ItemSearchResult) {
     updateIngredient(key, "itemId", item.id);
     updateIngredient(key, "itemName", `${item.name}${item.strength ? ` (${item.strength})` : ""}`);
     updateIngredient(key, "unit", item.unitOfMeasure || "g");
@@ -87,7 +89,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
     setSteps(steps.filter(s => s.key !== key));
   }
 
-  function updateStep(key: number, field: string, value: any) {
+  function updateStep(key: number, field: string, value: string | boolean) {
     setSteps(steps.map(s => s.key === key ? { ...s, [field]: value } : s));
   }
 
@@ -125,8 +127,8 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
 
       setOpen(false);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to create version");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
     } finally { setLoading(false); }
   }
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -20,7 +21,7 @@ export async function getClaims({
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.ClaimWhereInput = {};
 
   if (status && status !== "all") where.status = status;
 
@@ -124,7 +125,7 @@ export async function updateClaimStatus(
   const existing = await prisma.claim.findUnique({ where: { id }, select: { status: true } });
   if (!existing) throw new Error("Claim not found");
 
-  const updateData: any = { status: newStatus };
+  const updateData: Prisma.ClaimUpdateInput = { status: newStatus };
 
   if (newStatus === "submitted") updateData.submittedAt = new Date();
   if (newStatus === "paid" || newStatus === "partial") {
@@ -237,7 +238,7 @@ export async function getPayments({
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.PaymentWhereInput = {};
 
   if (search) {
     where.OR = [

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function getTransactions({
@@ -13,7 +14,7 @@ export async function getTransactions({
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.PosTransactionWhereInput = {};
 
   if (search) {
     where.OR = [

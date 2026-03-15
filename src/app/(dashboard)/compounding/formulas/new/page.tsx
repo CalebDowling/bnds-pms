@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createFormula } from "@/app/(dashboard)/compounding/actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { getErrorMessage } from "@/lib/errors";
 
 function NewFormulaPageContent() {
   const router = useRouter();
@@ -47,8 +48,8 @@ function NewFormulaPageContent() {
 
       router.push(`/compounding/formulas/${formula.id}`);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error));
       setLoading(false);
     }
   }
