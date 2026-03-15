@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { formatDate } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Claims Management | Boudreaux's PMS",
   description: "View and manage insurance claims",
