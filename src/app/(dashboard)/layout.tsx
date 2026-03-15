@@ -8,6 +8,8 @@ import { PermissionsProvider } from "@/components/providers/PermissionsProvider"
 import ToastContainer from "@/components/ui/ToastContainer";
 import { PermissionsMap } from "@/lib/permissions";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {

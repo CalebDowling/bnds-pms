@@ -6,6 +6,8 @@ export const metadata = {
   description: "Submit compound prescription orders to Boudreaux's Pharmacy",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function PrescriberLayout({
   children,
 }: {
