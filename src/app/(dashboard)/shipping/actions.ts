@@ -154,3 +154,90 @@ export async function getShippingStats() {
 
   return { pending, shipped, delivered, shippedToday: today };
 }
+
+export async function createShipmentFromFill(
+  fillId: string,
+  carrier: string,
+  trackingNumber?: string,
+  userId?: string
+) {
+  const fill = await prisma.prescriptionFill.findUnique({
+    where: { id: fillId },
+    include: {
+      prescription: {
+        include: { patient: true },
+      },
+    },
+  });
+
+  if (!fill?.prescription?.patient) {
+    throw new Error("Fill or patient not found");
+  }
+
+  const patientAddress = await prisma.patientAddress.findFirst({
+    where: { patientId: fill.prescription.patientId, isDefault: true },
+  });
+
+  const shipment = await prisma.shipment.create({
+    data: {
+      patientId: fill.prescription.patientId,
+      carrier,
+      trackingNumber: trackingNumber?.trim() || null,
+      status: "pending",
+      addressId: patientAddress?.id || null,
+      shippedBy: userId || null,
+    },
+  });
+
+  if (fill.metadata && typeof fill.metadata === "object") {
+    const metadata = fill.metadata as Record<string, unknown>;
+    await prisma.prescriptionFill.update({
+      where: { id: fillId },
+      data: {
+        metadata: { ...metadata, shipmentId: shipment.id },
+      },
+    });
+  } else {
+    await prisma.prescriptionFill.update({
+      where: { id: fillId },
+      data: {
+        metadata: { shipmentId: shipment.id },
+      },
+    });
+  }
+
+  revalidatePath("/shipping");
+  return shipment;
+}
+
+export async function updateShipmentStatusFromFill(
+  fillId: string,
+  status: string
+) {
+  const fill = await prisma.prescriptionFill.findUnique({
+    where: { id: fillId },
+  });
+
+  if (!fill) throw new Error("Fill not found");
+
+  const metadata = fill.metadata as Record<string, unknown> | null;
+  const shipmentId = metadata?.shipmentId as string | undefined;
+
+  if (!shipmentId) throw new Error("No shipment associated with this fill");
+
+  const updateData: Prisma.ShipmentUpdateInput = { status };
+
+  if (status === "shipped") {
+    updateData.shipDate = new Date();
+  } else if (status === "delivered") {
+    updateData.actualDelivery = new Date();
+  }
+
+  const shipment = await prisma.shipment.update({
+    where: { id: shipmentId },
+    data: updateData,
+  });
+
+  revalidatePath("/shipping");
+  return shipment;
+}

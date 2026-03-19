@@ -90,7 +90,7 @@ export default function PatientDashboard(): React.ReactNode {
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-[#40721D] to-[#2D5114] text-white rounded-lg p-8">
+      <div className="bg-gradient-to-r from-[#40721D] to-[#5a9f2a] text-white rounded-2xl p-8 shadow-lg shadow-green-200/30">
         <h1 className="text-3xl font-bold mb-2">Welcome back, {patientName}!</h1>
         <p className="text-green-50">
           Manage your prescriptions and health information all in one place.
@@ -98,28 +98,32 @@ export default function PatientDashboard(): React.ReactNode {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
           <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Link href="/patient/refills">
-          <div className="p-6 border border-gray-200 rounded-lg hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="text-3xl mb-2">💊</div>
+          <div className="p-6 border border-gray-200 rounded-xl bg-gradient-to-br from-white to-gray-50 hover:shadow-md hover:border-[#40721D]/30 transition-all cursor-pointer">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#40721D]/10 to-[#40721D]/5 rounded-lg mb-3">
+              <span className="text-2xl">💊</span>
+            </div>
             <h3 className="font-semibold text-gray-900">Request a Refill</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-600 mt-2">
               Refill your prescriptions online
             </p>
           </div>
         </Link>
 
         <Link href="/patient/messages">
-          <div className="p-6 border border-gray-200 rounded-lg hover:shadow-lg transition-shadow cursor-pointer">
-            <div className="text-3xl mb-2">💬</div>
+          <div className="p-6 border border-gray-200 rounded-xl bg-gradient-to-br from-white to-gray-50 hover:shadow-md hover:border-[#40721D]/30 transition-all cursor-pointer">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#40721D]/10 to-[#40721D]/5 rounded-lg mb-3">
+              <span className="text-2xl">💬</span>
+            </div>
             <h3 className="font-semibold text-gray-900">Send a Message</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-gray-600 mt-2">
               Communicate with our pharmacy
             </p>
           </div>
@@ -128,11 +132,11 @@ export default function PatientDashboard(): React.ReactNode {
 
       {/* Active Prescriptions Summary */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-5">
           <h2 className="text-xl font-bold text-gray-900">
             Recent Prescriptions
           </h2>
-          <Link href="/patient/prescriptions" className="text-[#40721D] text-sm font-medium hover:underline">
+          <Link href="/patient/prescriptions" className="text-[#40721D] text-sm font-semibold hover:text-[#2D5114] transition-colors">
             View All
           </Link>
         </div>
@@ -142,26 +146,26 @@ export default function PatientDashboard(): React.ReactNode {
             {prescriptions.map((rx) => (
               <div
                 key={rx.id}
-                className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                className="p-5 border border-gray-200 rounded-xl bg-gradient-to-br from-white to-gray-50 hover:shadow-md hover:border-[#40721D]/30 transition-all"
               >
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-semibold text-gray-900">
                       {rx.item?.name || "Medication"}
                     </h3>
-                    <p className="text-sm text-gray-600">Rx# {rx.rxNumber}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Status: <span className="font-medium">{rx.status}</span>
+                    <p className="text-sm text-gray-600 mt-1">Rx# {rx.rxNumber}</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Status: <span className="font-medium text-gray-700">{rx.status}</span>
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-semibold text-gray-900">
                       {rx.refillsRemaining} refill{rx.refillsRemaining !== 1 ? "s" : ""}
                     </p>
                     {rx.refillsRemaining > 0 && (
                       <Link
                         href="/patient/refills"
-                        className="text-xs text-[#40721D] font-medium hover:underline mt-1 block"
+                        className="text-xs text-[#40721D] font-semibold hover:text-[#2D5114] transition-colors mt-2 block"
                       >
                         Request Refill
                       </Link>
@@ -172,7 +176,7 @@ export default function PatientDashboard(): React.ReactNode {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 border border-gray-200 rounded-lg bg-gray-50">
+          <div className="text-center py-10 border border-gray-200 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100">
             <p className="text-gray-600">No prescriptions yet</p>
           </div>
         )}
@@ -180,7 +184,7 @@ export default function PatientDashboard(): React.ReactNode {
 
       {/* Recent Refill Requests */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <h2 className="text-xl font-bold text-gray-900 mb-5">
           Recent Refill Requests
         </h2>
 
@@ -189,25 +193,25 @@ export default function PatientDashboard(): React.ReactNode {
             {refillRequests.map((request) => (
               <div
                 key={request.id}
-                className="p-4 border border-gray-200 rounded-lg"
+                className="p-5 border border-gray-200 rounded-xl bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-all"
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm font-medium text-gray-900">
                       Rx# {request.prescription.rxNumber}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 mt-2">
                       Requested on{" "}
                       {new Date(request.requestedAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div>
                     <span
-                      className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
+                      className={`inline-block px-3 py-1.5 text-xs font-semibold rounded-full ${
                         request.status === "completed"
                           ? "bg-green-100 text-green-800"
                           : request.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
+                            ? "bg-amber-100 text-amber-800"
                             : "bg-gray-100 text-gray-800"
                       }`}
                     >
@@ -220,7 +224,7 @@ export default function PatientDashboard(): React.ReactNode {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 border border-gray-200 rounded-lg bg-gray-50">
+          <div className="text-center py-10 border border-gray-200 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100">
             <p className="text-gray-600">No refill requests yet</p>
           </div>
         )}

@@ -120,6 +120,8 @@ model User {
   chargeTransCreated ChargeAccountTransaction[] @relation("ChargeTransCreator")
   paymentsProcessed Payment[] @relation("PaymentProcessor")
   formulaVersionsCreated FormulaVersion[] @relation("FormulaVersionCreator")
+  poCreated        PurchaseOrder[] @relation("POCreator")
+  poApproved       PurchaseOrder[] @relation("POApprover")
   auditLogs        AuditLog[]
   claimStatusChanges ClaimStatusLog[] @relation("ClaimStatusChanger")
   notifications    Notification[]
@@ -481,6 +483,7 @@ model Item {
   prescriptions        Prescription[]
   fills                PrescriptionFill[]
   posLineItems         PosLineItem[]
+  poItems              PurchaseOrderItem[] @relation("POItems")
 
   @@index([ndc])
   @@index([externalId])
@@ -499,6 +502,7 @@ model Supplier {
   isActive     Boolean  @default(true) @map("is_active")
 
   lots         ItemLot[]
+  orders       PurchaseOrder[]
 
   @@map("suppliers")
 }
@@ -529,6 +533,47 @@ model ItemLot {
   @@index([expirationDate])
   @@index([itemId, status])
   @@map("item_lots")
+}
+
+model PurchaseOrder {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  poNumber        String   @unique @map("po_number") @db.VarChar(50)
+  supplierId      String   @map("supplier_id") @db.Uuid
+  status          String   @default("draft") @db.VarChar(20)
+  estimatedArrival DateTime? @map("estimated_arrival") @db.Timestamptz
+  notes           String?  @db.Text
+  createdBy       String   @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  approvedBy      String?  @map("approved_by") @db.Uuid
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz
+  receivedAt      DateTime? @map("received_at") @db.Timestamptz
+
+  supplier        Supplier @relation(fields: [supplierId], references: [id])
+  creator         User     @relation("POCreator", fields: [createdBy], references: [id])
+  approver        User?    @relation("POApprover", fields: [approvedBy], references: [id])
+
+  items           PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchaseOrderId String   @map("purchase_order_id") @db.Uuid
+  itemId          String   @map("item_id") @db.Uuid
+  quantity        Decimal  @db.Decimal(10, 2)
+  unitCost        Decimal? @map("unit_cost") @db.Decimal(10, 4)
+  notes           String?  @db.Text
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  item            Item @relation("POItems", fields: [itemId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([itemId])
+  @@map("purchase_order_items")
 }
 
 model InventoryTransaction {

@@ -5,6 +5,8 @@ import ReportsExportButton from "@/components/dashboard/ReportsExportButton";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 import type { PrescriptionFillWithRelations, CompoundingBatchWithRelations } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 async function ReportsPageContent({
   searchParams,
 }: {

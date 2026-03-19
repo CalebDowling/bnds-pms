@@ -14,6 +14,7 @@ const navItems = [
   { label: "Compounding", href: "/compounding", icon: "🧪" },
   { label: "Batch Records", href: "/compounding/batches", icon: "📄" },
   { label: "Inventory", href: "/inventory", icon: "📦" },
+  { label: "Reorder", href: "/inventory/reorder", icon: "🔄" },
   { label: "Shipping", href: "/shipping", icon: "🚚" },
   { label: "Billing", href: "/billing", icon: "💳" },
   { label: "POS", href: "/pos", icon: "🖥️" },

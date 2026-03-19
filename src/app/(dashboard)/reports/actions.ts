@@ -296,3 +296,178 @@ export async function getAnalytics() {
     },
   };
 }
+
+// ═══════════════════════════════════════════════
+// REVENUE & TURNAROUND REPORTS
+// ═══════════════════════════════════════════════
+
+export async function getRevenueSummary(startDate?: string, endDate?: string) {
+  const where: Prisma.PrescriptionFillWhereInput = {};
+
+  if (startDate || endDate) {
+    where.dispensedAt = {};
+    if (startDate) {
+      (where.dispensedAt as any).gte = new Date(`${startDate}T00:00:00.000-06:00`);
+    }
+    if (endDate) {
+      (where.dispensedAt as any).lte = new Date(`${endDate}T23:59:59.999-06:00`);
+    }
+  }
+
+  const fills = await prisma.prescriptionFill.findMany({
+    where,
+    select: {
+      copayAmount: true,
+      dispensingFee: true,
+      ingredientCost: true,
+      totalPrice: true,
+    },
+  });
+
+  const copayTotal = fills.reduce((sum, f) => sum + (Number(f.copayAmount || 0)), 0);
+  const feeTotal = fills.reduce((sum, f) => sum + (Number(f.dispensingFee || 0)), 0);
+  const costTotal = fills.reduce((sum, f) => sum + (Number(f.ingredientCost || 0)), 0);
+  const priceTotal = fills.reduce((sum, f) => sum + (Number(f.totalPrice || 0)), 0);
+
+  return {
+    fillCount: fills.length,
+    copayTotal,
+    insurancePayments: priceTotal - copayTotal,
+    totalRevenue: priceTotal,
+    totalCost: costTotal,
+    totalFees: feeTotal,
+    grossMargin: priceTotal > 0 ? ((priceTotal - costTotal) / priceTotal) * 100 : 0,
+  };
+}
+
+export async function getTurnaroundReport(startDate?: string, endDate?: string) {
+  const where: Prisma.PrescriptionFillWhereInput = {};
+
+  if (startDate || endDate) {
+    where.dispensedAt = {};
+    if (startDate) {
+      (where.dispensedAt as any).gte = new Date(`${startDate}T00:00:00.000-06:00`);
+    }
+    if (endDate) {
+      (where.dispensedAt as any).lte = new Date(`${endDate}T23:59:59.999-06:00`);
+    }
+  }
+
+  where.dispensedAt = { not: null };
+
+  const fills = await prisma.prescriptionFill.findMany({
+    where,
+    select: {
+      id: true,
+      createdAt: true,
+      filledAt: true,
+      verifiedAt: true,
+      dispensedAt: true,
+    },
+  });
+
+  const turnarounds = fills
+    .filter((f) => f.filledAt && f.dispensedAt)
+    .map((f) => {
+      const filledTime = new Date(f.filledAt!).getTime();
+      const dispensedTime = new Date(f.dispensedAt!).getTime();
+      const hours = (dispensedTime - filledTime) / (1000 * 60 * 60);
+      return { intakeToFilled: 0, filledToDispensed: hours, totalHours: hours };
+    });
+
+  const avgFilledToDispensed = turnarounds.length > 0
+    ? turnarounds.reduce((sum, t) => sum + t.filledToDispensed, 0) / turnarounds.length
+    : 0;
+
+  return {
+    sampleCount: turnarounds.length,
+    avgHoursFilledToDispensed: Math.round(avgFilledToDispensed * 10) / 10,
+    medianHours: turnarounds.length > 0
+      ? turnarounds.sort((a, b) => a.filledToDispensed - b.filledToDispensed)[
+          Math.floor(turnarounds.length / 2)
+        ].filledToDispensed
+      : 0,
+    minHours: turnarounds.length > 0
+      ? Math.min(...turnarounds.map((t) => t.filledToDispensed))
+      : 0,
+    maxHours: turnarounds.length > 0
+      ? Math.max(...turnarounds.map((t) => t.filledToDispensed))
+      : 0,
+  };
+}
+
+export async function getInventoryValueReport() {
+  const lots = await prisma.itemLot.findMany({
+    where: { status: "available" },
+    include: {
+      item: {
+        select: { name: true, strength: true, unitOfMeasure: true },
+      },
+    },
+  });
+
+  const items = lots.map((lot) => ({
+    itemName: `${lot.item.name}${lot.item.strength ? ` ${lot.item.strength}` : ""}`,
+    quantity: Number(lot.quantityOnHand),
+    unitCost: Number(lot.unitCost || 0),
+    value: Number(lot.quantityOnHand) * Number(lot.unitCost || 0),
+  }));
+
+  const totalValue = items.reduce((sum, i) => sum + i.value, 0);
+  const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
+
+  return {
+    totalValue: Math.round(totalValue * 100) / 100,
+    totalQuantity,
+    itemCount: lots.length,
+    items: items.sort((a, b) => b.value - a.value).slice(0, 10),
+  };
+}
+
+export async function getClaimsPerformanceReport(startDate?: string, endDate?: string) {
+  const where: Prisma.ClaimWhereInput = {};
+
+  if (startDate || endDate) {
+    where.submittedAt = {};
+    if (startDate) {
+      (where.submittedAt as any).gte = new Date(`${startDate}T00:00:00.000-06:00`);
+    }
+    if (endDate) {
+      (where.submittedAt as any).lte = new Date(`${endDate}T23:59:59.999-06:00`);
+    }
+  }
+
+  where.submittedAt = { not: null };
+
+  const claims = await prisma.claim.findMany({
+    where,
+    select: {
+      id: true,
+      status: true,
+      amountBilled: true,
+      amountPaid: true,
+      submittedAt: true,
+      adjudicatedAt: true,
+    },
+  });
+
+  const submitted = claims.length;
+  const approved = claims.filter((c) => c.status === "paid").length;
+  const rejected = claims.filter((c) => c.status === "rejected").length;
+  const pending = claims.filter((c) => c.status === "pending").length;
+
+  const totalBilled = claims.reduce((sum, c) => sum + Number(c.amountBilled), 0);
+  const totalPaid = claims.reduce((sum, c) => sum + Number(c.amountPaid || 0), 0);
+
+  return {
+    submitted,
+    approved,
+    rejected,
+    pending,
+    approvalRate: submitted > 0 ? Math.round((approved / submitted) * 1000) / 10 : 0,
+    rejectionRate: submitted > 0 ? Math.round((rejected / submitted) * 1000) / 10 : 0,
+    totalBilled,
+    totalPaid,
+    collectionRate: totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 1000) / 10 : 0,
+  };
+}

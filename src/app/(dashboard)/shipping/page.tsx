@@ -6,6 +6,8 @@ import Pagination from "@/components/ui/Pagination";
 import { Suspense } from "react";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   pending: { label: "Pending", color: "bg-yellow-50 text-yellow-700" },
   packed: { label: "Packed", color: "bg-blue-50 text-blue-700" },

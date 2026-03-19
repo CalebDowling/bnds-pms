@@ -170,11 +170,8 @@ export default function DashboardHeader() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-5 h-[56px]">
         {/* Left: Logo */}
-        <Link href="/dashboard" className="flex items-center gap-3 no-underline">
-          <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[36px] brightness-0 invert-0 dark:invert" />
-          <span className="text-xl font-extrabold tracking-tight text-[#40721d] dark:text-[#6bb240]">
-            BNDS
-          </span>
+        <Link href="/dashboard" className="flex items-center no-underline">
+          <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[40px]" />
         </Link>
 
         {/* Center: Nav tabs */}
