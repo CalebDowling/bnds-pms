@@ -5,6 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePermissions } from "@/components/providers/PermissionsProvider";
+// Inline SVG icons for theme toggle (no lucide-react dependency needed)
+const SunIcon = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+);
+const MoonIcon = () => (
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+);
 
 interface UserInfo {
   firstName: string;
@@ -35,6 +46,7 @@ export default function DashboardHeader() {
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const { canAccess } = usePermissions();
 
@@ -129,6 +141,20 @@ export default function DashboardHeader() {
     return () => clearInterval(interval);
   }, []);
 
+  // Initialize theme and handle toggle
+  useEffect(() => {
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    setIsDarkMode(isDark);
+  }, []);
+
+  const toggleTheme = () => {
+    const html = document.documentElement;
+    const newTheme = isDarkMode ? "light" : "dark";
+    html.setAttribute("data-theme", newTheme);
+    setIsDarkMode(!isDarkMode);
+    localStorage.setItem("theme", newTheme);
+  };
+
   const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : "User";
   const initials = user
     ? `${user.firstName?.charAt(0) || ""}${user.lastName?.charAt(0) || ""}`.toUpperCase()
@@ -140,12 +166,15 @@ export default function DashboardHeader() {
   }
 
   return (
-    <header className="bg-[#2D5114] text-white">
+    <header className="navbar-glass border-b border-gray-200 dark:border-gray-700">
       {/* Top bar */}
       <div className="flex items-center justify-between px-5 h-[56px]">
         {/* Left: Logo */}
         <Link href="/dashboard" className="flex items-center gap-3 no-underline">
-          <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[36px] brightness-0 invert" />
+          <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[36px] brightness-0 invert-0 dark:invert" />
+          <span className="text-xl font-extrabold tracking-tight text-[#40721d] dark:text-[#6bb240]">
+            BNDS
+          </span>
         </Link>
 
         {/* Center: Nav tabs */}
@@ -160,10 +189,10 @@ export default function DashboardHeader() {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`px-4 py-1.5 rounded-md text-[13px] font-semibold no-underline transition-all ${
+                className={`px-4 py-2 rounded-lg text-[13px] font-semibold no-underline transition-all ${
                   isActive(tab.href)
-                    ? "bg-white/20 text-white"
-                    : "text-white/75 hover:bg-white/10 hover:text-white"
+                    ? "text-[#40721d] dark:text-[#6bb240] font-semibold border-b-2 border-[#40721d] dark:border-[#6bb240]"
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                 }`}
               >
                 {tab.label}
@@ -177,7 +206,7 @@ export default function DashboardHeader() {
           {canAccess("prescriptions", "write") && (
             <Link
               href="/prescriptions/new"
-              className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-bold bg-[#4cb868] hover:bg-[#3da557] text-white no-underline transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg text-xs font-bold bg-gradient-to-r from-[#40721d] to-[#5a9f2a] hover:from-[#36631a] hover:to-[#4f8925] text-white no-underline transition-all shadow-md hover:shadow-lg hover:scale-105"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               New Prescription
@@ -197,12 +226,12 @@ export default function DashboardHeader() {
                   fetchNotifications();
                 }
               }}
-              className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors relative"
+              className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
               aria-label="Notifications"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-gray-300"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               {unreadCount > 0 && (
-                <div className="absolute top-[3px] right-[3px] w-5 h-5 rounded-full bg-[#E74C3C] border-2 border-[#2D5114] flex items-center justify-center text-white text-[10px] font-bold">
+                <div className="absolute top-[3px] right-[3px] w-5 h-5 rounded-full bg-[#E74C3C] border-2 border-white dark:border-gray-700 flex items-center justify-center text-white text-[10px] font-bold">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </div>
               )}
@@ -210,14 +239,14 @@ export default function DashboardHeader() {
 
             {/* Notification dropdown */}
             {showNotificationDropdown && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 overflow-hidden border border-gray-200 dark:border-gray-700">
                 {/* Header */}
-                <div className="bg-[#2D5114] text-white px-4 py-3 flex items-center justify-between">
-                  <h3 className="font-semibold text-sm">Notifications</h3>
+                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Notifications</h3>
                   {unreadCount > 0 && (
                     <button
                       onClick={handleMarkAllAsRead}
-                      className="text-xs text-white/70 hover:text-white"
+                      className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                     >
                       Mark all as read
                     </button>
@@ -225,21 +254,21 @@ export default function DashboardHeader() {
                 </div>
 
                 {/* Notifications list */}
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-96 overflow-y-auto dark:bg-gray-800">
                   {loadingNotifications ? (
-                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                    <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
                       Loading...
                     </div>
                   ) : notifications.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                    <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
                       No unread notifications
                     </div>
                   ) : (
                     notifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`px-4 py-3 border-b last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors ${
-                          !notification.isRead ? "bg-blue-50" : ""
+                        className={`px-4 py-3 border-b last:border-b-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-gray-100 dark:border-gray-700 ${
+                          !notification.isRead ? "bg-blue-50 dark:bg-blue-900/20" : ""
                         }`}
                         onClick={() => {
                           if (!notification.isRead) {
@@ -262,13 +291,13 @@ export default function DashboardHeader() {
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-sm text-gray-900 truncate">
+                            <h4 className="font-semibold text-sm text-gray-900 dark:text-white truncate">
                               {notification.title}
                             </h4>
-                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
                               {notification.message}
                             </p>
-                            <p className="text-xs text-gray-400 mt-1">
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                               {new Date(notification.createdAt).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
@@ -290,7 +319,7 @@ export default function DashboardHeader() {
                 {/* Footer */}
                 <Link
                   href="/notifications"
-                  className="block px-4 py-3 text-center text-sm font-semibold text-[#2D5114] hover:bg-gray-50 transition-colors border-t"
+                  className="block px-4 py-3 text-center text-sm font-semibold text-[#40721d] dark:text-[#6bb240] hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-t border-gray-200 dark:border-gray-700"
                 >
                   View all notifications
                 </Link>
@@ -298,13 +327,27 @@ export default function DashboardHeader() {
             )}
           </div>
 
+          {/* Theme toggle button */}
+          <button
+            onClick={toggleTheme}
+            className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            aria-label="Toggle theme"
+            title="Toggle dark mode"
+          >
+            {isDarkMode ? (
+              <span className="text-gray-700 dark:text-yellow-400"><SunIcon /></span>
+            ) : (
+              <span className="text-gray-700"><MoonIcon /></span>
+            )}
+          </button>
+
           {/* User */}
-          <div className="flex items-center gap-2 text-[13px] cursor-pointer px-2 py-1 rounded-lg hover:bg-white/10 transition-colors">
-            <div className="w-[32px] h-[32px] rounded-full bg-white/20 text-white flex items-center justify-center text-xs font-bold border border-white/30">
+          <div className="flex items-center gap-2 text-[13px] cursor-pointer px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <div className="w-[32px] h-[32px] rounded-full bg-gradient-to-br from-[#40721d] to-[#5a9f2a] text-white flex items-center justify-center text-xs font-bold border border-[#40721d]/30">
               {initials}
             </div>
             <div className="leading-tight">
-              <div className="text-[13px] font-medium text-white">{displayName}</div>
+              <div className="text-[13px] font-medium text-gray-900 dark:text-white">{displayName}</div>
             </div>
           </div>
         </div>

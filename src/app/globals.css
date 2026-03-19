@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -16,12 +17,12 @@
 
   /* Dashboard KPI Palette */
   --green-900: #145523;
-  --green-700: #1a7f37;
+  --green-700: #40721D;
   --green-600: #2da44e;
   --green-500: #4cb868;
   --green-100: #e6f9ec;
   --green-50: #f0faf3;
-  --page-bg: #f4f8f5;
+  --page-bg: #f8f9fa;
   --card-bg: #ffffff;
   --border: #e0ebe3;
   --border-light: #edf5ef;
@@ -38,11 +39,22 @@
   --purple-600: #7c3aed;
   --teal-600: #0891b2;
   --slate-500: #64748b;
+
+  /* Module Accent Colors */
+  --accent-patient: #10b981;
+  --accent-prescription: #3b82f6;
+  --accent-item: #a855f7;
+  --accent-doctor: #f97316;
+  --accent-compounding: #f43f5e;
+  --accent-inventory: #f59e0b;
+  --accent-sale: #40721d;
+  --accent-insurance: #6366f1;
+  --accent-system: #14b8a6;
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  background-color: var(--color-bg);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, #f8f9fa 0%, #f0f1f3 100%);
   color: #111827;
 }
 
@@ -59,6 +71,27 @@ body {
 
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
+}
+
+@keyframes subtle-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50% { box-shadow: 0 0 0 8px transparent; opacity: 0.7; }
+}
+
+@keyframes gradient-shift {
+  0% { border-color: #40721d; }
+  50% { border-color: #14b8a6; }
+  100% { border-color: #40721d; }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 1px 0 0 rgba(64, 114, 29, 0.2); }
+  50% { box-shadow: 0 1px 0 0 rgba(64, 114, 29, 0.5); }
+}
+
+@keyframes float-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulse-ring {
@@ -107,22 +140,120 @@ select:focus-visible {
 /* Card Hover Utility */
 .card-hover {
   border-color: var(--border);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .card-hover:hover {
   border-color: var(--green-600);
   box-shadow: 0 4px 12px rgba(26, 127, 55, 0.12);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .card-hover:active {
   transform: translateY(0);
 }
 
+/* Card Gradient Border */
+.card-gradient-border {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-gradient-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--card-accent, #40721d), transparent);
+}
+
 /* Pulsing Dot Animation */
 .animate-pulse {
   animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Icon Gradient Styles */
+.icon-gradient {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-gradient svg {
+  width: 20px;
+  height: 20px;
+  stroke: white;
+  stroke-width: 1.75;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Frosted Glass Navbar */
+.navbar-glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Search Animated Focus */
+.search-animated:focus-within {
+  border-color: #40721d;
+  box-shadow: 0 0 0 3px rgba(64, 114, 29, 0.1);
+  animation: gradient-shift 3s ease infinite;
+}
+
+/* Activity Icon Styles */
+.activity-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.activity-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: white;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Dialer Button Tactile */
+.dialer-btn-tactile {
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
+}
+
+.dialer-btn-tactile:active {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+  transform: translateY(1px);
+}
+
+/* KBD Badge */
+.kbd-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Inter', monospace;
+  line-height: 1;
 }
 
 /* Smooth Scroll Behavior */
@@ -155,4 +286,23 @@ input::selection,
 textarea::selection {
   background-color: var(--green-100);
   color: var(--green-900);
+}
+
+/* Dark Mode */
+[data-theme="dark"] {
+  --page-bg: #0a0b0f;
+  --card-bg: #13151c;
+  --border-light: rgba(255, 255, 255, 0.06);
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+}
+
+[data-theme="dark"] body {
+  background: radial-gradient(circle at 50% 0%, #1a1c23 0%, #0a0b0f 100%);
+}
+
+[data-theme="dark"] .navbar-glass {
+  background: rgba(15, 17, 23, 0.85);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
 }

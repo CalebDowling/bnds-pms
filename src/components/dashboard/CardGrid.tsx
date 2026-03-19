@@ -20,9 +20,13 @@ export interface DashboardData {
 interface CardConfig {
   id: string;
   title: string;
-  icon: React.ReactNode;
+  statValue?: number;
+  statLabel?: string;
   badgeLabel: string;
   badgeAlert?: boolean;
+  accentColor: string;
+  gradientColors: [string, string];
+  icon: React.ReactNode;
   primaryAction?: { href: string; label: string };
   secondaryActions: { href: string; label: string; icon: React.ReactNode }[];
 }
@@ -103,51 +107,54 @@ function calculateTrend(current: number, previous: number): { percent: number; d
 
 export default function CardGrid({ data }: { data: DashboardData }) {
 
-  // Card-level SVG icons (outline style, consistent green)
-  const PatientCardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  // Gradient icon components (white stroke on gradient background)
+  const PatientIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
   );
 
-  const RxCardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="6" x2="12" y2="14"/><line x1="9" y1="9" x2="15" y2="9"/></svg>
+  const PillIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
   );
 
-  const ItemCardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M9 2h6"/><line x1="6" y1="6" x2="18" y2="6"/></svg>
+  const PackageIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
   );
 
-  const DoctorCardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 1 0 12 0A6 6 0 0 0 6 8z"/><line x1="12" y1="5" x2="12" y2="11"/><line x1="9" y1="8" x2="15" y2="8"/></svg>
+  const MedicalCrossIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
   );
 
-  const CompoundCardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3v4m6-4v4"/><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M9 11h6m-6 4h6"/></svg>
+  const FlaskIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2v17.5A2.5 2.5 0 0 0 11.5 22h1a2.5 2.5 0 0 0 2.5-2.5V2"/><path d="M7 10h10"/><path d="M8 6h8"/></svg>
   );
 
-  const InventoryCardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 12H17a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h1.5M7 4h10v4H7z"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+  const AlertTriangleIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
   );
 
-  const SaleCardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+  const DollarSignIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
   );
 
-  const ClaimCardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+  const ClipboardCheckIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>
   );
 
-  const SystemCardIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green-700)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  const SettingsIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
   );
 
   const rxTrend = calculateTrend(data.rxToday, data.rxYesterday);
-  const revenueTrend = data.revenueToday > 0 ? { percent: 0, direction: 'up' as const } : { percent: 0, direction: 'neutral' as const };
 
   const cards: CardConfig[] = [
     {
       id: "patient",
       title: "Patient",
-      icon: <PatientCardIcon />,
+      statValue: data.patientsToday,
+      statLabel: "TODAY",
+      icon: <PatientIcon />,
+      accentColor: "#10b981",
+      gradientColors: ["#10b981", "#06b6d4"],
       badgeLabel: `+${formatNumber(data.patientsToday)} today`,
       primaryAction: { href: "/patients/new", label: "New Patient" },
       secondaryActions: [
@@ -158,7 +165,11 @@ export default function CardGrid({ data }: { data: DashboardData }) {
     {
       id: "prescription",
       title: "Prescription",
-      icon: <RxCardIcon />,
+      statValue: data.rxToday,
+      statLabel: "TODAY",
+      icon: <PillIcon />,
+      accentColor: "#3b82f6",
+      gradientColors: ["#3b82f6", "#6366f1"],
       badgeLabel: `+${formatNumber(data.rxToday)} today`,
       primaryAction: { href: "/prescriptions/new", label: "New Prescription" },
       secondaryActions: [
@@ -171,7 +182,11 @@ export default function CardGrid({ data }: { data: DashboardData }) {
     {
       id: "item",
       title: "Item",
-      icon: <ItemCardIcon />,
+      statValue: data.activeItems,
+      statLabel: "ACTIVE",
+      icon: <PackageIcon />,
+      accentColor: "#a855f7",
+      gradientColors: ["#a855f7", "#8b5cf6"],
       badgeLabel: `${formatNumber(data.activeItems)} active`,
       secondaryActions: [
         { href: "/inventory/items", label: "Manage Items", icon: <PlusIcon /> },
@@ -185,7 +200,11 @@ export default function CardGrid({ data }: { data: DashboardData }) {
     {
       id: "doctor",
       title: "Doctor",
-      icon: <DoctorCardIcon />,
+      statValue: data.doctorsOnFile,
+      statLabel: "ON FILE",
+      icon: <MedicalCrossIcon />,
+      accentColor: "#f97316",
+      gradientColors: ["#f97316", "#f87171"],
       badgeLabel: `${formatNumber(data.doctorsOnFile)} on file`,
       primaryAction: { href: "/doctors/new", label: "New Prescriber" },
       secondaryActions: [
@@ -196,7 +215,11 @@ export default function CardGrid({ data }: { data: DashboardData }) {
     {
       id: "compounding",
       title: "Compounding",
-      icon: <CompoundCardIcon />,
+      statValue: data.pendingBatches,
+      statLabel: "PENDING",
+      icon: <FlaskIcon />,
+      accentColor: "#f43f5e",
+      gradientColors: ["#f43f5e", "#ec4899"],
       badgeLabel: `${formatNumber(data.pendingBatches)} pending`,
       primaryAction: { href: "/compounding/batches", label: "Batch Manager" },
       secondaryActions: [
@@ -207,7 +230,11 @@ export default function CardGrid({ data }: { data: DashboardData }) {
     {
       id: "inventory",
       title: "Inventory",
-      icon: <InventoryCardIcon />,
+      statValue: data.lowStockItems,
+      statLabel: "LOW STOCK",
+      icon: <AlertTriangleIcon />,
+      accentColor: "#f59e0b",
+      gradientColors: ["#f59e0b", "#eab308"],
       badgeLabel: `${formatNumber(data.lowStockItems)} low stock`,
       badgeAlert: true,
       secondaryActions: [
@@ -220,7 +247,11 @@ export default function CardGrid({ data }: { data: DashboardData }) {
     {
       id: "sale",
       title: "Sale",
-      icon: <SaleCardIcon />,
+      statValue: data.salesToday,
+      statLabel: "TODAY",
+      icon: <DollarSignIcon />,
+      accentColor: "#40721d",
+      gradientColors: ["#40721d", "#65a30d"],
       badgeLabel: `${formatNumber(data.salesToday)} today`,
       primaryAction: { href: "/pos", label: "Point of Sale" },
       secondaryActions: [
@@ -230,7 +261,11 @@ export default function CardGrid({ data }: { data: DashboardData }) {
     {
       id: "claims",
       title: "Insurance & Claims",
-      icon: <ClaimCardIcon />,
+      statValue: data.rejectedClaims,
+      statLabel: "REJECTED",
+      icon: <ClipboardCheckIcon />,
+      accentColor: "#6366f1",
+      gradientColors: ["#6366f1", "#8b5cf6"],
       badgeLabel: `${formatNumber(data.rejectedClaims)} rejects`,
       badgeAlert: true,
       secondaryActions: [
@@ -242,7 +277,9 @@ export default function CardGrid({ data }: { data: DashboardData }) {
     {
       id: "system",
       title: "System",
-      icon: <SystemCardIcon />,
+      icon: <SettingsIcon />,
+      accentColor: "#14b8a6",
+      gradientColors: ["#14b8a6", "#06b6d4"],
       badgeLabel: "Admin",
       secondaryActions: [
         { href: "/admin/employees", label: "Employees", icon: <UsersIcon /> },
@@ -256,35 +293,40 @@ export default function CardGrid({ data }: { data: DashboardData }) {
 
   return (
     <div className="grid grid-cols-3 gap-4 mb-4">
-      {cards.map((card) => (
+      {cards.map((card, index) => (
         <div
           key={card.id}
-          className="bg-[var(--card-bg)] rounded-[10px] border border-[var(--border)] card-hover transition-all overflow-hidden"
+          className="card-gradient-border bg-[var(--card-bg)] rounded-[10px] card-hover transition-all overflow-hidden"
+          style={{
+            "--card-accent": card.accentColor,
+            animation: `float-in 0.3s ease forwards`,
+            animationDelay: `${index * 0.05}s`,
+          } as React.CSSProperties}
         >
           {/* Card Header */}
           <div className="flex items-start justify-between p-4 border-b border-[var(--border-light)]">
             <div className="flex items-start gap-3 flex-1">
-              <div className="w-[44px] h-[44px] rounded-lg bg-[var(--green-50)] border border-[var(--border-light)] flex items-center justify-center flex-shrink-0">
+              {/* Gradient Icon Circle */}
+              <div
+                className="w-[44px] h-[44px] rounded-lg icon-gradient flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: `linear-gradient(135deg, ${card.gradientColors[0]}, ${card.gradientColors[1]})`,
+                }}
+              >
                 {card.icon}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-semibold text-[var(--text-primary)]">{card.title}</div>
-                <div className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-1 ${
-                  card.badgeAlert
-                    ? "bg-[var(--red-100)] text-[var(--red-600)]"
-                    : "bg-[var(--green-100)] text-[var(--green-700)]"
-                }`}>
-                  {card.badgeLabel}
-                  {card.id === "prescription" && data.rxToday > 0 && rxTrend.direction !== 'neutral' && (
-                    <>
-                      <span className="w-px h-3 bg-current opacity-30"></span>
-                      <span className="inline-flex items-center gap-0.5">
-                        {rxTrend.direction === 'up' ? <TrendUpIcon /> : <TrendDownIcon />}
-                        {rxTrend.percent}%
-                      </span>
-                    </>
-                  )}
-                </div>
+                {card.statValue !== undefined && card.statLabel && (
+                  <div className="flex items-baseline gap-1 mt-1">
+                    <div className="text-2xl font-extrabold" style={{ color: card.accentColor }}>
+                      {formatNumber(card.statValue)}
+                    </div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                      {card.statLabel}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -294,7 +336,16 @@ export default function CardGrid({ data }: { data: DashboardData }) {
             {card.primaryAction && (
               <Link
                 href={card.primaryAction.href}
-                className="flex items-center justify-center gap-1.5 w-full px-3 py-[7px] rounded-md text-xs font-semibold text-white bg-[var(--green-700)] hover:bg-[var(--green-900)] active:scale-98 cursor-pointer transition-all no-underline border-none mb-2"
+                className="flex items-center justify-center gap-1.5 w-full px-3 py-[7px] rounded-lg text-sm font-medium text-white cursor-pointer transition-all no-underline border-none mb-2"
+                style={{
+                  background: `linear-gradient(135deg, #40721d, #5a9f2a)`,
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "scale(1.02)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+                }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 {card.primaryAction.label}
@@ -304,7 +355,16 @@ export default function CardGrid({ data }: { data: DashboardData }) {
               <Link
                 key={action.href}
                 href={action.href}
-                className="flex items-center gap-2 px-3 py-[7px] text-xs text-[var(--text-secondary)] cursor-pointer rounded hover:bg-[var(--green-50)] hover:text-[var(--green-700)] transition-colors no-underline w-full"
+                className="flex items-center gap-2 px-3 py-[7px] text-sm text-gray-600 cursor-pointer rounded transition-colors no-underline w-full"
+                style={{
+                  color: "rgb(75, 85, 99)",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = card.accentColor;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = "rgb(75, 85, 99)";
+                }}
               >
                 {action.icon}
                 {action.label}

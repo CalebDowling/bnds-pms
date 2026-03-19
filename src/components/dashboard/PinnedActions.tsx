@@ -36,7 +36,15 @@ function getIcon(label: string) {
 
 export default function PinnedActions() {
   return (
-    <div className="px-6 mb-1 flex items-center gap-2">
+    <div className="px-6 mb-1 flex items-center gap-3">
+      <style>{`
+        .kbd-badge {
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+          font-size: 0.65rem;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+        }
+      `}</style>
       <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] mr-1 whitespace-nowrap">
         Pinned
       </div>
@@ -45,24 +53,24 @@ export default function PinnedActions() {
           key={action.href}
           href={action.href}
           title={`${action.label} (${action.shortcut})`}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-md text-xs font-semibold cursor-pointer transition-all no-underline border group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--green-600)] ${
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium cursor-pointer transition-all no-underline group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#40721d] ${
             action.primary
-              ? "bg-[var(--green-700)] text-white border-[var(--green-700)] hover:bg-[var(--green-900)] active:scale-95"
-              : "bg-[var(--green-50)] text-[var(--green-900)] border-[var(--border)] hover:border-[var(--green-600)] hover:bg-[var(--green-100)] active:scale-95"
+              ? "bg-gradient-to-br from-[#40721d] to-[#5a9f2a] text-white hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-lg"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-95 shadow-sm hover:shadow-md"
           }`}
         >
           {getIcon(action.label)}
           <span>{action.label}</span>
-          <span className={`text-[9px] font-normal ml-0.5 px-1 py-0.5 rounded ${
+          <span className={`kbd-badge px-1.5 py-0.5 rounded ${
             action.primary
-              ? "bg-[var(--green-800)] text-[var(--green-100)] opacity-75"
-              : "bg-[var(--text-muted)] text-white opacity-50 group-hover:opacity-70"
+              ? "bg-white/20 text-white"
+              : "bg-gray-200 text-gray-600"
           }`}>
             {action.shortcut}
           </span>
         </Link>
       ))}
-      <span className="ml-auto text-[11px] text-[var(--text-muted)] cursor-pointer px-2 py-1 rounded hover:bg-[var(--green-100)] hover:text-[var(--green-700)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--green-600)]">
+      <span className="ml-auto text-[11px] text-[var(--text-muted)] cursor-pointer px-2 py-1 rounded hover:bg-gray-100 hover:text-gray-700 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#40721d]">
         Customize
       </span>
     </div>
