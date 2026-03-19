@@ -128,28 +128,14 @@ function SettingsPageContent() {
 
         {/* Integrations */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Integrations</h2>
-          <div className="space-y-3">
-            {[
-              { name: "Supabase", desc: "Database & Auth", status: "connected" },
-              { name: "SureScripts", desc: "eRx / EPCS", status: "planned" },
-              { name: "NCPDP / D.0", desc: "Insurance claims", status: "planned" },
-              { name: "Twilio", desc: "SMS, Voice, Fax", status: "planned" },
-              { name: "Stripe / Square", desc: "Payment processing", status: "planned" },
-              { name: "USPS / UPS / FedEx", desc: "Shipping labels & tracking", status: "planned" },
-              { name: "Claude AI", desc: "AI agent platform", status: "planned" },
-            ].map((i) => (
-              <div key={i.name} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{i.name}</p>
-                  <p className="text-xs text-gray-400">{i.desc}</p>
-                </div>
-                <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                  i.status === "connected" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"
-                }`}>{i.status}</span>
-              </div>
-            ))}
-          </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Integrations</h2>
+          <p className="text-sm text-gray-500 mb-4">Manage external service connections</p>
+          <Link
+            href="/settings/integrations"
+            className="inline-flex items-center px-4 py-2 rounded-lg bg-[#40721D] text-white text-sm font-medium hover:bg-[#2D5114] transition-colors"
+          >
+            Manage Integrations →
+          </Link>
         </div>
       </div>
     </div>
