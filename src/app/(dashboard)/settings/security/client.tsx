@@ -1,24 +1,22 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import {
-  get2FAStatus,
-  setup2FA,
-  verify2FA,
-  disable2FA,
-  saveTempTOTPSecret,
-  generateRecoveryCodesNew,
-} from "./actions";
 import { generateQRCodeURL } from "@/lib/security/totp";
 
 export const dynamic = "force-dynamic";
 
 type Step = "idle" | "generating" | "qrcode" | "verify" | "success" | "disable";
 
-export function SecuritySettingsPage() {
+interface SecuritySettingsPageProps {
+  initialIs2FAEnabled: boolean;
+}
+
+export function SecuritySettingsPage({
+  initialIs2FAEnabled,
+}: SecuritySettingsPageProps) {
   const [step, setStep] = useState<Step>("idle");
-  const [is2FAEnabled, setIs2FAEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [is2FAEnabled, setIs2FAEnabled] = useState(initialIs2FAEnabled);
+  const [loading, setLoading] = useState(false);
   const [secret, setSecret] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -29,13 +27,10 @@ export function SecuritySettingsPage() {
   const [verifying, setVerifying] = useState(false);
   const [disabling, setDisabling] = useState(false);
 
-  // Get user email from wherever it's available (e.g., from a context or fetch)
+  // Get user email on mount
   useEffect(() => {
     const getUserEmail = async () => {
       try {
-        const { getCurrentUser } = await import("@/lib/auth");
-        // We need the client-side user info
-        // For now, we'll fetch it from the auth context or use a helper
         const res = await fetch("/api/user/profile");
         if (res.ok) {
           const data = await res.json();
@@ -46,30 +41,24 @@ export function SecuritySettingsPage() {
       }
     };
 
-    const checkStatus = async () => {
-      try {
-        const status = await get2FAStatus();
-        setIs2FAEnabled(status.enabled);
-      } catch (error) {
-        console.error("Failed to check 2FA status:", error);
-        console.log("Failed to load 2FA status");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     getUserEmail();
-    checkStatus();
   }, []);
 
   const handleSetup2FA = async () => {
     try {
       setStep("generating");
-      const { secret: newSecret } = await setup2FA();
-      setSecret(newSecret);
+      const res = await fetch("/api/security/2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "setup" }),
+      });
 
-      // Save temp secret to backend
-      await saveTempTOTPSecret(newSecret);
+      if (!res.ok) {
+        throw new Error("Failed to setup 2FA");
+      }
+
+      const { secret: newSecret } = await res.json();
+      setSecret(newSecret);
 
       // Generate QR code URL
       const qrUrl = generateQRCodeURL(
@@ -77,8 +66,6 @@ export function SecuritySettingsPage() {
         userEmail || "user@example.com",
         "Boudreaux's Pharmacy"
       );
-      // Note: For a full implementation, use a QR code library like 'qrcode'
-      // For now, we use the OTPAuth URL directly which authenticator apps can scan
       setQrCodeUrl(qrUrl);
 
       setStep("qrcode");
@@ -97,7 +84,18 @@ export function SecuritySettingsPage() {
 
     try {
       setVerifying(true);
-      const result = await verify2FA(verificationCode);
+      const res = await fetch("/api/security/2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", token: verificationCode }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Verification failed");
+      }
+
+      const result = await res.json();
       setRecoveryCodes(result.recoveryCodes);
       setStep("success");
       setIs2FAEnabled(true);
@@ -119,7 +117,17 @@ export function SecuritySettingsPage() {
 
     try {
       setDisabling(true);
-      await disable2FA(disableCode);
+      const res = await fetch("/api/security/2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disable", token: disableCode }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Disable failed");
+      }
+
       setIs2FAEnabled(false);
       setStep("idle");
       console.log("2FA disabled successfully!");
@@ -134,7 +142,17 @@ export function SecuritySettingsPage() {
 
   const handleRegenerateRecoveryCodes = async () => {
     try {
-      const { recoveryCodes: newCodes } = await generateRecoveryCodesNew();
+      const res = await fetch("/api/security/2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "recovery_codes" }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to regenerate codes");
+      }
+
+      const { recoveryCodes: newCodes } = await res.json();
       setRecoveryCodes(newCodes);
       setShowRecoveryCodes(true);
       console.log("Recovery codes regenerated");
@@ -167,13 +185,6 @@ export function SecuritySettingsPage() {
     console.log("Recovery codes downloaded");
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">Loading security settings...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-2xl p-8">
