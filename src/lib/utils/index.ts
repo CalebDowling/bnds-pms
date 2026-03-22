@@ -52,3 +52,16 @@ export function getInitials(firstName: string, lastName: string): string {
 export function cn(...classes: (string | boolean | undefined | null)[]): string {
   return classes.filter(Boolean).join(" ");
 }
+
+/**
+ * Format a number as currency (USD)
+ */
+export function formatCurrency(amount: number | string | null): string {
+  if (amount === null || amount === undefined) return "$0.00";
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  if (isNaN(num)) return "$0.00";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(num);
+}
