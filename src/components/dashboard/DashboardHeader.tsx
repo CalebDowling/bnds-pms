@@ -171,11 +171,11 @@ export default function DashboardHeader() {
       <div className="flex items-center justify-between px-5 h-[56px]">
         {/* Left: Logo */}
         <Link href="/dashboard" className="flex items-center no-underline">
-          <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[40px]" />
+          <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[40px] md:h-[40px] sm:h-[32px]" />
         </Link>
 
-        {/* Center: Nav tabs */}
-        <nav className="flex items-center gap-1">
+        {/* Center: Nav tabs - hidden on mobile */}
+        <nav className="hidden sm:flex items-center gap-1">
           {navTabs.map((tab) => {
             // Check if tab has permission requirements
             if (tab.resource && !canAccess(tab.resource, tab.action)) {
@@ -203,7 +203,7 @@ export default function DashboardHeader() {
           {canAccess("prescriptions", "write") && (
             <Link
               href="/prescriptions/new"
-              className="inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg text-xs font-bold bg-gradient-to-r from-[#40721d] to-[#5a9f2a] hover:from-[#36631a] hover:to-[#4f8925] text-white no-underline transition-all shadow-md hover:shadow-lg hover:scale-105"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg text-xs font-bold bg-gradient-to-r from-[#40721d] to-[#5a9f2a] hover:from-[#36631a] hover:to-[#4f8925] text-white no-underline transition-all shadow-md hover:shadow-lg hover:scale-105"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               New Prescription

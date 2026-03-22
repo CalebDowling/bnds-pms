@@ -36,7 +36,7 @@ function getIcon(label: string) {
 
 export default function PinnedActions() {
   return (
-    <div className="px-6 mb-1 flex items-center gap-3">
+    <div className="px-6 mb-1 flex items-center gap-3 overflow-x-auto mobile-scroll-x">
       <style>{`
         .kbd-badge {
           font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
@@ -45,7 +45,7 @@ export default function PinnedActions() {
           letter-spacing: 0.5px;
         }
       `}</style>
-      <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] mr-1 whitespace-nowrap">
+      <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] mr-1 whitespace-nowrap flex-shrink-0">
         Pinned
       </div>
       {actions.map((action) => (
@@ -70,7 +70,7 @@ export default function PinnedActions() {
           </span>
         </Link>
       ))}
-      <span className="ml-auto text-[11px] text-[var(--text-muted)] cursor-pointer px-2 py-1 rounded hover:bg-gray-100 hover:text-gray-700 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#40721d]">
+      <span className="hidden sm:inline text-[11px] text-[var(--text-muted)] cursor-pointer px-2 py-1 rounded hover:bg-gray-100 hover:text-gray-700 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#40721d] flex-shrink-0">
         Customize
       </span>
     </div>

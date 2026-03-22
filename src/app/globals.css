@@ -306,3 +306,93 @@ textarea::selection {
   background: rgba(15, 17, 23, 0.85);
   border-bottom-color: rgba(255, 255, 255, 0.06);
 }
+
+/* Mobile responsive overrides */
+@media (max-width: 768px) {
+  .navbar-glass {
+    padding: 0 12px;
+  }
+
+  /* Stack card grid to single column on mobile */
+  .mobile-stack {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Hide phone dialer on mobile (it has its own page) */
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* Full-width buttons on mobile */
+  .mobile-full {
+    width: 100% !important;
+  }
+
+  /* Scroll horizontal for pipeline on mobile */
+  .mobile-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mobile-scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Reduce padding on mobile */
+  .mobile-p-sm {
+    padding: 12px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Even smaller screens */
+  .hide-sm {
+    display: none !important;
+  }
+}
+
+/* Dark mode comprehensive support */
+[data-theme="dark"] .card-gradient-border,
+[data-theme="dark"] .light-card {
+  background: #1a1d27;
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
+}
+
+[data-theme="dark"] .card-gradient-border:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: #1a1d27;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus {
+  border-color: #40721d;
+}
+
+/* Dark mode text overrides */
+[data-theme="dark"] .text-gray-900 { color: #f3f4f6 !important; }
+[data-theme="dark"] .text-gray-700 { color: #d1d5db !important; }
+[data-theme="dark"] .text-gray-600 { color: #9ca3af !important; }
+[data-theme="dark"] .text-gray-500 { color: #6b7280 !important; }
+[data-theme="dark"] .text-gray-400 { color: #4b5563 !important; }
+
+/* Dark mode backgrounds */
+[data-theme="dark"] .bg-white { background: #1a1d27 !important; }
+[data-theme="dark"] .bg-gray-50 { background: #13151c !important; }
+[data-theme="dark"] .bg-gray-100 { background: #1e2130 !important; }
+[data-theme="dark"] .bg-gray-200 { background: #2a2d3a !important; }
+
+/* Dark mode borders */
+[data-theme="dark"] .border-gray-200 { border-color: rgba(255, 255, 255, 0.06) !important; }
+[data-theme="dark"] .border-gray-100 { border-color: rgba(255, 255, 255, 0.04) !important; }
+
+/* Dark mode hover states */
+[data-theme="dark"] .hover\:bg-gray-50:hover { background: #1e2130 !important; }
+[data-theme="dark"] .hover\:bg-gray-100:hover { background: #252838 !important; }

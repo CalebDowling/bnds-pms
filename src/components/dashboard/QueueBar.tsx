@@ -41,7 +41,7 @@ export default function QueueBar() {
   }, []);
 
   return (
-    <div className="bg-[var(--card-bg)] px-6 py-3 border-b border-[var(--border)] flex items-center gap-4 overflow-x-auto relative card-gradient-border" style={{ "--card-accent": "#40721d" } as React.CSSProperties}>
+    <div className="bg-[var(--card-bg)] px-6 py-3 border-b border-[var(--border)] flex items-center gap-4 overflow-x-auto relative card-gradient-border mobile-scroll-x" style={{ "--card-accent": "#40721d" } as React.CSSProperties}>
       <style>{`
         @keyframes subtle-pulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(64, 114, 29, 0.4); }

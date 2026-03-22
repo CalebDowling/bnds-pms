@@ -5,7 +5,10 @@ import QueueBar from "@/components/dashboard/QueueBar";
 import DashboardSearch from "@/components/dashboard/DashboardSearch";
 import RealtimeProvider from "@/components/providers/RealtimeProvider";
 import { PermissionsProvider } from "@/components/providers/PermissionsProvider";
+import { KeyboardShortcutsProvider } from "@/components/providers/KeyboardShortcutsProvider";
+import SessionTimeoutProvider from "@/components/providers/SessionTimeoutProvider";
 import ToastContainer from "@/components/ui/ToastContainer";
+import ToastProvider from "@/components/providers/ToastProvider";
 import { PermissionsMap } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -48,15 +51,21 @@ export default async function DashboardLayout({
 
   return (
     <PermissionsProvider permissions={userPermissions}>
-      <div className="min-h-screen bg-[var(--page-bg)]">
-        <DashboardHeader />
-        <QueueBar />
-        <DashboardSearch />
-        <main className="p-0">
-          <RealtimeProvider>{children}</RealtimeProvider>
-        </main>
-        <ToastContainer />
-      </div>
+      <ToastProvider>
+        <KeyboardShortcutsProvider>
+          <SessionTimeoutProvider>
+            <div className="min-h-screen bg-[var(--page-bg)]">
+              <DashboardHeader />
+              <QueueBar />
+              <DashboardSearch />
+              <main className="p-0">
+                <RealtimeProvider>{children}</RealtimeProvider>
+              </main>
+              <ToastContainer />
+            </div>
+          </SessionTimeoutProvider>
+        </KeyboardShortcutsProvider>
+      </ToastProvider>
     </PermissionsProvider>
   );
 }
