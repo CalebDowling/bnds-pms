@@ -12,6 +12,12 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "2mb",
     },
+    optimizePackageImports: [
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-select",
+      "@sentry/nextjs",
+    ],
   },
 
   // Security headers applied to all routes
@@ -65,6 +71,19 @@ const nextConfig = {
     fetches: {
       fullUrl: process.env.NODE_ENV === "development",
     },
+  },
+
+  // Optimize image loading and responsive images
+  images: {
+    formats: ["image/avif", "image/webp"],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+
+  // Cache static assets and API responses appropriately
+  onDemandEntries: {
+    maxInactiveAge: 60 * 1000,
+    pagesBufferLength: 5,
   },
 };
 

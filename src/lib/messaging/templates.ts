@@ -1,9 +1,15 @@
 /**
  * Message templates for patient notifications
  * Each template returns {subject, html, text, sms}
+ * Uses branded HTML templates from the branding module
  */
 
 import { buildEmailHtml } from "./email";
+import {
+  generateEmailHTML,
+  GenerateEmailOptions,
+  EmailTemplateType,
+} from "../branding/email-templates";
 
 export type TemplateName =
   | "readyForPickup"
@@ -40,28 +46,12 @@ export function readyForPickup(data: TemplateData): MessageTemplate {
 
   const subject = `Your prescription is ready for pickup`;
 
-  const htmlContent = `
-<p>Hello ${patientName},</p>
-
-<p>Good news! Your prescription is ready for pickup.</p>
-
-<div class="highlight">
-  <p><strong>Prescription Details:</strong></p>
-  <p>Medication: <strong>${drugName || "Your medication"}</strong></p>
-  <p>Rx Number: <strong>${rxNumber || "N/A"}</strong></p>
-</div>
-
-<p>Please visit our pharmacy at your earliest convenience to pick up your medication.
-Our team will be happy to answer any questions you may have.</p>
-
-<p>${
-    pharmacyPhone
-      ? `<strong>Questions?</strong> Give us a call at <strong>${pharmacyPhone}</strong>`
-      : ""
-  }</p>
-
-<p>Thank you for choosing Boudreaux's Pharmacy!</p>
-  `.trim();
+  // Use branded email template
+  const brandedTemplate = generateEmailHTML("prescriptionReady", {
+    patientName,
+    rxNumber,
+    drugName,
+  });
 
   const textContent = `Hello ${patientName},
 
@@ -81,7 +71,7 @@ Thank you for choosing Boudreaux's Pharmacy!`;
 
   return {
     subject,
-    html: buildEmailHtml("readyForPickup", htmlContent),
+    html: brandedTemplate.html,
     text: textContent,
     sms: smsText,
   };
@@ -95,29 +85,13 @@ export function refillDue(data: TemplateData): MessageTemplate {
 
   const subject = `Time to refill your prescription`;
 
-  const htmlContent = `
-<p>Hello ${patientName},</p>
-
-<p>It's time to refill your prescription. Don't run out of your medication!</p>
-
-<div class="highlight">
-  <p><strong>Prescription Details:</strong></p>
-  <p>Medication: <strong>${drugName || "Your medication"}</strong></p>
-  <p>Rx Number: <strong>${rxNumber || "N/A"}</strong></p>
-  ${refillsRemaining !== undefined ? `<p>Refills Available: <strong>${refillsRemaining}</strong></p>` : ""}
-</div>
-
-<p>You can refill your prescription by:</p>
-<ul>
-  <li>Visiting our pharmacy in person</li>
-  <li>Calling us for a quick refill</li>
-  <li>Using our online pharmacy portal</li>
-</ul>
-
-<p>Refill your medication today to ensure continuous treatment.</p>
-
-<p>Thank you for choosing Boudreaux's Pharmacy!</p>
-  `.trim();
+  // Use branded email template
+  const brandedTemplate = generateEmailHTML("refillReminder", {
+    patientName,
+    rxNumber,
+    drugName,
+    refillsRemaining,
+  });
 
   const textContent = `Hello ${patientName},
 
@@ -137,7 +111,7 @@ Thank you for choosing Boudreaux's Pharmacy!`;
 
   return {
     subject,
-    html: buildEmailHtml("refillDue", htmlContent),
+    html: brandedTemplate.html,
     text: textContent,
     sms: smsText,
   };
@@ -197,21 +171,12 @@ export function shippingUpdate(data: TemplateData): MessageTemplate {
 
   const subject = `Your order has shipped`;
 
-  const htmlContent = `
-<p>Hello ${patientName},</p>
-
-<p>Your order has shipped and is on its way to you!</p>
-
-<div class="highlight">
-  <p><strong>Tracking Information:</strong></p>
-  ${trackingNumber ? `<p>Tracking Number: <strong>${trackingNumber}</strong></p>` : ""}
-  ${carrier ? `<p>Carrier: <strong>${carrier}</strong></p>` : ""}
-</div>
-
-<p>You can track your shipment using the information above. We appreciate your patience!</p>
-
-<p>Thank you for choosing Boudreaux's Pharmacy!</p>
-  `.trim();
+  // Use branded email template
+  const brandedTemplate = generateEmailHTML("orderShipped", {
+    patientName,
+    trackingNumber,
+    carrier,
+  });
 
   const textContent = `Hello ${patientName},
 
@@ -230,7 +195,7 @@ Thank you for choosing Boudreaux's Pharmacy!`;
 
   return {
     subject,
-    html: buildEmailHtml("shippingUpdate", htmlContent),
+    html: brandedTemplate.html,
     text: textContent,
     sms: smsText,
   };
@@ -249,6 +214,7 @@ export function prescriptionExpiring(data: TemplateData): MessageTemplate {
 
   const subject = `Your prescription is expiring soon`;
 
+  // Use existing HTML builder for this notification (no branded template yet)
   const htmlContent = `
 <p>Hello ${patientName},</p>
 
