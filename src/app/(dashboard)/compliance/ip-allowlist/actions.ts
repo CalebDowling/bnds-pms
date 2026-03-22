@@ -1,13 +1,13 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import {
   parseIPAllowlist,
   serializeIPAllowlist,
 } from "@/lib/security/ip-allowlist";
 
 export async function getIPAllowlist() {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user || !user.isAdmin) {
     throw new Error("Admin access required");
@@ -50,6 +50,8 @@ export async function updateIPAllowlist(
   enabled: boolean,
   storeId?: string
 ) {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user || !user.isAdmin) {
     throw new Error("Admin access required");
@@ -95,6 +97,7 @@ export async function updateIPAllowlist(
 }
 
 export async function addIPToAllowlist(ip: string) {
+  const { getCurrentUser } = await import("@/lib/auth");
   const user = await getCurrentUser();
   if (!user || !user.isAdmin) {
     throw new Error("Admin access required");
@@ -117,6 +120,7 @@ export async function addIPToAllowlist(ip: string) {
 }
 
 export async function removeIPFromAllowlist(ip: string) {
+  const { getCurrentUser } = await import("@/lib/auth");
   const user = await getCurrentUser();
   if (!user || !user.isAdmin) {
     throw new Error("Admin access required");
@@ -131,6 +135,7 @@ export async function removeIPFromAllowlist(ip: string) {
 }
 
 export async function toggleIPAllowlist(enabled: boolean) {
+  const { getCurrentUser } = await import("@/lib/auth");
   const user = await getCurrentUser();
   if (!user || !user.isAdmin) {
     throw new Error("Admin access required");

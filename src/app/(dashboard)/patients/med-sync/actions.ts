@@ -1,8 +1,5 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
-
 interface PatientMedSync {
   enrolled: boolean;
   syncDay: number;
@@ -11,6 +8,8 @@ interface PatientMedSync {
 
 export async function getMedSyncPatients() {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -43,6 +42,8 @@ export async function enrollPatient(
   medicationIds: string[]
 ) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -85,6 +86,8 @@ export async function enrollPatient(
 
 export async function unenrollPatient(patientId: string) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -125,6 +128,8 @@ export async function unenrollPatient(patientId: string) {
 
 export async function generateSyncBatch(date: Date) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -204,6 +209,8 @@ export async function generateSyncBatch(date: Date) {
 
 export async function getMedSyncStats() {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 

@@ -1,7 +1,5 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { Decimal } from "@prisma/client/runtime/library";
 
@@ -48,6 +46,8 @@ export interface ReorderSettings {
 // ───────────────────────────────────────────
 
 export async function getReorderAlerts(): Promise<ReorderAlert[]> {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -110,6 +110,8 @@ export async function getReorderAlerts(): Promise<ReorderAlert[]> {
 export async function generatePurchaseOrder(
   items: PurchaseOrderData[]
 ): Promise<string> {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -194,6 +196,8 @@ export async function autoGenerateReorders(): Promise<{
   createdOrders: number;
   itemsProcessed: number;
 }> {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -264,6 +268,8 @@ export async function autoGenerateReorders(): Promise<{
 export async function getReorderHistory(
   limit = 10
 ): Promise<ReorderHistoryItem[]> {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -293,6 +299,8 @@ export async function getReorderHistory(
 // ───────────────────────────────────────────
 
 export async function approveOrder(orderId: string): Promise<void> {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -331,6 +339,7 @@ export async function getReorderSettings(): Promise<ReorderSettings> {
 export async function updateReorderSettings(
   settings: ReorderSettings
 ): Promise<void> {
+  const { getCurrentUser } = await import("@/lib/auth");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 

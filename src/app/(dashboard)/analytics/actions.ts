@@ -1,9 +1,8 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
-
 export async function getDailyFills(days: number) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const startDate = new Date();
@@ -46,6 +45,8 @@ export async function getDailyFills(days: number) {
 }
 
 export async function getRevenueTrend(days: number) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const startDate = new Date();
@@ -106,6 +107,8 @@ export async function getRevenueTrend(days: number) {
 }
 
 export async function getTopDrugs(limit: number = 10) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const topDrugs = await prisma.prescriptionFill.groupBy({
@@ -139,6 +142,8 @@ export async function getTopDrugs(limit: number = 10) {
 }
 
 export async function getStatusBreakdown() {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const statusCounts = await prisma.prescriptionFill.groupBy({
@@ -153,6 +158,8 @@ export async function getStatusBreakdown() {
 }
 
 export async function getTurnaroundTrend(days: number) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const startDate = new Date();
@@ -200,6 +207,8 @@ export async function getTurnaroundTrend(days: number) {
 }
 
 export async function getClaimsPerformance(days: number) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const startDate = new Date();

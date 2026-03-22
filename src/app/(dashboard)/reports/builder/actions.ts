@@ -1,8 +1,5 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
-
 // Whitelist of allowed fields per data source
 const FIELD_WHITELIST: Record<string, string[]> = {
   Patients: [
@@ -97,6 +94,7 @@ const FIELD_TYPES: Record<string, string> = {
 };
 
 export async function getAvailableFields(dataSource: string) {
+  const { requireUser } = await import("@/lib/auth");
   await requireUser();
 
   const fields = FIELD_WHITELIST[dataSource] || [];
@@ -119,6 +117,8 @@ export async function executeCustomReport(
   sort?: { field: string; direction: "asc" | "desc" },
   limit: number = 100
 ) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   // Validate all columns and filters are whitelisted
@@ -283,6 +283,8 @@ export async function executeCustomReport(
 }
 
 export async function saveCustomReport(name: string, config: any) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   // Store in StoreSetting as JSON
@@ -304,6 +306,8 @@ export async function saveCustomReport(name: string, config: any) {
 }
 
 export async function getSavedReports() {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const store = await prisma.store.findFirst();
@@ -333,6 +337,8 @@ export async function getSavedReports() {
 }
 
 export async function loadReport(reportId: string) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const setting = await prisma.storeSetting.findUnique({

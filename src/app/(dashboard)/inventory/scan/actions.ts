@@ -1,10 +1,9 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
-
 export async function lookupByNDC(ndc: string) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -35,6 +34,8 @@ export async function checkInItem(
   expirationDate?: string
 ) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -92,6 +93,8 @@ export async function checkInItem(
 
 export async function verifyDispensing(fillId: string, scannedNDC: string) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 

@@ -1,7 +1,5 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import {
   generateSecret,
   generateTOTP,
@@ -10,6 +8,8 @@ import {
 } from "@/lib/security/totp";
 
 export async function get2FAStatus() {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
@@ -30,6 +30,7 @@ export async function get2FAStatus() {
 }
 
 export async function setup2FA() {
+  const { getCurrentUser } = await import("@/lib/auth");
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
@@ -43,6 +44,8 @@ export async function setup2FA() {
 }
 
 export async function verify2FA(token: string) {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
@@ -102,6 +105,8 @@ export async function verify2FA(token: string) {
 }
 
 export async function disable2FA(token: string) {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
@@ -148,6 +153,8 @@ export async function disable2FA(token: string) {
 }
 
 export async function generateRecoveryCodesNew() {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
@@ -187,6 +194,8 @@ export async function generateRecoveryCodesNew() {
 }
 
 export async function saveTempTOTPSecret(secret: string) {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 

@@ -1,8 +1,5 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
-
 const ALERT_DEFAULTS = {
   turnaround_time: { threshold: 1440, channel: "email" }, // 24 hours in minutes
   daily_fills_low: { threshold: 20, channel: "dashboard" },
@@ -13,6 +10,8 @@ const ALERT_DEFAULTS = {
 };
 
 export async function getAlertConfigs() {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const store = await prisma.store.findFirst();
@@ -59,6 +58,8 @@ export async function getAlertConfigs() {
 }
 
 export async function updateAlertConfig(alertId: string, config: any) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const store = await prisma.store.findFirst();
@@ -90,6 +91,8 @@ export async function updateAlertConfig(alertId: string, config: any) {
 }
 
 export async function getAlertHistory() {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   await requireUser();
 
   const store = await prisma.store.findFirst();
@@ -114,6 +117,7 @@ export async function getAlertHistory() {
 }
 
 export async function checkAlerts() {
+  const { prisma } = await import("@/lib/prisma");
   // This function should be called by a cron job
   const store = await prisma.store.findFirst();
   if (!store) return [];
@@ -284,6 +288,7 @@ export async function checkAlerts() {
 }
 
 export async function testAlert(alertId: string) {
+  const { requireUser } = await import("@/lib/auth");
   await requireUser();
 
   const configs = await getAlertConfigs();

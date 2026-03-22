@@ -1,8 +1,5 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
-
 interface Ingredient {
   id: string;
   name: string;
@@ -14,6 +11,8 @@ interface Ingredient {
 
 export async function getFormulas() {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -36,6 +35,8 @@ export async function getFormulas() {
 
 export async function getFormulaIngredients(formulaId: string) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -94,6 +95,7 @@ export async function calculatePricing(
   quantityMade: number
 ) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -146,6 +148,8 @@ export async function saveQuote(
   pricingData: any
 ) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -200,6 +204,8 @@ export async function saveQuote(
 
 export async function getIngredientCost(itemId: string) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { prisma } = await import("@/lib/prisma");
     const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
 

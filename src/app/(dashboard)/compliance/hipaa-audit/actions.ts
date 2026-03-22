@@ -1,6 +1,5 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth";
 import {
   getAuditLog,
   getHIPAAStats,
@@ -9,6 +8,7 @@ import {
 } from "@/lib/security/hipaa-audit";
 
 export async function getHIPAAAuditLog(filters: AuditLogFilter) {
+  const { getCurrentUser } = await import("@/lib/auth");
   const user = await getCurrentUser();
   if (!user || !user.isAdmin) {
     throw new Error("Admin access required");
@@ -18,6 +18,7 @@ export async function getHIPAAAuditLog(filters: AuditLogFilter) {
 }
 
 export async function getHIPAAStatsData(startDate: Date, endDate: Date) {
+  const { getCurrentUser } = await import("@/lib/auth");
   const user = await getCurrentUser();
   if (!user || !user.isAdmin) {
     throw new Error("Admin access required");
@@ -27,6 +28,7 @@ export async function getHIPAAStatsData(startDate: Date, endDate: Date) {
 }
 
 export async function exportHIPAAAuditCSV(filters: AuditLogFilter) {
+  const { getCurrentUser } = await import("@/lib/auth");
   const user = await getCurrentUser();
   if (!user || !user.isAdmin) {
     throw new Error("Admin access required");
