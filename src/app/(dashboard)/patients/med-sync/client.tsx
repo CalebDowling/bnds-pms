@@ -1,17 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  getMedSyncPatients,
-  getMedSyncStats,
-  enrollPatient,
-  unenrollPatient,
-  generateSyncBatch,
-} from './actions';
+import React, { useState } from 'react';
 
 export const dynamic = 'force-dynamic';
 
-interface SyncPatient {
+export interface SyncPatient {
   id: string;
   firstName: string;
   lastName: string;
@@ -19,43 +12,51 @@ interface SyncPatient {
   metadata: any;
 }
 
-interface MedSyncStats {
+export interface MedSyncStats {
   enrolledCount: number;
   nextBatchDate: string | null;
   avgMedsPerPatient: number;
 }
 
-export function MedSyncPage() {
-  const [patients, setPatients] = useState<SyncPatient[]>([]);
-  const [stats, setStats] = useState<MedSyncStats | null>(null);
-  const [loading, setLoading] = useState(true);
+interface MedSyncPageProps {
+  initialPatients: SyncPatient[];
+  initialStats: MedSyncStats;
+}
+
+export function MedSyncPage({
+  initialPatients,
+  initialStats,
+}: MedSyncPageProps) {
+  const [patients, setPatients] = useState<SyncPatient[]>(initialPatients);
+  const [stats, setStats] = useState<MedSyncStats | null>(initialStats);
   const [syncLoading, setSyncLoading] = useState(false);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
-    setLoading(true);
     try {
-      const [patientsData, statsData] = await Promise.all([
-        getMedSyncPatients(),
-        getMedSyncStats(),
-      ]);
+      const res = await fetch("/api/patients/med-sync-data");
+      if (!res.ok) throw new Error("Failed to load");
+
+      const { patients: patientsData, stats: statsData } = await res.json();
       setPatients(patientsData);
       setStats(statsData);
     } catch (error) {
       console.error('Failed to load med sync data:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleGenerateBatch = async () => {
     setSyncLoading(true);
     try {
-      const result = await generateSyncBatch(new Date());
+      const res = await fetch("/api/patients/generate-sync-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: new Date().toISOString() }),
+      });
+
+      if (!res.ok) throw new Error("Failed");
+
+      const result = await res.json();
       alert(`Generated ${result.fillsCreated} fills for med sync`);
       await loadData();
     } catch (error) {
@@ -68,14 +69,6 @@ export function MedSyncPage() {
   const enrolledPatients = patients.filter(
     (p) => p.metadata?.medSync?.enrolled
   );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin text-gray-400 text-2xl">⟳</div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -225,8 +218,16 @@ export function MedSyncPage() {
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={async () => {
-                          await unenrollPatient(patient.id);
-                          await loadData();
+                          try {
+                            await fetch(`/api/patients/med-sync-unenroll`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ patientId: patient.id }),
+                            });
+                            await loadData();
+                          } catch (error) {
+                            console.error("Failed to unenroll:", error);
+                          }
                         }}
                         className="text-sm text-red-600 hover:text-red-700 transition-colors"
                       >

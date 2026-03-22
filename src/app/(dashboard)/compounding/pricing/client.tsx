@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { getFormulas, calculatePricing, saveQuote } from './actions';
+import React, { useState } from 'react';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,16 +25,19 @@ interface PricingData {
   quantityUnit: string;
 }
 
-interface Formula {
+export interface Formula {
   id: string;
   name: string;
   formulaCode: string;
 }
 
-export function CompoundPricingPage() {
-  const [formulas, setFormulas] = useState<Formula[]>([]);
+interface CompoundPricingPageProps {
+  initialFormulas: Formula[];
+}
+
+export function CompoundPricingPage({ initialFormulas }: CompoundPricingPageProps) {
+  const [formulas, setFormulas] = useState<Formula[]>(initialFormulas);
   const [selectedFormula, setSelectedFormula] = useState('custom');
-  const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
 
   const [pricing, setPricing] = useState<PricingData>({
@@ -51,22 +53,6 @@ export function CompoundPricingPage() {
   });
 
   const [results, setResults] = useState<any>(null);
-
-  useEffect(() => {
-    loadFormulas();
-  }, []);
-
-  const loadFormulas = async () => {
-    setLoading(true);
-    try {
-      const data = await getFormulas();
-      setFormulas(data);
-    } catch (error) {
-      console.error('Failed to load formulas:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const updateIngredient = (id: string, field: string, value: any) => {
     setPricing((prev) => ({
@@ -113,16 +99,24 @@ export function CompoundPricingPage() {
   const handleCalculate = async () => {
     setCalculating(true);
     try {
-      const result = await calculatePricing(
-        pricing.ingredients,
-        pricing.laborRate,
-        pricing.laborMinutes,
-        pricing.overhead,
-        pricing.containerCost,
-        pricing.dispensingFee,
-        pricing.markupPercent,
-        pricing.quantityMade
-      );
+      const res = await fetch("/api/compounding/calculate-pricing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ingredients: pricing.ingredients,
+          laborRate: pricing.laborRate,
+          laborMinutes: pricing.laborMinutes,
+          overhead: pricing.overhead,
+          containerCost: pricing.containerCost,
+          dispensingFee: pricing.dispensingFee,
+          markupPercent: pricing.markupPercent,
+          quantityMade: pricing.quantityMade,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Calculation failed");
+
+      const result = await res.json();
       setResults(result);
     } catch (error) {
       console.error('Calculation error:', error);
@@ -134,10 +128,20 @@ export function CompoundPricingPage() {
   const handleSaveQuote = async () => {
     if (results) {
       try {
-        await saveQuote(selectedFormula, {
-          ...pricing,
-          ...results,
+        const res = await fetch("/api/compounding/save-quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            formulaId: selectedFormula,
+            data: {
+              ...pricing,
+              ...results,
+            },
+          }),
         });
+
+        if (!res.ok) throw new Error("Save failed");
+
         alert('Quote saved successfully');
       } catch (error) {
         alert(`Error saving quote: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -152,13 +156,6 @@ export function CompoundPricingPage() {
   const laborCost = (pricing.laborRate / 60) * pricing.laborMinutes;
   const overheadCost = ingredientSubtotal * (pricing.overhead / 100);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin text-gray-400">⟳</div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { testIntegration, IntegrationInfo } from "./actions";
+
+export interface IntegrationInfo {
+  name: string;
+  description: string;
+  status: "connected" | "configured" | "planned" | "error" | "not_configured";
+  icon: string;
+}
 
 // Simple toast notification helper
 function showToast(message: string, type: "success" | "error" = "success") {
@@ -207,11 +213,29 @@ export default function IntegrationsClient({ initialIntegrations }: Integrations
   const handleTestIntegration = async (name: string) => {
     setTestingIntegration(name);
     try {
-      const result = await testIntegration(name);
+      const res = await fetch("/api/settings/test-integration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        showToast(`${name}: ${error.message || "Test failed"}`, "error");
+        setIntegrations((prev) =>
+          prev.map((i) =>
+            i.name === name
+              ? { ...i, status: "error" as const }
+              : i
+          )
+        );
+        return;
+      }
+
+      const result = await res.json();
 
       if (result.success) {
         showToast(`${name} connection successful`, "success");
-        // Update the status
         setIntegrations((prev) =>
           prev.map((i) =>
             i.name === name
@@ -221,7 +245,6 @@ export default function IntegrationsClient({ initialIntegrations }: Integrations
         );
       } else {
         showToast(`${name}: ${result.error || result.message}`, "error");
-        // Update the status to error
         setIntegrations((prev) =>
           prev.map((i) =>
             i.name === name

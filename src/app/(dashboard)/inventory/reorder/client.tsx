@@ -1,50 +1,44 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  getReorderAlerts,
-  getReorderHistory,
-  autoGenerateReorders,
-  generatePurchaseOrder,
-  approveOrder,
-  type ReorderAlert,
-  type ReorderHistoryItem,
-} from "./actions";
+import { useState } from "react";
+import type { ReorderAlert, ReorderHistoryItem } from "./actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
 export const dynamic = "force-dynamic";
 
-export function ReorderPage() {
-  const [alerts, setAlerts] = useState<ReorderAlert[]>([]);
-  const [history, setHistory] = useState<ReorderHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+interface ReorderPageProps {
+  initialAlerts: ReorderAlert[];
+  initialHistory: ReorderHistoryItem[];
+}
+
+export function ReorderPage({
+  initialAlerts,
+  initialHistory,
+}: ReorderPageProps) {
+  const [alerts, setAlerts] = useState<ReorderAlert[]>(initialAlerts);
+  const [history, setHistory] = useState<ReorderHistoryItem[]>(initialHistory);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   async function loadData() {
     try {
-      setLoading(true);
-      const [alertsData, historyData] = await Promise.all([
-        getReorderAlerts(),
-        getReorderHistory(),
-      ]);
+      const res = await fetch("/api/inventory/reorder-data");
+      if (!res.ok) throw new Error("Failed to load");
+
+      const { alerts: alertsData, history: historyData } = await res.json();
       setAlerts(alertsData);
       setHistory(historyData);
     } catch (error) {
       console.error("Failed to load reorder data:", error);
-    } finally {
-      setLoading(false);
     }
   }
 
   async function handleAutoGenerate() {
     try {
       setGenerating(true);
-      await autoGenerateReorders();
+      const res = await fetch("/api/inventory/auto-reorder", { method: "POST" });
+      if (!res.ok) throw new Error("Failed");
+
       await loadData();
     } catch (error) {
       console.error("Failed to auto-generate orders:", error);
@@ -70,7 +64,14 @@ export function ReorderPage() {
         .filter((item) => item !== null);
 
       if (itemsToOrder.length > 0) {
-        await generatePurchaseOrder(itemsToOrder);
+        const res = await fetch("/api/inventory/purchase-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items: itemsToOrder }),
+        });
+
+        if (!res.ok) throw new Error("Failed");
+
         setSelectedItems(new Set());
         await loadData();
       }
@@ -203,11 +204,7 @@ export function ReorderPage() {
                 </div>
               </div>
 
-              {loading ? (
-                <div className="p-12 text-center">
-                  <p className="text-gray-400">Loading...</p>
-                </div>
-              ) : alerts.length === 0 ? (
+              {alerts.length === 0 ? (
                 <div className="p-12 text-center">
                   <p className="text-gray-400">All items are well-stocked</p>
                 </div>

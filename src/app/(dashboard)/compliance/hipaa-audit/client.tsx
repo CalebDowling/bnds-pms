@@ -2,16 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 
-import {
-  getHIPAAAuditLog,
-  getHIPAAStatsData,
-  exportHIPAAAuditCSV,
-} from "./actions";
 import type { HISTAuditAction } from "@/lib/security/hipaa-audit";
 
 export const dynamic = "force-dynamic";
 
-interface AuditLogEntry {
+export interface AuditLogEntry {
   id: string;
   createdAt: Date;
   userId: string;
@@ -27,12 +22,17 @@ interface AuditLogEntry {
   newValues: any;
 }
 
-interface Stats {
+export interface Stats {
   totalPHIAccesses: number;
   uniquePatients: number;
   dataExports: number;
   failedLogins: number;
   userCount: number;
+}
+
+interface HIPAAAuditPageProps {
+  initialLogs: AuditLogEntry[];
+  initialStats: Stats;
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -52,10 +52,13 @@ const ACTION_COLORS: Record<string, string> = {
   DATA_EXPORT: "bg-purple-100 text-purple-800",
 };
 
-export function HIPAAAuditPage() {
-  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
+export function HIPAAAuditPage({
+  initialLogs,
+  initialStats,
+}: HIPAAAuditPageProps) {
+  const [logs, setLogs] = useState<AuditLogEntry[]>(initialLogs);
+  const [stats, setStats] = useState<Stats | null>(initialStats);
+  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   // Filters
@@ -75,18 +78,22 @@ export function HIPAAAuditPage() {
       const startDateTime = new Date(startDate + "T00:00:00Z");
       const endDateTime = new Date(endDate + "T23:59:59Z");
 
-      const [logsData, statsData] = await Promise.all([
-        getHIPAAAuditLog({
-          startDate: startDateTime,
-          endDate: endDateTime,
+      const res = await fetch("/api/audit/hipaa-audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
           action: action || undefined,
           userId: userId || undefined,
           limit: 500,
         }),
-        getHIPAAStatsData(startDateTime, endDateTime),
-      ]);
+      });
 
-      setLogs(logsData.logs);
+      if (!res.ok) throw new Error("Failed to load audit data");
+
+      const { logs: logsData, stats: statsData } = await res.json();
+      setLogs(logsData);
       setStats(statsData);
     } catch (error) {
       console.error("Failed to load audit data:", error);
@@ -96,10 +103,6 @@ export function HIPAAAuditPage() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const handleExport = async () => {
     try {
       setExporting(true);
@@ -107,12 +110,20 @@ export function HIPAAAuditPage() {
       const startDateTime = new Date(startDate + "T00:00:00Z");
       const endDateTime = new Date(endDate + "T23:59:59Z");
 
-      const csv = await exportHIPAAAuditCSV({
-        startDate: startDateTime,
-        endDate: endDateTime,
-        action: action || undefined,
-        userId: userId || undefined,
+      const res = await fetch("/api/audit/hipaa-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
+          action: action || undefined,
+          userId: userId || undefined,
+        }),
       });
+
+      if (!res.ok) throw new Error("Failed to export");
+
+      const { csv } = await res.json();
 
       // Download CSV
       const element = document.createElement("a");

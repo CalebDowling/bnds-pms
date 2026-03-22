@@ -1,12 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  getAlertConfigs,
-  updateAlertConfig,
-  getAlertHistory,
-  testAlert,
-} from "./actions";
+import { useState } from "react";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
 export const dynamic = "force-dynamic";
@@ -29,33 +23,39 @@ interface AlertConfig {
   recipients: string[];
 }
 
-export function AlertsPage() {
-  const [configs, setConfigs] = useState<AlertConfig[]>([]);
-  const [alertHistory, setAlertHistory] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [testingId, setTestingId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+interface AlertsPageProps {
+  initialConfigs: AlertConfig[];
+  initialHistory: any[];
+}
 
-  useEffect(() => {
-    loadData();
-  }, []);
+export function AlertsPage({
+  initialConfigs,
+  initialHistory,
+}: AlertsPageProps) {
+  const [configs, setConfigs] = useState<AlertConfig[]>(initialConfigs);
+  const [alertHistory, setAlertHistory] = useState<any[]>(initialHistory);
+  const [testingId, setTestingId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
-      setLoading(true);
-      const [cfgs, history] = await Promise.all([getAlertConfigs(), getAlertHistory()]);
+      const res = await fetch("/api/settings/alerts");
+      if (!res.ok) throw new Error("Failed");
+      const { configs: cfgs, history } = await res.json();
       setConfigs(cfgs);
       setAlertHistory(history);
     } catch (error) {
       console.error("Failed to load alerts:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleToggle = async (config: AlertConfig) => {
     try {
-      await updateAlertConfig(config.id, { ...config, enabled: !config.enabled });
+      const res = await fetch(`/api/settings/alerts/${config.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...config, enabled: !config.enabled }),
+      });
+      if (!res.ok) throw new Error("Failed");
       loadData();
     } catch (error) {
       console.error("Failed to update alert:", error);
@@ -64,7 +64,12 @@ export function AlertsPage() {
 
   const handleUpdateThreshold = async (config: AlertConfig, newThreshold: number) => {
     try {
-      await updateAlertConfig(config.id, { ...config, threshold: newThreshold });
+      const res = await fetch(`/api/settings/alerts/${config.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...config, threshold: newThreshold }),
+      });
+      if (!res.ok) throw new Error("Failed");
       loadData();
     } catch (error) {
       console.error("Failed to update alert:", error);
@@ -76,7 +81,12 @@ export function AlertsPage() {
     newChannel: "email" | "sms" | "dashboard"
   ) => {
     try {
-      await updateAlertConfig(config.id, { ...config, channel: newChannel });
+      const res = await fetch(`/api/settings/alerts/${config.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...config, channel: newChannel }),
+      });
+      if (!res.ok) throw new Error("Failed");
       loadData();
     } catch (error) {
       console.error("Failed to update alert:", error);
@@ -86,7 +96,10 @@ export function AlertsPage() {
   const handleTestAlert = async (alertId: string) => {
     try {
       setTestingId(alertId);
-      await testAlert(alertId);
+      const res = await fetch(`/api/settings/alerts/${alertId}/test`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed");
       alert("Test alert sent!");
     } catch (error) {
       console.error("Failed to test alert:", error);
@@ -95,16 +108,6 @@ export function AlertsPage() {
       setTestingId(null);
     }
   };
-
-  if (loading) {
-    return (
-      <PermissionGuard resource="settings" action="write">
-        <div className="flex items-center justify-center py-12">
-          <p className="text-gray-500">Loading alerts...</p>
-        </div>
-      </PermissionGuard>
-    );
-  }
 
   return (
     <PermissionGuard resource="settings" action="write">

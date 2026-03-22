@@ -2,11 +2,6 @@
 
 import React, { useState } from 'react';
 import { BarcodeScanner } from '@/components/ui/BarcodeScanner';
-import {
-  lookupByNDC,
-  checkInItem,
-  verifyDispensing,
-} from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,9 +32,13 @@ export function InventoryScanPage() {
     setScanResult(null);
 
     try {
-      const item = await lookupByNDC(barcode);
+      const res = await fetch("/api/inventory/lookup-ndc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ndc: barcode }),
+      });
 
-      if (!item) {
+      if (!res.ok) {
         setScanResult({
           success: false,
           message: `No item found for NDC: ${barcode}`,
@@ -47,6 +46,8 @@ export function InventoryScanPage() {
         setIsLoading(false);
         return;
       }
+
+      const item = await res.json();
 
       if (mode === 'check-in') {
         setCheckinItem({
@@ -62,7 +63,15 @@ export function InventoryScanPage() {
           data: item,
         });
       } else if (mode === 'verify' && verifyFillId) {
-        const result = await verifyDispensing(verifyFillId, barcode);
+        const verifyRes = await fetch("/api/inventory/verify-dispensing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fillId: verifyFillId, ndc: barcode }),
+        });
+
+        if (!verifyRes.ok) throw new Error("Verification failed");
+
+        const result = await verifyRes.json();
         setScanResult({
           success: result.success,
           message: result.message,
@@ -95,12 +104,20 @@ export function InventoryScanPage() {
 
     setIsLoading(true);
     try {
-      const result = await checkInItem(
-        checkinItem.id,
-        parseFloat(checkinQuantity),
-        checkinLot || undefined,
-        checkinExpiry || undefined
-      );
+      const res = await fetch("/api/inventory/check-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemId: checkinItem.id,
+          quantity: parseFloat(checkinQuantity),
+          lot: checkinLot || undefined,
+          expiry: checkinExpiry || undefined,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Check-in failed");
+
+      const result = await res.json();
 
       setScanResult({
         success: result.success,

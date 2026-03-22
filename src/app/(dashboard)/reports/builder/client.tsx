@@ -1,13 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import {
-  getAvailableFields,
-  executeCustomReport,
-  saveCustomReport,
-  getSavedReports,
-  loadReport,
-} from "./actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
 export const dynamic = "force-dynamic";
@@ -46,8 +39,18 @@ export function ReportBuilderPage() {
 
   const handleDataSourceSelect = async (source: DataSource) => {
     setDataSource(source);
-    const fields = await getAvailableFields(source);
-    setAvailableFields(fields);
+    try {
+      const res = await fetch("/api/reports/fields", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataSource: source }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const fields = await res.json();
+      setAvailableFields(fields);
+    } catch (error) {
+      console.error("Failed to load fields:", error);
+    }
     setSelectedColumns([]);
     setFilters([]);
     setSortField("");
@@ -77,13 +80,19 @@ export function ReportBuilderPage() {
   const handleGeneratePreview = async () => {
     setLoadingPreview(true);
     try {
-      const results = await executeCustomReport(
-        dataSource as DataSource,
-        selectedColumns,
-        filters,
-        sortField ? { field: sortField, direction: sortDirection } : undefined,
-        25
-      );
+      const res = await fetch("/api/reports/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dataSource: dataSource as DataSource,
+          columns: selectedColumns,
+          filters,
+          sort: sortField ? { field: sortField, direction: sortDirection } : undefined,
+          limit: 25,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const results = await res.json();
       setPreviewData(results);
       setStep(5);
     } catch (error) {
@@ -108,7 +117,13 @@ export function ReportBuilderPage() {
     };
 
     try {
-      await saveCustomReport(reportName, config);
+      const res = await fetch("/api/reports/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: reportName, config }),
+      });
+      if (!res.ok) throw new Error("Failed");
+
       setShowSaveDialog(false);
       setReportName("");
       alert("Report saved successfully!");
@@ -121,7 +136,9 @@ export function ReportBuilderPage() {
 
   const loadSavedReports = async () => {
     try {
-      const reports = await getSavedReports();
+      const res = await fetch("/api/reports/list");
+      if (!res.ok) throw new Error("Failed");
+      const reports = await res.json();
       setSavedReports(reports);
     } catch (error) {
       console.error("Failed to load saved reports:", error);
@@ -130,13 +147,23 @@ export function ReportBuilderPage() {
 
   const handleLoadSavedReport = async (reportId: string) => {
     try {
-      const config = await loadReport(reportId);
+      const res = await fetch(`/api/reports/${reportId}`);
+      if (!res.ok) throw new Error("Failed");
+      const config = await res.json();
+
       setDataSource(config.dataSource);
       setSelectedColumns(config.columns);
       setFilters(config.filters || []);
       setSortField(config.sortField || "");
       setSortDirection(config.sortDirection || "asc");
-      const fields = await getAvailableFields(config.dataSource);
+
+      const fieldsRes = await fetch("/api/reports/fields", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataSource: config.dataSource }),
+      });
+      if (!fieldsRes.ok) throw new Error("Failed");
+      const fields = await fieldsRes.json();
       setAvailableFields(fields);
       setStep(2);
     } catch (error) {

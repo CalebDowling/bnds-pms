@@ -2,14 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 
-import {
-  getIPAllowlist,
-  addIPToAllowlist,
-  removeIPFromAllowlist,
-  toggleIPAllowlist,
-} from "./actions";
-import { getClientIP } from "@/lib/security/ip-allowlist";
-
 export const dynamic = "force-dynamic";
 
 interface IPEntry {
@@ -18,29 +10,24 @@ interface IPEntry {
   addedAt?: string;
 }
 
-export function IPAllowlistPage() {
-  const [ips, setIps] = useState<string[]>([]);
-  const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
+interface IPAllowlistPageProps {
+  initialIps: string[];
+  initialEnabled: boolean;
+}
+
+export function IPAllowlistPage({
+  initialIps,
+  initialEnabled,
+}: IPAllowlistPageProps) {
+  const [ips, setIps] = useState<string[]>(initialIps);
+  const [enabled, setEnabled] = useState(initialEnabled);
+  const [loading, setLoading] = useState(false);
   const [newIP, setNewIP] = useState("");
   const [currentIP, setCurrentIP] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
-    const loadAllowlist = async () => {
-      try {
-        const data = await getIPAllowlist();
-        setIps(data.ips);
-        setEnabled(data.enabled);
-      } catch (error) {
-        console.error("Failed to load IP allowlist:", error);
-        console.log("Failed to load IP allowlist");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     // Get current client IP
     const detectIP = async () => {
       try {
@@ -54,7 +41,6 @@ export function IPAllowlistPage() {
       }
     };
 
-    loadAllowlist();
     detectIP();
   }, []);
 
@@ -66,8 +52,16 @@ export function IPAllowlistPage() {
 
     try {
       setAdding(true);
-      const result = await addIPToAllowlist(newIP.trim());
-      setIps(result.ips);
+      const res = await fetch("/api/ip-allowlist/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip: newIP.trim() }),
+      });
+
+      if (!res.ok) throw new Error("Failed to add IP");
+
+      const { ips: newIps } = await res.json();
+      setIps(newIps);
       setNewIP("");
       console.log("IP added to allowlist");
     } catch (error) {
@@ -81,8 +75,16 @@ export function IPAllowlistPage() {
   const handleRemoveIP = async (ip: string) => {
     try {
       setRemoving(true);
-      const result = await removeIPFromAllowlist(ip);
-      setIps(result.ips);
+      const res = await fetch("/api/ip-allowlist/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip }),
+      });
+
+      if (!res.ok) throw new Error("Failed to remove IP");
+
+      const { ips: newIps } = await res.json();
+      setIps(newIps);
       console.log("IP removed from allowlist");
     } catch (error) {
       console.error("Failed to remove IP:", error);
@@ -94,9 +96,17 @@ export function IPAllowlistPage() {
 
   const handleToggle = async () => {
     try {
-      const result = await toggleIPAllowlist(!enabled);
-      setEnabled(result.enabled);
-      console.log(result.enabled ? "IP allowlist enabled" : "IP allowlist disabled");
+      const res = await fetch("/api/ip-allowlist/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !enabled }),
+      });
+
+      if (!res.ok) throw new Error("Failed to toggle");
+
+      const { enabled: newEnabled } = await res.json();
+      setEnabled(newEnabled);
+      console.log(newEnabled ? "IP allowlist enabled" : "IP allowlist disabled");
     } catch (error) {
       console.error("Failed to toggle allowlist:", error);
       console.log("Failed to toggle IP allowlist");
@@ -111,8 +121,16 @@ export function IPAllowlistPage() {
 
     try {
       setAdding(true);
-      const result = await addIPToAllowlist(currentIP);
-      setIps(result.ips);
+      const res = await fetch("/api/ip-allowlist/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip: currentIP }),
+      });
+
+      if (!res.ok) throw new Error("Failed to add IP");
+
+      const { ips: newIps } = await res.json();
+      setIps(newIps);
       console.log(`Your IP (${currentIP}) added to allowlist`);
     } catch (error) {
       console.error("Failed to add current IP:", error);
