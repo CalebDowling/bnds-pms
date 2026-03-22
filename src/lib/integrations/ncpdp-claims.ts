@@ -184,8 +184,8 @@ export class NCPDPClaimsClient {
     this.processorId = processorId || process.env.NCPDP_PROCESSOR_ID || "";
 
     if (!this.switchUrl || !this.senderId || !this.password || !this.processorId) {
-      throw new Error(
-        "NCPDP configuration missing: NCPDP_SWITCH_URL, NCPDP_SENDER_ID, NCPDP_PASSWORD, and NCPDP_PROCESSOR_ID required"
+      console.warn(
+        "[NCPDP] Configuration incomplete — running in dev mode. Set NCPDP_SWITCH_URL, NCPDP_SENDER_ID, NCPDP_PASSWORD, NCPDP_PROCESSOR_ID to enable."
       );
     }
   }
