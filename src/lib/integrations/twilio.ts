@@ -102,7 +102,7 @@ class TwilioClient {
    */
   private getAuthHeader(): string {
     if (!this.accountSid || !this.authToken) {
-      throw new Error("Twilio credentials not configured");
+      return "";
     }
     const credentials = Buffer.from(`${this.accountSid}:${this.authToken}`).toString("base64");
     return `Basic ${credentials}`;

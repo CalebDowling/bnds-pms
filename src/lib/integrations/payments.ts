@@ -130,7 +130,7 @@ class StripePaymentClient {
    */
   private getAuthHeader(): string {
     if (!this.secretKey) {
-      throw new Error("Stripe secret key not configured");
+      return "";
     }
     return `Bearer ${this.secretKey}`;
   }

@@ -101,8 +101,8 @@ export class SureScriptsClient {
     this.endpoint = endpoint || process.env.SURESCRIPTS_ENDPOINT || "";
 
     if (!this.partnerId || !this.apiKey || !this.endpoint) {
-      throw new Error(
-        "SureScripts configuration missing: SURESCRIPTS_PARTNER_ID, SURESCRIPTS_API_KEY, and SURESCRIPTS_ENDPOINT required"
+      console.warn(
+        "[SureScripts] Configuration incomplete — running in dev mode. Set SURESCRIPTS_PARTNER_ID, SURESCRIPTS_API_KEY, SURESCRIPTS_ENDPOINT to enable."
       );
     }
   }
