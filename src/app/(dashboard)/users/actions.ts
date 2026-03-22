@@ -1,8 +1,6 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
@@ -13,6 +11,7 @@ export async function getUsers({
   page = 1,
   limit = 25,
 }: { search?: string; page?: number; limit?: number } = {}) {
+  const { prisma } = await import("@/lib/prisma");
   const skip = (page - 1) * limit;
   const where: Prisma.UserWhereInput = {};
 
@@ -39,6 +38,7 @@ export async function getUsers({
 }
 
 export async function getUser(id: string) {
+  const { prisma } = await import("@/lib/prisma");
   return prisma.user.findUnique({
     where: { id },
     include: { roles: { include: { role: true } } },
@@ -46,6 +46,7 @@ export async function getUser(id: string) {
 }
 
 export async function getRoles() {
+  const { prisma } = await import("@/lib/prisma");
   return prisma.role.findMany({ orderBy: { name: "asc" } });
 }
 
@@ -70,6 +71,8 @@ export type UserFormData = {
  * 3. Assign roles
  */
 export async function inviteUser(data: UserFormData) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const currentUser = await requireUser();
   if (!currentUser.isAdmin) throw new Error("Only admins can invite users");
 
@@ -128,6 +131,8 @@ export async function createUserWithPassword(
   data: UserFormData,
   temporaryPassword: string
 ) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const currentUser = await requireUser();
   if (!currentUser.isAdmin) throw new Error("Only admins can create users");
 
@@ -200,6 +205,7 @@ export async function createUser(data: UserFormData) {
 // ─── Update Operations ────────────────────────────
 
 export async function updateUser(id: string, data: UserFormData) {
+  const { prisma } = await import("@/lib/prisma");
   const user = await prisma.user.update({
     where: { id },
     data: {
@@ -230,6 +236,8 @@ export async function updateUser(id: string, data: UserFormData) {
 }
 
 export async function toggleUserActive(id: string) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const currentUser = await requireUser();
   if (!currentUser.isAdmin) throw new Error("Only admins can deactivate users");
 
@@ -257,6 +265,7 @@ export async function toggleUserActive(id: string) {
 }
 
 export async function verifyPin(userId: string, pin: string) {
+  const { prisma } = await import("@/lib/prisma");
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { pin: true },
@@ -270,6 +279,8 @@ export async function verifyPin(userId: string, pin: string) {
  * Admin-triggered password reset: sends a password reset email to the user.
  */
 export async function sendPasswordReset(userId: string) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const currentUser = await requireUser();
   if (!currentUser.isAdmin) throw new Error("Only admins can reset passwords");
 
@@ -296,6 +307,8 @@ export async function sendPasswordReset(userId: string) {
  * Admin force-set a new password (no email required).
  */
 export async function adminSetPassword(userId: string, newPassword: string) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const currentUser = await requireUser();
   if (!currentUser.isAdmin) throw new Error("Only admins can set passwords");
 
@@ -321,6 +334,8 @@ export async function adminSetPassword(userId: string, newPassword: string) {
 // ─── Role Management ──────────────────────────────
 
 export async function createRole(name: string, description?: string) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const currentUser = await requireUser();
   if (!currentUser.isAdmin) throw new Error("Only admins can create roles");
 

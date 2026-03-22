@@ -1,12 +1,12 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 // ─── THIRD PARTY PLANS ──────────────────────
 
 export async function getPlans({ search = "", page = 1, limit = 25 }: { search?: string; page?: number; limit?: number } = {}) {
+  const { prisma } = await import("@/lib/prisma");
   const skip = (page - 1) * limit;
   const where: Prisma.ThirdPartyPlanWhereInput = {};
   if (search) {
@@ -31,6 +31,7 @@ export async function getPlans({ search = "", page = 1, limit = 25 }: { search?:
 }
 
 export async function getPlan(id: string) {
+  const { prisma } = await import("@/lib/prisma");
   return prisma.thirdPartyPlan.findUnique({
     where: { id },
     include: {
@@ -53,6 +54,7 @@ export type PlanFormData = {
 };
 
 export async function createPlan(data: PlanFormData) {
+  const { prisma } = await import("@/lib/prisma");
   const plan = await prisma.thirdPartyPlan.create({
     data: {
       planName: data.planName.trim(),
@@ -67,6 +69,7 @@ export async function createPlan(data: PlanFormData) {
 }
 
 export async function updatePlan(id: string, data: PlanFormData) {
+  const { prisma } = await import("@/lib/prisma");
   await prisma.thirdPartyPlan.update({
     where: { id },
     data: {
@@ -84,6 +87,7 @@ export async function updatePlan(id: string, data: PlanFormData) {
 
 export async function searchPlans(query: string) {
   if (!query || query.length < 2) return [];
+  const { prisma } = await import("@/lib/prisma");
   return prisma.thirdPartyPlan.findMany({
     where: {
       isActive: true,
@@ -112,6 +116,7 @@ export type PatientInsuranceFormData = {
 };
 
 export async function addPatientInsurance(data: PatientInsuranceFormData) {
+  const { prisma } = await import("@/lib/prisma");
   const ins = await prisma.patientInsurance.create({
     data: {
       patientId: data.patientId,
@@ -133,6 +138,7 @@ export async function addPatientInsurance(data: PatientInsuranceFormData) {
 // ─── CLAIMS ENHANCEMENTS ────────────────────
 
 export async function getClaimStats() {
+  const { prisma } = await import("@/lib/prisma");
   const [pending, submitted, rejected, paid] = await Promise.all([
     prisma.claim.count({ where: { status: "pending" } }),
     prisma.claim.count({ where: { status: "submitted" } }),

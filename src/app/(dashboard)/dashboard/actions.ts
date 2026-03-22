@@ -1,8 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-
 export async function getDashboardData() {
+  const { prisma } = await import("@/lib/prisma");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -62,6 +61,7 @@ export async function getDashboardData() {
 }
 
 export async function getQueueCounts() {
+  const { prisma } = await import("@/lib/prisma");
   const fallback = {
     intake: 0,
     sync: 0,

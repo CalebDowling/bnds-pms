@@ -1,7 +1,5 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
 import { PrescriptionFill } from "@prisma/client";
 
 const PAGE_SIZE = 20;
@@ -47,6 +45,8 @@ export async function getReadyForPickup(
   total: number;
   pages: number;
 }> {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -162,6 +162,8 @@ export async function getPickupFill(fillId: string): Promise<
     };
   }
 > {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -207,6 +209,8 @@ export async function completePickup(
   fillId: string,
   data: PickupData
 ): Promise<void> {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -272,6 +276,8 @@ export async function getPickupHistory(
   total: number;
   pages: number;
 }> {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 

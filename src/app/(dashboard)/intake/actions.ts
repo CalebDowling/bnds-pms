@@ -1,9 +1,7 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser, requireUser } from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
 import { logCreate, logUpdate } from "@/lib/audit";
 import { convertToPrescription } from "@/lib/erx/processor";
@@ -21,6 +19,8 @@ export async function getIntakeQueue({
   page?: number;
   limit?: number;
 } = {}) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await requireUser();
   const skip = (page - 1) * limit;
 
@@ -70,6 +70,8 @@ export async function getIntakeQueue({
 // ─── GET SINGLE ─────────────────────────────
 
 export async function getIntakeItem(id: string) {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await requireUser();
 
   const item = await prisma.intakeQueueItem.findUnique({
@@ -99,6 +101,8 @@ export async function assignIntakeItem(
   id: string,
   userId: string
 ): Promise<void> {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await requireUser();
 
   // "self" means assign to the current user
@@ -156,6 +160,8 @@ export async function updateIntakeStatus(
   newStatus: string,
   notes?: string
 ): Promise<void> {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await requireUser();
 
   try {
@@ -217,6 +223,8 @@ export async function processIntakeItem(
     formulaId?: string;
   }
 ): Promise<string> {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await requireUser();
 
   try {
@@ -254,6 +262,8 @@ export async function rejectIntakeItem(
   id: string,
   reason: string
 ): Promise<void> {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await requireUser();
 
   try {
@@ -312,6 +322,8 @@ export async function getIntakeStats(): Promise<{
   complete: number;
   error: number;
 }> {
+  const { requireUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
   const user = await requireUser();
 
   const [pending, matched, processing, complete, error] = await Promise.all([

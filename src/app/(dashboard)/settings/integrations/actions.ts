@@ -1,7 +1,8 @@
 "use server";
 
-import { requireUser } from "@/lib/auth";
-import { requirePermission } from "@/lib/permissions";
+// Dynamic imports to avoid webpack tracing into next/headers
+// import { requireUser } from "@/lib/auth";
+// import { requirePermission } from "@/lib/permissions";
 import { logger } from "@/lib/logger";
 
 export type IntegrationStatus = "connected" | "configured" | "planned" | "error" | "not_configured";
@@ -20,6 +21,8 @@ export interface IntegrationInfo {
  * Get all integration statuses based on environment configuration
  */
 export async function getIntegrationStatuses(): Promise<IntegrationInfo[]> {
+  const { requireUser } = await import("@/lib/auth");
+  const { requirePermission } = await import("@/lib/permissions");
   await requireUser();
   await requirePermission("settings", "read");
 
@@ -94,6 +97,8 @@ export async function testIntegration(name: string): Promise<{
   message: string;
   error?: string;
 }> {
+  const { requireUser } = await import("@/lib/auth");
+  const { requirePermission } = await import("@/lib/permissions");
   await requireUser();
   await requirePermission("settings", "write");
 
@@ -278,6 +283,8 @@ export async function getIntegrationConfig(
   configured: boolean;
   envVars: { key: string; configured: boolean }[];
 }> {
+  const { requireUser } = await import("@/lib/auth");
+  const { requirePermission } = await import("@/lib/permissions");
   await requireUser();
   await requirePermission("settings", "read");
 
