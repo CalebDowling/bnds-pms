@@ -112,7 +112,7 @@ export async function getIntakeStatsBySource(): Promise<{
   });
 
   // Build result object with default zeros
-  const stats: Record<string, number> = {
+  const stats: { [key: string]: number; prescriber_portal: number; walk_in: number; phone: number; fax: number; erx: number; surescripts: number; patient_portal: number } = {
     prescriber_portal: 0,
     walk_in: 0,
     phone: 0,

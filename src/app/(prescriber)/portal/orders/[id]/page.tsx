@@ -28,6 +28,7 @@ interface OrderDetail {
   directions: string;
   dateReceived: string;
   dateSubmitted: string;
+  dateShipped?: string;
   notes?: string;
 }
 
