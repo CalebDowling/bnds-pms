@@ -3,5 +3,10 @@
   "framework": "nextjs",
   "buildCommand": "npx prisma generate && npm run build",
   "regions": ["iad1"],
-  "crons": []
+  "crons": [
+    {
+      "path": "/api/drx-sync?entity=all",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }
