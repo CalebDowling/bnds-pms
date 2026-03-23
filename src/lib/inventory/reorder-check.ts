@@ -36,7 +36,7 @@ export interface ReorderCheckResult {
  * Groups by supplier for bulk ordering
  */
 export async function checkReorderLevels(): Promise<ReorderCheckResult> {
-  const { default: prisma } = await import("@/lib/prisma");
+  const { prisma } = await import("@/lib/prisma");
   const { createNotification } = await import("@/lib/notifications");
 
   const result: ReorderCheckResult = {
@@ -195,7 +195,7 @@ export async function checkReorderLevels(): Promise<ReorderCheckResult> {
  * Get current reorder status - lightweight query for dashboard widget
  */
 export async function getReorderStatus() {
-  const { default: prisma } = await import("@/lib/prisma");
+  const { prisma } = await import("@/lib/prisma");
 
   try {
     const items = await prisma.item.findMany({
@@ -203,7 +203,12 @@ export async function getReorderStatus() {
         isActive: true,
         reorderPoint: { not: null },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        ndc: true,
+        reorderPoint: true,
+        reorderQuantity: true,
         lots: {
           where: {
             quantityOnHand: { gt: 0 },
@@ -212,14 +217,6 @@ export async function getReorderStatus() {
             quantityOnHand: true,
           },
         },
-      },
-      select: {
-        id: true,
-        name: true,
-        ndc: true,
-        reorderPoint: true,
-        reorderQuantity: true,
-        lots: true,
       },
     });
 
