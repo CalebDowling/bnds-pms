@@ -282,11 +282,11 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       gradientColors: ["#14b8a6", "#06b6d4"],
       badgeLabel: "Admin",
       secondaryActions: [
-        { href: "/admin/employees", label: "Employees", icon: <UsersIcon /> },
-        { href: "/admin/reports", label: "Reports", icon: <GridIcon /> },
-        { href: "/admin/financial-reports", label: "Financial Reports", icon: <DollarIcon /> },
+        { href: "/users", label: "Employees", icon: <UsersIcon /> },
+        { href: "/reports", label: "Reports", icon: <GridIcon /> },
+        { href: "/billing", label: "Financial Reports", icon: <DollarIcon /> },
         { href: "/settings", label: "Settings", icon: <GearIcon /> },
-        { href: "/admin/shipping", label: "Shipping", icon: <TruckIcon /> },
+        { href: "/shipping", label: "Shipping", icon: <TruckIcon /> },
       ],
     },
   ];
