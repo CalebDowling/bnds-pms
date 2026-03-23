@@ -20,7 +20,8 @@
     "drx:test": "tsx scripts/drx-import.ts --test",
     "drx:import": "tsx scripts/drx-import.ts",
     "drx:import:patients": "tsx scripts/drx-import.ts --only patients",
-    "drx:import:prescriptions": "tsx scripts/drx-import.ts --only prescriptions"
+    "drx:import:prescriptions": "tsx scripts/drx-import.ts --only prescriptions",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts"
   },
   "keywords": [],
   "author": "",
@@ -30,9 +31,11 @@
     "@sentry/nextjs": "^8.43.0",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.98.0",
+    "@types/nodemailer": "^7.0.11",
     "@types/pdfkit": "^0.17.5",
     "jose": "^5.10.0",
     "next": "^16.1.6",
+    "nodemailer": "^8.0.3",
     "pdfkit": "^0.18.0",
     "prisma": "^5.22.0",
     "react": "^19.2.4",
