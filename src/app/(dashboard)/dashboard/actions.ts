@@ -64,33 +64,33 @@ export async function getQueueCounts() {
   const { prisma } = await import("@/lib/prisma");
   const fallback = {
     intake: 0,
-    sync: 0,
-    reject: 0,
-    print: 0,
-    scan: 0,
-    verify: 0,
-    oos: 0,
+    in_progress: 0,
+    compounding: 0,
+    ready_to_fill: 0,
+    ready_for_verification: 0,
+    on_hold: 0,
+    ready: 0,
     waiting: 0,
-    renewals: 0,
-    todo: 0,
+    shipped: 0,
+    refills: 0,
   };
 
   try {
-    const [intake, sync, reject, print, scan, verify, oos, waiting, renewals, todo] =
+    const [intake, in_progress, compounding, ready_to_fill, ready_for_verification, on_hold, ready, waiting, shipped, refills] =
       await Promise.all([
         prisma.prescription.count({ where: { status: "intake" } }).catch(() => 0),
-        prisma.prescription.count({ where: { status: "sync" } }).catch(() => 0),
-        prisma.prescription.count({ where: { status: "rejected" } }).catch(() => 0),
-        prisma.prescription.count({ where: { status: "print" } }).catch(() => 0),
-        prisma.prescription.count({ where: { status: "scan" } }).catch(() => 0),
-        prisma.prescription.count({ where: { status: "verify" } }).catch(() => 0),
-        prisma.item.count({ where: { isActive: true, reorderPoint: { gt: 0 } } }).catch(() => 0),
+        prisma.prescription.count({ where: { status: "in_progress" } }).catch(() => 0),
+        prisma.prescription.count({ where: { status: "compounding" } }).catch(() => 0),
+        prisma.prescription.count({ where: { status: "ready_to_fill" } }).catch(() => 0),
+        prisma.prescription.count({ where: { status: "ready_for_verification" } }).catch(() => 0),
+        prisma.prescription.count({ where: { status: "on_hold" } }).catch(() => 0),
+        prisma.prescription.count({ where: { status: "ready" } }).catch(() => 0),
         prisma.prescriptionFill.count({ where: { status: "waiting" } }).catch(() => 0),
-        prisma.renewal.count({ where: { status: "pending" } }).catch(() => 0),
-        prisma.todo.count({ where: { status: "open" } }).catch(() => 0),
+        prisma.prescription.count({ where: { status: "shipped" } }).catch(() => 0),
+        prisma.refillRequest.count({ where: { status: "pending" } }).catch(() => 0),
       ]);
 
-    return { intake, sync, reject, print, scan, verify, oos, waiting, renewals, todo };
+    return { intake, in_progress, compounding, ready_to_fill, ready_for_verification, on_hold, ready, waiting, shipped, refills };
   } catch {
     return fallback;
   }

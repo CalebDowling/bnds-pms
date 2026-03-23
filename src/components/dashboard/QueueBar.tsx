@@ -9,19 +9,20 @@ interface QueueItem {
   status: string;
   count: number;
   tooltip: string;
+  href?: string; // custom href overrides default /prescriptions?status=X
 }
 
 const defaultQueueItems: QueueItem[] = [
-  { label: "Intake", status: "intake", count: 0, tooltip: "View Intake Queue" },
-  { label: "Sync", status: "sync", count: 0, tooltip: "View Sync Queue" },
-  { label: "Reject", status: "reject", count: 0, tooltip: "View Rejected Items" },
-  { label: "Print", status: "print", count: 0, tooltip: "View Print Queue" },
-  { label: "Scan", status: "scan", count: 0, tooltip: "View Scan Queue" },
-  { label: "Verify", status: "verify", count: 0, tooltip: "View Verification Queue" },
-  { label: "OOS", status: "oos", count: 0, tooltip: "View Out of Stock Items" },
-  { label: "Waiting", status: "waiting", count: 0, tooltip: "View Waiting Bin" },
-  { label: "Renewals", status: "renewals", count: 0, tooltip: "View Renewal Requests" },
-  { label: "Todo", status: "todo", count: 0, tooltip: "View Todo List" },
+  { label: "Intake", status: "intake", count: 0, tooltip: "View Intake Queue", href: "/intake" },
+  { label: "In Progress", status: "in_progress", count: 0, tooltip: "View In-Progress Rx" },
+  { label: "Compounding", status: "compounding", count: 0, tooltip: "View Compounding Queue", href: "/compounding" },
+  { label: "Ready to Fill", status: "ready_to_fill", count: 0, tooltip: "View Fill Queue" },
+  { label: "Verify", status: "ready_for_verification", count: 0, tooltip: "View Verification Queue" },
+  { label: "On Hold", status: "on_hold", count: 0, tooltip: "View On-Hold Rx" },
+  { label: "Ready", status: "ready", count: 0, tooltip: "View Ready for Pickup" },
+  { label: "Waiting", status: "waiting", count: 0, tooltip: "View Waiting Bin", href: "/waiting-bin" },
+  { label: "Shipped", status: "shipped", count: 0, tooltip: "View Shipped Orders", href: "/shipping" },
+  { label: "Refills", status: "refills", count: 0, tooltip: "View Refill Requests", href: "/refills" },
 ];
 
 // Removed pilStyle function and pillStyles - styles now applied inline based on item state
@@ -66,7 +67,7 @@ export default function QueueBar() {
               {i > 0 && <div className="h-[1px] w-8 bg-gray-300 absolute -left-6" />}
               <div className="relative group">
                 <Link
-                  href={`/prescriptions?status=${item.status}`}
+                  href={item.href || `/prescriptions?status=${item.status}`}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[20px] text-xs font-semibold cursor-pointer transition-all whitespace-nowrap no-underline"
                 >
                   <span
