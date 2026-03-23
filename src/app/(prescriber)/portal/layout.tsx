@@ -303,6 +303,7 @@ export default function PortalLayout({
   const handleLogout = async () => {
     localStorage.removeItem("prescriber_token");
     localStorage.removeItem("prescriber_name");
+    document.cookie = "prescriber_token=; path=/; max-age=0";
     try {
       const res = await fetch("/api/prescriber-portal/auth/logout", { method: "POST" });
       if (res.ok) {

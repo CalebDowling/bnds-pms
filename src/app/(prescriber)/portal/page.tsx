@@ -34,6 +34,8 @@ export default function PrescriberLoginPage(): React.ReactNode {
       }
       localStorage.setItem("prescriber_token", data.token);
       localStorage.setItem("prescriber_name", data.prescriber.firstName);
+      // Also set as cookie for server-side API access
+      document.cookie = `prescriber_token=${data.token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
       router.push("/");
     } catch (err) {
       setError("An error occurred. Please try again.");
@@ -58,8 +60,9 @@ export default function PrescriberLoginPage(): React.ReactNode {
         return;
       }
       const prescriberName =
+        data.user.user_metadata?.full_name ||
+        data.user.user_metadata?.first_name ||
         data.user.user_metadata?.prescriber_name ||
-        data.user.user_metadata?.firstName ||
         email.split("@")[0];
       localStorage.setItem("prescriber_name", prescriberName);
       router.push("/");

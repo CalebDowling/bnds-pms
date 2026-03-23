@@ -1,6 +1,7 @@
 import { jwtVerify, SignJWT } from "jose";
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.PRESCRIBER_JWT_SECRET || "prescriber-secret-key"
@@ -54,18 +55,55 @@ export async function verifyPrescriberToken(
 }
 
 /**
- * Extract and verify the Bearer token from a NextRequest (legacy/API use)
+ * Extract and verify the prescriber from a NextRequest.
+ * Tries Bearer JWT first, then falls back to Supabase session.
  */
 export async function getPrescriberFromRequest(
   request: NextRequest
 ): Promise<PrescriberTokenPayload | null> {
+  // 1. Try Bearer JWT token (NPI login)
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    const payload = await verifyPrescriberToken(token);
+    if (payload) return payload;
   }
 
-  const token = authHeader.slice(7);
-  return verifyPrescriberToken(token);
+  // 2. Try cookie-based JWT token (NPI login via cookie)
+  const cookieToken = request.cookies.get("prescriber_token")?.value;
+  if (cookieToken) {
+    const payload = await verifyPrescriberToken(cookieToken);
+    if (payload) return payload;
+  }
+
+  // 3. Fall back to Supabase Auth session (email login)
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user && user.user_metadata?.role === "prescriber") {
+      const npi = user.user_metadata?.npi;
+      if (npi) {
+        const prescriber = await prisma.prescriber.findUnique({
+          where: { npi },
+          select: { id: true, npi: true, firstName: true, lastName: true },
+        });
+        if (prescriber) {
+          return {
+            prescriberId: prescriber.id,
+            npi: prescriber.npi,
+            name: `${prescriber.firstName} ${prescriber.lastName}`,
+          };
+        }
+      }
+    }
+  } catch {
+    // Supabase session check failed, continue
+  }
+
+  return null;
 }
 
 /**

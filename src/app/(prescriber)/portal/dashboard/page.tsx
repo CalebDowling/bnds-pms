@@ -86,7 +86,12 @@ export default function PrescriberDashboard(): React.ReactNode {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const response = await fetch("/api/prescriber-portal/dashboard");
+        const token = localStorage.getItem("prescriber_token");
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        const response = await fetch("/api/prescriber-portal/dashboard", { headers });
         if (!response.ok) {
           if (response.status === 401) {
             router.push("/login");
