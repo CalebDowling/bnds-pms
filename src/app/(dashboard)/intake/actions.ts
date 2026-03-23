@@ -48,7 +48,7 @@ export async function getIntakeQueue({
   }
 
   // Determine sort order
-  let orderBy: Prisma.IntakeQueueItemOrderByWithRelationInput = { receivedAt: "desc" };
+  let orderBy: Prisma.IntakeQueueItemOrderByWithRelationInput | Prisma.IntakeQueueItemOrderByWithRelationInput[] = { receivedAt: "desc" };
   if (sort === "priority") {
     orderBy = [
       { priority: "asc" }, // STAT first, then urgent, then normal
