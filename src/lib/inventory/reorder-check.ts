@@ -71,7 +71,7 @@ export async function checkReorderLevels(): Promise<ReorderCheckResult> {
             },
           },
           select: {
-            quantityOrdered: true,
+            quantity: true,
           },
         },
       },
