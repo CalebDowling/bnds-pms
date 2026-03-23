@@ -5,7 +5,7 @@ import { getErrorMessage } from "@/lib/errors";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
     // Verify prescriber authentication
@@ -17,7 +17,8 @@ export async function POST(
       );
     }
 
-    const conversationId = params.id;
+    const { id } = await params;
+    const conversationId = id;
 
     // Mark all messages in conversation as read
     await prisma.communicationLog.updateMany({
