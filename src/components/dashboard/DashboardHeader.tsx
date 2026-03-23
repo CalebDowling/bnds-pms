@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePermissions } from "@/components/providers/PermissionsProvider";
-import StatsBar from "./StatsBar";
 // Inline SVG icons for theme toggle (no lucide-react dependency needed)
 const SunIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -168,13 +167,6 @@ export default function DashboardHeader() {
 
   return (
     <header className="navbar-glass border-b border-gray-200 dark:border-gray-700">
-      {/* Stats Bar */}
-      <div className="px-5 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="overflow-x-auto pb-2">
-          <StatsBar />
-        </div>
-      </div>
-
       {/* Top bar */}
       <div className="flex items-center justify-between px-5 h-[56px]">
         {/* Left: Logo */}
