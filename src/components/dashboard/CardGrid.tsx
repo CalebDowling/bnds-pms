@@ -189,12 +189,11 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       gradientColors: ["#a855f7", "#8b5cf6"],
       badgeLabel: `${formatNumber(data.activeItems)} active`,
       secondaryActions: [
-        { href: "/inventory/items", label: "Manage Items", icon: <PlusIcon /> },
-        { href: "/inventory/items/find", label: "Find Item", icon: <SearchIcon /> },
-        { href: "/inventory/purchase-order", label: "Purchase Order", icon: <DocIcon /> },
-        { href: "/inventory/items/import", label: "Import Items", icon: <UploadIcon /> },
-        { href: "/inventory/interaction-checker", label: "Interaction Checker", icon: <InteractionIcon /> },
-        { href: "/inventory/price-quote", label: "Price Quote", icon: <DollarIcon /> },
+        { href: "/inventory", label: "Manage Items", icon: <PlusIcon /> },
+        { href: "/inventory", label: "Find Item", icon: <SearchIcon /> },
+        { href: "/inventory/reorder", label: "Purchase Order", icon: <DocIcon /> },
+        { href: "/inventory/new", label: "Add New Item", icon: <UploadIcon /> },
+        { href: "/inventory/scan", label: "Scan Inventory", icon: <InteractionIcon /> },
       ],
     },
     {
@@ -206,10 +205,9 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       accentColor: "#f97316",
       gradientColors: ["#f97316", "#f87171"],
       badgeLabel: `${formatNumber(data.doctorsOnFile)} on file`,
-      primaryAction: { href: "/doctors/new", label: "New Prescriber" },
+      primaryAction: { href: "/prescriptions/prescribers/new", label: "New Prescriber" },
       secondaryActions: [
-        { href: "/doctors", label: "Find Prescriber", icon: <SearchIcon /> },
-        { href: "/doctors/merge", label: "Merge Records", icon: <MergeIcon /> },
+        { href: "/prescriptions", label: "Find Prescriber", icon: <SearchIcon /> },
       ],
     },
     {
@@ -224,7 +222,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       primaryAction: { href: "/compounding/batches", label: "Batch Manager" },
       secondaryActions: [
         { href: "/compounding/formulas/new", label: "New Formula", icon: <PlusIcon /> },
-        { href: "/compounding/formulas", label: "Find Formula", icon: <SearchIcon /> },
+        { href: "/compounding", label: "Find Formula", icon: <SearchIcon /> },
       ],
     },
     {
@@ -238,10 +236,10 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       badgeLabel: `${formatNumber(data.lowStockItems)} low stock`,
       badgeAlert: true,
       secondaryActions: [
-        { href: "/inventory/manual-count", label: "Manual Inventory", icon: <DocIcon /> },
-        { href: "/inventory/supplier-feeds", label: "Supplier Data Feeds", icon: <UploadIcon /> },
-        { href: "/inventory/fast-count", label: "Fast Count", icon: <TrendIcon /> },
-        { href: "/inventory/check-in", label: "Check-In New", icon: <CheckIcon /> },
+        { href: "/inventory", label: "Manual Inventory", icon: <DocIcon /> },
+        { href: "/inventory/reorder", label: "Reorder", icon: <UploadIcon /> },
+        { href: "/inventory/scan", label: "Fast Count", icon: <TrendIcon /> },
+        { href: "/inventory/new", label: "Check-In New", icon: <CheckIcon /> },
       ],
     },
     {
@@ -255,7 +253,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       badgeLabel: `${formatNumber(data.salesToday)} today`,
       primaryAction: { href: "/pos", label: "Point of Sale" },
       secondaryActions: [
-        { href: "/sales", label: "Find Sale", icon: <SearchIcon /> },
+        { href: "/pos", label: "Find Sale", icon: <SearchIcon /> },
       ],
     },
     {
@@ -269,9 +267,9 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       badgeLabel: `${formatNumber(data.rejectedClaims)} rejects`,
       badgeAlert: true,
       secondaryActions: [
-        { href: "/claims", label: "Find Claim", icon: <SearchIcon /> },
-        { href: "/claims/overrides", label: "Overrides", icon: <PlusIcon /> },
-        { href: "/claims/custom-rejects", label: "Custom Rejects", icon: <DocIcon /> },
+        { href: "/billing/claims", label: "Find Claim", icon: <SearchIcon /> },
+        { href: "/billing/claims", label: "Overrides", icon: <PlusIcon /> },
+        { href: "/billing/claims", label: "Custom Rejects", icon: <DocIcon /> },
       ],
     },
     {
