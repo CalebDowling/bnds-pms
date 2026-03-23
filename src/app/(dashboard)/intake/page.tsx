@@ -1,6 +1,5 @@
 import PermissionGuard from "@/components/auth/PermissionGuard";
 import IntakeRealtimeWrapper from "./IntakeRealtimeWrapper";
-import IntakeQueueContent from "./IntakeQueueContent";
 
 export default async function IntakeQueuePage({
   searchParams,
@@ -9,9 +8,7 @@ export default async function IntakeQueuePage({
 }) {
   return (
     <PermissionGuard resource="prescriptions" action="read">
-      <IntakeRealtimeWrapper>
-        <IntakeQueueContent searchParams={searchParams} />
-      </IntakeRealtimeWrapper>
+      <IntakeRealtimeWrapper searchParams={searchParams} />
     </PermissionGuard>
   );
 }

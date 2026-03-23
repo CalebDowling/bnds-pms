@@ -98,5 +98,8 @@ export default sentryEnabled
       widenClientFileUpload: true,
       tunnelRoute: "/monitoring",
       hideSourceMaps: true,
+      sourcemaps: {
+        deleteSourcemapsAfterUpload: true,
+      },
     })
   : nextConfig;
