@@ -34,7 +34,7 @@ export default function PrescriberLoginPage(): React.ReactNode {
       }
       localStorage.setItem("prescriber_token", data.token);
       localStorage.setItem("prescriber_name", data.prescriber.firstName);
-      router.push("/portal/dashboard");
+      router.push("/");
     } catch (err) {
       setError("An error occurred. Please try again.");
       console.error(err);
@@ -62,7 +62,7 @@ export default function PrescriberLoginPage(): React.ReactNode {
         data.user.user_metadata?.firstName ||
         email.split("@")[0];
       localStorage.setItem("prescriber_name", prescriberName);
-      router.push("/portal/dashboard");
+      router.push("/");
     } catch (err) {
       setError("An error occurred. Please try again.");
       console.error(err);
@@ -305,7 +305,7 @@ export default function PrescriberLoginPage(): React.ReactNode {
               <div className="mt-6 text-center">
                 <p className="text-[12.5px] text-gray-400">
                   New prescriber?{" "}
-                  <Link href="/portal/register" className="text-[#40721D] font-semibold hover:underline">
+                  <Link href="/register" className="text-[#40721D] font-semibold hover:underline">
                     Create an account
                   </Link>
                 </p>

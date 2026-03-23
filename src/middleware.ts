@@ -50,10 +50,18 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Rewrite portal subdomain root to /portal
+    // Rewrite portal subdomain root to /portal/dashboard
+    // Login lives at portal.bndsrxportal.com/login → /portal (login page)
     if (pathname === "/") {
       const url = request.nextUrl.clone();
-      url.pathname = "/portal";
+      url.pathname = "/portal/dashboard";
+      return NextResponse.rewrite(url);
+    }
+
+    // Map /login to the /portal login page
+    if (pathname === "/login" || pathname === "/register") {
+      const url = request.nextUrl.clone();
+      url.pathname = `/portal${pathname === "/login" ? "" : "/register"}`;
       return NextResponse.rewrite(url);
     }
 

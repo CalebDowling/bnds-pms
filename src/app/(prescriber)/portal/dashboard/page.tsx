@@ -79,7 +79,7 @@ export default function PrescriberDashboard(): React.ReactNode {
   useEffect(() => {
     const name = localStorage.getItem("prescriber_name");
     if (!name) {
-      router.push("/portal");
+      router.push("/login");
       return;
     }
 
@@ -89,7 +89,7 @@ export default function PrescriberDashboard(): React.ReactNode {
         const response = await fetch("/api/prescriber-portal/dashboard");
         if (!response.ok) {
           if (response.status === 401) {
-            router.push("/portal");
+            router.push("/login");
             return;
           }
           throw new Error("Failed to fetch dashboard data");

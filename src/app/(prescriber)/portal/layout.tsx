@@ -285,7 +285,9 @@ export default function PortalLayout({
   const isLoginPage =
     pathname === "/portal" ||
     pathname === "/portal/login" ||
-    pathname === "/portal/register";
+    pathname === "/portal/register" ||
+    pathname === "/login" ||
+    pathname === "/register";
 
   useEffect(() => {
     if (!isLoginPage) {
@@ -304,13 +306,13 @@ export default function PortalLayout({
     try {
       const res = await fetch("/api/prescriber-portal/auth/logout", { method: "POST" });
       if (res.ok) {
-        router.push("/portal");
+        router.push("/login");
         return;
       }
     } catch {
       // Fall through
     }
-    router.push("/portal");
+    router.push("/login");
   };
 
   return (
