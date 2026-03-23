@@ -175,7 +175,7 @@ async function IntakeQueueContent({
               </Suspense>
             </div>
 
-            <div className="flex flex-wrap gap-3 items-start">
+            <div className="flex flex-wrap gap-3 items-center">
               <div className="flex-1 min-w-max">
                 <div className="text-xs font-semibold text-gray-600 uppercase mb-2 tracking-wide">Status</div>
                 <div className="flex flex-wrap gap-2">
@@ -195,8 +195,10 @@ async function IntakeQueueContent({
                 </div>
               </div>
 
-              <div className="min-w-fit">
-                <div className="text-xs font-semibold text-gray-600 uppercase mb-2 tracking-wide">Sort</div>
+              <div className="w-full sm:w-auto">
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-2">
+                  Sort By
+                </label>
                 <div className="flex gap-1">
                   {SORT_OPTIONS.map((opt) => (
                     <Link

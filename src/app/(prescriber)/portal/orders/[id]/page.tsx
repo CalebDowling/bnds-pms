@@ -35,6 +35,7 @@ interface TimelineStep {
   label: string;
   status: string;
   completed: boolean;
+  current: boolean;
   date?: string;
 }
 
@@ -48,6 +49,18 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
   shipped: { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" },
   picked_up: { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" },
   cancelled: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+};
+
+const getEstimatedCompletionTime = (priority: string): string => {
+  switch (priority?.toLowerCase()) {
+    case "stat":
+      return "Same day";
+    case "urgent":
+      return "1-2 business days";
+    case "normal":
+    default:
+      return "3-5 business days";
+  }
 };
 
 export default function OrderDetailPage(): React.ReactNode {
@@ -107,13 +120,59 @@ export default function OrderDetailPage(): React.ReactNode {
   const getTimelineSteps = (): TimelineStep[] => {
     if (!order) return [];
 
+    const statusMap: Record<string, number> = {
+      intake: 0,
+      pending_review: 1,
+      in_progress: 2,
+      compounding: 2,
+      qa: 3,
+      ready: 4,
+      shipped: 5,
+      picked_up: 5,
+      cancelled: -1,
+    };
+
+    const currentStatusStep = statusMap[order.status] ?? 0;
+
     const steps: TimelineStep[] = [
-      { label: "Submitted", status: "submitted", completed: true, date: order.dateSubmitted },
-      { label: "Received", status: "received", completed: ["pending_review", "in_progress", "compounding", "qa", "ready", "shipped", "picked_up"].includes(order.status) },
-      { label: "Compounding", status: "compounding", completed: ["compounding", "qa", "ready", "shipped", "picked_up"].includes(order.status) },
-      { label: "QA", status: "qa", completed: ["qa", "ready", "shipped", "picked_up"].includes(order.status) },
-      { label: "Ready", status: "ready", completed: ["ready", "shipped", "picked_up"].includes(order.status) },
-      { label: order.status === "picked_up" ? "Picked Up" : "Shipped", status: "final", completed: ["shipped", "picked_up"].includes(order.status) },
+      {
+        label: "Order Received",
+        status: "intake",
+        completed: currentStatusStep > 0,
+        current: currentStatusStep === 0,
+        date: order.dateReceived,
+      },
+      {
+        label: "In Review",
+        status: "pending_review",
+        completed: currentStatusStep > 1,
+        current: currentStatusStep === 1,
+      },
+      {
+        label: "Compounding",
+        status: "compounding",
+        completed: currentStatusStep > 2,
+        current: currentStatusStep === 2,
+      },
+      {
+        label: "Quality Check",
+        status: "qa",
+        completed: currentStatusStep > 3,
+        current: currentStatusStep === 3,
+      },
+      {
+        label: "Ready for Pickup",
+        status: "ready",
+        completed: currentStatusStep > 4,
+        current: currentStatusStep === 4,
+      },
+      {
+        label: order.status === "picked_up" ? "Picked Up" : "Shipped",
+        status: "final",
+        completed: currentStatusStep >= 5,
+        current: currentStatusStep === 5,
+        date: order.dateShipped,
+      },
     ];
 
     return steps;
@@ -246,31 +305,64 @@ export default function OrderDetailPage(): React.ReactNode {
 
       {/* Timeline */}
       <div className="bg-white rounded-2xl border border-gray-100 p-8 mb-8 stagger-2">
-        <h2 className="text-[14px] font-semibold text-gray-900 mb-8">Status Timeline</h2>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-[14px] font-semibold text-gray-900">Order Status Timeline</h2>
+          <div className="text-right">
+            <p className="text-[12px] text-gray-400">Estimated completion</p>
+            <p className="text-[13px] font-semibold text-gray-900 mt-0.5">
+              {getEstimatedCompletionTime(order.priority)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
           {timeline.map((step, idx) => (
             <div key={step.status} className="flex flex-col items-center flex-1">
-              <div className="flex items-center w-full">
+              <div className="flex items-center w-full gap-1">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white transition-all ${
-                    step.completed ? "bg-[#40721D]" : "bg-gray-300"
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white transition-all flex-shrink-0 ${
+                    step.completed
+                      ? "bg-[#40721D]"
+                      : step.current
+                      ? "bg-[#40721D] ring-2 ring-[#40721D]/30 ring-offset-2"
+                      : "bg-gray-300"
                   }`}
                 >
                   {step.completed ? "✓" : idx + 1}
                 </div>
                 {idx < timeline.length - 1 && (
                   <div
-                    className={`flex-1 h-1 mx-2 ${
-                      step.completed ? "bg-[#40721D]" : "bg-gray-300"
+                    className={`flex-1 h-1 ${
+                      step.completed ? "bg-[#40721D]" : "bg-gray-200"
                     }`}
                   />
                 )}
               </div>
-              <p className="text-[11px] font-semibold text-gray-700 mt-2 text-center">
-                {step.label}
-              </p>
+              <div className="text-center mt-2 w-full">
+                <p className="text-[11px] font-semibold text-gray-900">
+                  {step.label}
+                </p>
+                {step.date && (
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    {new Date(step.date).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
+                )}
+              </div>
             </div>
           ))}
+        </div>
+
+        {/* Status Details */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+          <p className="text-[12px] text-gray-600">
+            <span className="font-semibold text-gray-900">Current Status:</span>{" "}
+            {order.status.replace(/_/g, " ").toUpperCase()} •{" "}
+            <span className="font-semibold text-gray-900">Priority:</span>{" "}
+            <span className="capitalize">{order.priority}</span>
+          </p>
         </div>
       </div>
 

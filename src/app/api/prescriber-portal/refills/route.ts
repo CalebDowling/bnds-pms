@@ -162,6 +162,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         id: true,
         status: true,
         requestedAt: true,
+        patient: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        prescription: {
+          select: {
+            rxNumber: true,
+          },
+        },
       },
     });
 

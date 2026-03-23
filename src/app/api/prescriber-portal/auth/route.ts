@@ -2,9 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generatePrescriberToken } from "@/lib/prescriber-auth";
 import { getErrorMessage } from "@/lib/errors";
+import { checkLoginRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Check rate limit
+    if (!checkLoginRateLimit(request)) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { npi, lastName } = body;
 

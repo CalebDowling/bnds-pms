@@ -18,6 +18,8 @@ interface RefillRequest {
   status: "pending" | "approved" | "rejected";
   refillsRemaining: number;
   daysSupply: number | null;
+  prescriberName?: string;
+  source?: "internal" | "prescriber_portal";
 }
 
 interface RefillStats {
@@ -38,6 +40,7 @@ export default function RefillsClient({
   const [requests, setRequests] = useState<RefillRequest[]>(initialRequests);
   const [stats, setStats] = useState<RefillStats>(initialStats);
   const [selectedStatus, setSelectedStatus] = useState<"all" | "pending" | "approved" | "rejected">("pending");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "internal" | "prescriber_portal">("all");
   const [rejectReason, setRejectReason] = useState<string>("");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -96,10 +99,11 @@ export default function RefillsClient({
     }
   };
 
-  const filteredRequests =
-    selectedStatus === "all"
-      ? requests
-      : requests.filter((r) => r.status === selectedStatus);
+  const filteredRequests = requests.filter((r) => {
+    const statusMatch = selectedStatus === "all" || r.status === selectedStatus;
+    const sourceMatch = sourceFilter === "all" || r.source === sourceFilter;
+    return statusMatch && sourceMatch;
+  });
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
@@ -130,20 +134,37 @@ export default function RefillsClient({
         </div>
       </div>
 
-      <div className="px-6 py-4 flex gap-3 border-b border-gray-200 dark:border-gray-700">
-        {(["all", "pending", "approved", "rejected"] as const).map((status) => (
-          <button
-            key={status}
-            onClick={() => setSelectedStatus(status)}
-            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-              selectedStatus === status
-                ? "bg-[#40721d] text-white"
-                : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-gray-400"
-            }`}
-          >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </button>
-        ))}
+      <div className="px-6 py-4 space-y-3 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex gap-3 flex-wrap">
+          {(["all", "pending", "approved", "rejected"] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => setSelectedStatus(status)}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                selectedStatus === status
+                  ? "bg-[#40721d] text-white"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-gray-400"
+              }`}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-3 flex-wrap">
+          {(["all", "internal", "prescriber_portal"] as const).map((source) => (
+            <button
+              key={source}
+              onClick={() => setSourceFilter(source)}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all text-xs ${
+                sourceFilter === source
+                  ? "bg-blue-600 text-white"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-gray-400"
+              }`}
+            >
+              {source === "all" ? "All Sources" : source === "prescriber_portal" ? "Prescriber Portal" : "Internal"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -153,6 +174,7 @@ export default function RefillsClient({
               <th className="px-6 py-3">Patient</th>
               <th className="px-6 py-3">Rx#</th>
               <th className="px-6 py-3">Drug</th>
+              <th className="px-6 py-3">Prescriber</th>
               <th className="px-6 py-3">Last Fill</th>
               <th className="px-6 py-3">Requested</th>
               <th className="px-6 py-3">Status</th>
@@ -181,6 +203,9 @@ export default function RefillsClient({
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                     {request.drugName}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                    {request.prescriberName || "—"}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                     {request.lastFillDate

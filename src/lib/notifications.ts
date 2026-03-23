@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@supabase/supabase-js";
 
 export type NotificationType =
   | "low_stock"
@@ -7,7 +8,8 @@ export type NotificationType =
   | "claim_rejected"
   | "batch_expiring"
   | "new_erx"
-  | "erx_needs_review";
+  | "erx_needs_review"
+  | "new_portal_order";
 
 export interface NotificationMetadata {
   itemId?: string;
@@ -218,5 +220,106 @@ export async function deleteOldNotifications(olderThanDays = 30) {
   } catch (error) {
     console.error("Failed to delete old notifications:", error);
     return null;
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════
+// REALTIME SUBSCRIPTIONS
+// ═════════════════════════════════════════════════════════════════
+
+export type NotificationCallback = (notification: any) => void;
+
+/**
+ * Subscribe to new notifications for a user using Supabase Realtime
+ * Returns an unsubscribe function to clean up the subscription
+ */
+export function subscribeToNotifications(
+  userId: string,
+  onNotification: NotificationCallback,
+  onError?: (error: Error) => void
+): () => void {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    // Subscribe to INSERT events on notifications table where userId matches
+    const channel = supabase
+      .channel(`notifications:user:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          try {
+            onNotification(payload.new);
+          } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            onError?.(err);
+          }
+        }
+      )
+      .subscribe();
+
+    // Return unsubscribe function
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    onError?.(err);
+    return () => {};
+  }
+}
+
+/**
+ * Subscribe to new portal orders via notifications
+ * Used by pharmacy staff to listen for new prescriber portal orders
+ */
+export function subscribeToPortalOrders(
+  onNewOrder: (notification: any) => void,
+  onError?: (error: Error) => void
+): () => void {
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    // Subscribe to new notifications of type "new_portal_order"
+    const channel = supabase
+      .channel("notifications:portal-orders")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `type=eq.new_portal_order`,
+        },
+        (payload) => {
+          try {
+            onNewOrder(payload.new);
+          } catch (error) {
+            const err = error instanceof Error ? error : new Error(String(error));
+            onError?.(err);
+          }
+        }
+      )
+      .subscribe();
+
+    // Return unsubscribe function
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    onError?.(err);
+    return () => {};
   }
 }

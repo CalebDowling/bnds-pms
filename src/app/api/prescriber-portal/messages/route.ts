@@ -4,10 +4,14 @@ import { getPrescriberFromRequest } from "@/lib/prescriber-auth";
 import { getErrorMessage } from "@/lib/errors";
 
 interface SendMessageBody {
-  toAddress: string;
-  subject: string;
-  body: string;
+  toAddress?: string;
+  subject?: string;
+  body?: string;
   channel?: "email" | "sms";
+  conversationId?: string;
+  message?: string;
+  newConversation?: boolean;
+  pharmacyContext?: string;
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -63,20 +67,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         if (!acc[key]) {
           acc[key] = {
+            id: msg.id,
             channel: msg.channel,
             participant: otherParty,
-            lastMessage: msg.createdAt,
+            contextLabel: msg.subject || "General Inquiry",
+            lastMessage: msg.body || "",
+            timestamp: msg.createdAt,
+            unread: msg.status === "pending",
+            unreadCount: 0,
             messages: [],
           };
         }
 
+        // Count unread messages
+        if (msg.status === "pending") {
+          acc[key].unreadCount++;
+        }
+
         acc[key].messages.push({
           id: msg.id,
-          direction: msg.direction,
-          subject: msg.subject,
-          body: msg.body,
-          status: msg.status,
-          createdAt: msg.createdAt,
+          senderName: msg.direction === "outbound" ? "You" : "Pharmacy",
+          isFromPharmacy: msg.direction === "inbound",
+          timestamp: msg.createdAt,
+          text: msg.body || "",
+          isRead: msg.status !== "pending",
         });
 
         return acc;
@@ -84,17 +98,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       {} as Record<
         string,
         {
+          id: string;
           channel: string;
           participant: string;
-          lastMessage: Date;
+          contextLabel: string;
+          lastMessage: string;
+          timestamp: Date;
+          unread: boolean;
+          unreadCount: number;
           messages: any[];
         }
       >
     );
 
-    const conversationsList = Object.values(conversations).sort(
-      (a, b) => b.lastMessage.getTime() - a.lastMessage.getTime()
-    );
+    const conversationsList = Object.values(conversations)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .map((conv) => ({
+        ...conv,
+        messages: conv.messages.sort((a: any, b: any) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        ),
+      }));
 
     return NextResponse.json({
       success: true,
@@ -123,15 +147,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const body: SendMessageBody = await request.json();
-    const { toAddress, subject, body: messageBody, channel = "email" } = body;
-
-    // Validate required fields
-    if (!toAddress || !subject || !messageBody) {
-      return NextResponse.json(
-        { error: "toAddress, subject, and body are required" },
-        { status: 400 }
-      );
-    }
+    const { toAddress, subject, body: messageBody, channel = "email", conversationId, message, newConversation, pharmacyContext } = body;
 
     // Get prescriber record
     const prescriberRecord = await prisma.prescriber.findUnique({
@@ -143,6 +159,56 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { error: "Prescriber email not found" },
         { status: 404 }
+      );
+    }
+
+    // Handle new conversation
+    if (newConversation) {
+      const communication = await prisma.communicationLog.create({
+        data: {
+          channel: "email",
+          direction: "outbound",
+          prescriberId: prescriber.prescriberId,
+          fromAddress: prescriberRecord.email,
+          toAddress: "pharmacy@pharmacy.local",
+          subject: pharmacyContext || "General Inquiry",
+          body: "Conversation started",
+          status: "delivered",
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        conversationId: communication.id,
+      });
+    }
+
+    // Handle message in conversation
+    if (conversationId && message) {
+      const communication = await prisma.communicationLog.create({
+        data: {
+          channel: "email",
+          direction: "outbound",
+          prescriberId: prescriber.prescriberId,
+          fromAddress: prescriberRecord.email,
+          toAddress: "pharmacy@pharmacy.local",
+          subject: "Re: Conversation",
+          body: message,
+          status: "pending",
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: communication,
+      });
+    }
+
+    // Legacy behavior - direct message
+    if (!toAddress || !subject || !messageBody) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
       );
     }
 

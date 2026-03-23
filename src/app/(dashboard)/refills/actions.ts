@@ -10,6 +10,8 @@ interface RefillRequest {
   status: "pending" | "approved" | "rejected";
   refillsRemaining: number;
   daysSupply: number | null;
+  prescriberName?: string;
+  source?: "internal" | "prescriber_portal";
 }
 
 interface RefillStats {
@@ -38,6 +40,7 @@ export async function getRefillRequests(
       id: true,
       status: true,
       requestedAt: true,
+      source: true,
       patient: {
         select: {
           firstName: true,
@@ -50,6 +53,12 @@ export async function getRefillRequests(
           dateFilled: true,
           daysSupply: true,
           refillsRemaining: true,
+          prescriber: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
           item: {
             select: {
               name: true,
@@ -76,6 +85,10 @@ export async function getRefillRequests(
     status: r.status as "pending" | "approved" | "rejected",
     refillsRemaining: r.prescription.refillsRemaining,
     daysSupply: r.prescription.daysSupply,
+    prescriberName: r.prescription.prescriber
+      ? `${r.prescription.prescriber.firstName} ${r.prescription.prescriber.lastName}`
+      : undefined,
+    source: r.source as "internal" | "prescriber_portal",
   }));
 }
 

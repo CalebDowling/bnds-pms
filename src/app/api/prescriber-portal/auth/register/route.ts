@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getErrorMessage } from "@/lib/errors";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { checkRegisterRateLimit } from "@/lib/rate-limit";
 
 interface RegisterRequestBody {
   firstName: string;
@@ -15,6 +16,14 @@ interface RegisterRequestBody {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Check rate limit
+    if (!checkRegisterRateLimit(request)) {
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body: RegisterRequestBody = await request.json();
     const { firstName, lastName, npi, email, password, practiceName, phone } =
       body;

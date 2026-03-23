@@ -4,6 +4,7 @@ import { getPrescriberFromRequest } from "@/lib/prescriber-auth";
 import { getErrorMessage } from "@/lib/errors";
 import { logCreate } from "@/lib/audit";
 import { generateMRN } from "@/lib/utils/mrn";
+import { createNotification } from "@/lib/notifications";
 
 interface OrderRequestBody {
   patientFirstName: string;
@@ -196,6 +197,48 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         priority: body.priority,
       }
     );
+
+    // Create notifications for pharmacy staff
+    // Get all users with pharmacy staff roles from the store
+    const pharmacyStaff = await prisma.user.findMany({
+      where: {
+        roles: {
+          some: {
+            role: {
+              name: {
+                in: ["pharmacist", "pharmacy_staff", "admin"],
+              },
+            },
+          },
+        },
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    // Send notification to all pharmacy staff
+    const notificationPromises = pharmacyStaff.map((staff) =>
+      createNotification(
+        staff.id,
+        "new_portal_order",
+        "New Prescriber Portal Order",
+        `New compound order received from ${prescriberRecord.firstName} ${prescriberRecord.lastName} for patient ${patient.firstName} ${patient.lastName} (RX: ${prescription.rxNumber})`,
+        {
+          prescriptionId: prescription.id,
+          rxNumber: prescription.rxNumber,
+          patientId: patient.id,
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          prescriberId: prescriberRecord.id,
+          prescriberName: `${prescriberRecord.firstName} ${prescriberRecord.lastName}`,
+          priority: body.priority || "normal",
+        }
+      )
+    );
+
+    // Fire notifications in background (non-blocking)
+    Promise.all(notificationPromises).catch((error) => {
+      console.error("Failed to send notifications to pharmacy staff:", error);
+    });
 
     return NextResponse.json({
       success: true,

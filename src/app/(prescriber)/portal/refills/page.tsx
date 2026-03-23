@@ -46,11 +46,24 @@ export default function RefillsPage(): React.ReactNode {
     setFilteredRefills(filtered);
   }, [searchTerm, statusFilter, refills]);
 
+  const getAuthHeaders = () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("prescriber_token") : null;
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
   const fetchRefills = async () => {
     try {
       setIsLoading(true);
       setError("");
-      const response = await fetch("/api/prescriber-portal/refills");
+      const response = await fetch("/api/prescriber-portal/refills", {
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) throw new Error("Failed to fetch refills");
       const data = await response.json();
       setRefills(data.refills || []);
@@ -67,7 +80,7 @@ export default function RefillsPage(): React.ReactNode {
       setRequestingId(refillId);
       const response = await fetch("/api/prescriber-portal/refills", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ refillId }),
       });
 
