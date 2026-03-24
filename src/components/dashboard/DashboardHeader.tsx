@@ -5,17 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePermissions } from "@/components/providers/PermissionsProvider";
-// Inline SVG icons for theme toggle (no lucide-react dependency needed)
-const SunIcon = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-  </svg>
-);
-const MoonIcon = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-  </svg>
-);
+import { Sun, Moon, Bell, Plus, Package, Clock, Pill, XCircle } from "lucide-react";
 
 interface UserInfo {
   firstName: string;
@@ -205,7 +195,7 @@ export default function DashboardHeader() {
               href="/prescriptions/new"
               className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg text-xs font-bold bg-gradient-to-r from-[#40721d] to-[#5a9f2a] hover:from-[#36631a] hover:to-[#4f8925] text-white no-underline transition-all shadow-md hover:shadow-lg hover:scale-105"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <Plus size={14} strokeWidth={2.5} />
               New Prescription
             </Link>
           )}
@@ -226,7 +216,7 @@ export default function DashboardHeader() {
               className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
               aria-label="Notifications"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-gray-300"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <Bell size={16} className="text-gray-700 dark:text-gray-300" />
               {unreadCount > 0 && (
                 <div className="absolute top-[3px] right-[3px] w-5 h-5 rounded-full bg-[#E74C3C] border-2 border-white dark:border-gray-700 flex items-center justify-center text-white text-[10px] font-bold">
                   {unreadCount > 99 ? "99+" : unreadCount}
@@ -281,18 +271,10 @@ export default function DashboardHeader() {
                                            notification.type === "refill_due" ? "#4CAF50" :
                                            notification.type === "claim_rejected" ? "#FF6B6B" : "#666"
                           }}>
-                            {notification.type === "low_stock" && (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-                            )}
-                            {notification.type === "expiring_lot" && (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            )}
-                            {notification.type === "refill_due" && (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
-                            )}
-                            {notification.type === "claim_rejected" && (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-                            )}
+                            {notification.type === "low_stock" && <Package size={14} />}
+                            {notification.type === "expiring_lot" && <Clock size={14} />}
+                            {notification.type === "refill_due" && <Pill size={14} />}
+                            {notification.type === "claim_rejected" && <XCircle size={14} />}
                           </div>
 
                           <div className="flex-1 min-w-0">
@@ -340,9 +322,9 @@ export default function DashboardHeader() {
             title="Toggle dark mode"
           >
             {isDarkMode ? (
-              <span className="text-gray-700 dark:text-yellow-400"><SunIcon /></span>
+              <Sun size={16} className="text-yellow-400" />
             ) : (
-              <span className="text-gray-700"><MoonIcon /></span>
+              <Moon size={16} className="text-gray-700" />
             )}
           </button>
 

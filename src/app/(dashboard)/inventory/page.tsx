@@ -58,21 +58,21 @@ async function InventoryPageContent({
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="glass-stat rounded-xl p-4">
           <p className="text-xs font-semibold text-gray-400 uppercase">Total Items</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalItems}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="glass-stat rounded-xl p-4">
           <p className="text-xs font-semibold text-gray-400 uppercase">Active Lots</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalLots}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="glass-stat rounded-xl p-4">
           <p className="text-xs font-semibold text-gray-400 uppercase">Expiring (90 days)</p>
           <p className={`text-2xl font-bold mt-1 ${stats.expiringSoon > 0 ? "text-orange-600" : "text-gray-900"}`}>
             {stats.expiringSoon}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="glass-stat rounded-xl p-4">
           <p className="text-xs font-semibold text-gray-400 uppercase">Low Stock Items</p>
           <p className={`text-2xl font-bold mt-1 ${stats.lowStockItems > 0 ? "text-red-600" : "text-gray-900"}`}>
             {stats.lowStockItems}
@@ -119,7 +119,7 @@ async function InventoryPageContent({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full responsive-table">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Item</th>
@@ -135,7 +135,7 @@ async function InventoryPageContent({
               <tbody className="divide-y divide-gray-100">
                 {items.map((item) => (
                   <tr key={item.id} className={`hover:bg-gray-50 transition-colors ${item.isLow ? "bg-red-50/50" : ""}`}>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" data-label="Item">
                       <Link href={`/inventory/${item.id}`} className="text-sm font-medium text-gray-900 hover:text-[#40721D]">
                         {item.name}
                       </Link>
@@ -143,10 +143,10 @@ async function InventoryPageContent({
                         <p className="text-xs text-gray-400">{item.genericName}</p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 font-mono">{item.ndc || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{item.strength || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{item.manufacturer || "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-sm text-gray-600 font-mono" data-label="NDC">{item.ndc || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600" data-label="Strength">{item.strength || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600" data-label="Manufacturer">{item.manufacturer || "—"}</td>
+                    <td className="px-4 py-3" data-label="On Hand">
                       <span className={`text-sm font-medium ${item.isLow ? "text-red-600" : "text-gray-900"}`}>
                         {item.totalOnHand}
                       </span>
@@ -154,13 +154,13 @@ async function InventoryPageContent({
                         <span className="text-xs text-gray-400 ml-1">{item.unitOfMeasure}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-600" data-label="Reorder Pt">
                       {item.reorderPoint ? Number(item.reorderPoint) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-600" data-label="Earliest Exp">
                       {item.earliestExpiry ? formatDate(item.earliestExpiry) : "—"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" data-label="Tags">
                       <div className="flex flex-wrap gap-1">
                         {item.isCompoundIngredient && (
                           <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-purple-50 text-purple-700 rounded">CPD</span>

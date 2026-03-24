@@ -13,6 +13,8 @@ import ShadowModeBanner from "@/components/dashboard/ShadowModeBanner";
 import CommandPalette from "@/components/ui/CommandPalette";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
+import FloatingActionButton from "@/components/ui/FloatingActionButton";
+import PageTransition from "@/components/ui/PageTransition";
 import { PermissionsMap } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -66,8 +68,11 @@ export default async function DashboardLayout({
               <CommandPalette />
               <Breadcrumbs />
               <main id="main-content" className="p-0" role="main">
-                <RealtimeProvider>{children}</RealtimeProvider>
+                <RealtimeProvider>
+                  <PageTransition>{children}</PageTransition>
+                </RealtimeProvider>
               </main>
+              <FloatingActionButton />
               <div aria-live="polite" aria-atomic="true">
                 <ToastContainer />
               </div>
