@@ -213,14 +213,15 @@ export default function DashboardHeader() {
                   fetchNotifications();
                 }
               }}
-              className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
+              className="inline-flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative border border-gray-200 dark:border-gray-600"
               aria-label="Notifications"
             >
-              <Bell size={16} className="text-gray-700 dark:text-gray-300" />
+              <Bell size={14} className="text-gray-600 dark:text-gray-300" />
+              <span className="hidden sm:inline">Alerts</span>
               {unreadCount > 0 && (
-                <div className="absolute top-[3px] right-[3px] w-5 h-5 rounded-full bg-[#E74C3C] border-2 border-white dark:border-gray-700 flex items-center justify-center text-white text-[10px] font-bold">
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-[#E74C3C] text-white text-[10px] font-bold px-1">
                   {unreadCount > 99 ? "99+" : unreadCount}
-                </div>
+                </span>
               )}
             </button>
 
@@ -317,14 +318,20 @@ export default function DashboardHeader() {
           {/* Theme toggle button */}
           <button
             onClick={toggleTheme}
-            className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors border border-gray-200 dark:border-gray-600"
             aria-label="Toggle theme"
             title="Toggle dark mode"
           >
             {isDarkMode ? (
-              <Sun size={16} className="text-yellow-400" />
+              <>
+                <Sun size={14} className="text-yellow-400" />
+                <span className="hidden sm:inline">Light</span>
+              </>
             ) : (
-              <Moon size={16} className="text-gray-700" />
+              <>
+                <Moon size={14} className="text-gray-600" />
+                <span className="hidden sm:inline">Dark</span>
+              </>
             )}
           </button>
 
