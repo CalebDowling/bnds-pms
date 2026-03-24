@@ -25,13 +25,14 @@ export interface QueueFill {
   fillId: string;
   rxId: string;
   patientName: string;
+  phone: string | null;
   itemName: string;
-  ndc: string | null;
   status: string;
   fillDate: string | null;
   quantity: number;
   daysSupply: number | null;
-  refillNumber: number;
+  tags: string[];
+  method: string | null;
   pharmacist: string | null;
   binLocation: string | null;
 }

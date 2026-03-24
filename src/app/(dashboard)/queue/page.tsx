@@ -91,15 +91,14 @@ async function QueueContent({
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fill #</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rx #</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rx</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Medication</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">NDC</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Drug</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Qty</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Days</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Refill #</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fill Date</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Due</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tags</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
@@ -107,31 +106,38 @@ async function QueueContent({
                   {fills.map((fill) => (
                     <tr key={fill.fillId} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="text-sm font-mono font-semibold text-gray-700">{fill.fillId}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm font-mono text-[#40721D]">{fill.rxId}</span>
+                        <span className="text-sm font-mono font-semibold text-gray-700">{fill.rxId}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-sm font-medium text-gray-900">{fill.patientName}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-gray-600">{fill.itemName}</span>
+                        <span className="text-sm text-gray-600">{fill.phone || "—"}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-xs font-mono text-gray-400">{fill.ndc || "—"}</span>
+                        <span className="text-sm text-gray-600">{fill.itemName}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-sm text-gray-600">{fill.quantity}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm text-gray-600">{fill.daysSupply ?? "—"}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-gray-600">{fill.refillNumber}</span>
-                      </td>
-                      <td className="px-4 py-3">
                         <span className="text-sm text-gray-600">{formatDate(fill.fillDate)}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {fill.tags.length > 0 ? fill.tags.map((tag, i) => (
+                            <span key={i} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded bg-amber-100 text-amber-800 border border-amber-200">
+                              {tag}
+                            </span>
+                          )) : <span className="text-gray-300 text-sm">—</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {fill.method ? (
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-700 border border-green-200">
+                            {fill.method}
+                          </span>
+                        ) : <span className="text-gray-300 text-sm">—</span>}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700">

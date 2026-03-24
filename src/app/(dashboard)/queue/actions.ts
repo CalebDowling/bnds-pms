@@ -73,21 +73,42 @@ export async function getQueueFills({
             const fill = drx.fill;
             if (!fill?.id) continue;
 
-            const patientName = drx.patient
-              ? `${(drx.patient as any).first_name || ""} ${(drx.patient as any).last_name || ""}`.trim()
+            const patient = drx.patient as any;
+            const patientName = patient
+              ? `${patient.first_name || ""} ${patient.last_name || ""}`.trim()
               : "Unknown";
+
+            // Phone: first phone number from patient record
+            let phone: string | null = null;
+            if (patient?.phone_numbers && Array.isArray(patient.phone_numbers) && patient.phone_numbers.length > 0) {
+              phone = patient.phone_numbers[0].number || null;
+            }
+
+            // Tags: DRX returns prescription_fill_tags array on the fill
+            const rawTags = (fill as any).prescription_fill_tags || (fill as any).tags || [];
+            const tags: string[] = Array.isArray(rawTags)
+              ? rawTags.map((t: any) => (typeof t === "string" ? t : t?.name || t?.tag || "")).filter(Boolean)
+              : [];
+
+            // Method: delivery method from fill or patient
+            const method: string | null =
+              (fill as any).delivery_method ||
+              (fill as any).method ||
+              patient?.delivery_method ||
+              null;
 
             fills.push({
               fillId: String(fill.id),
               rxId: drx.prescription?.id ? String(drx.prescription.id) : "—",
               patientName,
+              phone,
               itemName: drx.dispensed_item?.name || "Unknown",
-              ndc: drx.dispensed_item?.ndc || null,
               status: fill.status || drxStatus,
               fillDate: fill.fill_date || fill.created_at || null,
               quantity: fill.dispensed_quantity || 0,
               daysSupply: fill.days_supply || null,
-              refillNumber: fill.refill || 0,
+              tags,
+              method,
               pharmacist: fill.pharmacist || null,
               binLocation: fill.will_call_location || null,
             });
@@ -135,13 +156,14 @@ async function getRefillRenewals(page: number, limit: number, label: string) {
       patientName: r.prescription?.patient
         ? `${r.prescription.patient.firstName} ${r.prescription.patient.lastName}`
         : "Unknown",
+      phone: null,
       itemName: r.prescription?.item?.name || "Unknown",
-      ndc: r.prescription?.item?.ndc || null,
       status: "Renewal Pending",
       fillDate: r.requestedAt?.toISOString() || null,
       quantity: 0,
       daysSupply: null,
-      refillNumber: 0,
+      tags: [],
+      method: null,
       pharmacist: null,
       binLocation: null,
     }));
