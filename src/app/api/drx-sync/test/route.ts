@@ -111,14 +111,15 @@ export async function GET() {
     }
 
     // ─── External API fill-tags probe ───────────────────
-    // The /fill-tags endpoint EXISTS on the external API (returns 401 w/o key, not 404)
-    // If it works with the API key, it could replace the IP-restricted internal API
+    // /fill-tags works! Returns { success, total, fill_tags: [{id, name, prescription_fills}] }
+    // Now test tag-filtered prescription-fills to see which param name works
     const fillTagProbes = await Promise.all([
-      probe("/fill-tags", 5),
-      probe("/prescription-fill-tags", 5),
-      probe("/tags", 5),
-      probe("/workflow-queues", 5),
-      probe("/custom-queues", 5),
+      probe("/fill-tags", 2),
+      // Test tag filter params on /prescription-fills (using tag_id=1 as test)
+      probe("/prescription-fills", 1, { prescription_fill_tag_id: "1" }),
+      probe("/prescription-fills", 1, { fill_tag_id: "1" }),
+      probe("/prescription-fills", 1, { tag_id: "1" }),
+      probe("/prescription-fills", 1, { tag: "1" }),
     ]);
 
     // Also run the actual fetchCustomQueueCounts to see parsed output

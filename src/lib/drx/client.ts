@@ -461,92 +461,126 @@ function parseCustomQueueResponse(data: unknown): Record<string, number> {
 }
 
 /**
+ * Extract fill_tags array from DRX /fill-tags response.
+ * Response format: { success: true, total: 1425, fill_tags: [{id, name, prescription_fills: [{prescription_fill_id}...]}] }
+ */
+function extractFillTags(raw: unknown): { id: number; name: string; prescription_fills: { prescription_fill_id: number }[] }[] {
+  if (!raw || typeof raw !== "object") return [];
+
+  // If it's a wrapped response with fill_tags key
+  const obj = raw as Record<string, unknown>;
+  if (Array.isArray(obj.fill_tags)) {
+    return obj.fill_tags as { id: number; name: string; prescription_fills: { prescription_fill_id: number }[] }[];
+  }
+
+  // If it's a raw array
+  if (Array.isArray(raw)) {
+    return raw as { id: number; name: string; prescription_fills: { prescription_fill_id: number }[] }[];
+  }
+
+  // Find first array value in the response
+  for (const value of Object.values(obj)) {
+    if (Array.isArray(value) && value.length > 0 && typeof (value[0] as Record<string, unknown>)?.name === "string") {
+      return value as { id: number; name: string; prescription_fills: { prescription_fill_id: number }[] }[];
+    }
+  }
+
+  return [];
+}
+
+/**
  * Fetch custom queue counts via the external API's /fill-tags endpoint.
  * This works from ANY IP (including Vercel) because it uses the standard
  * X-DRX-Key auth on the external API — unlike the internal API which is
  * IP-restricted to the pharmacy network.
  *
- * Strategy: Fetch all fill tags, then count fills per tag by querying
- * /prescription-fills with tag filter. If fill-tags returns tag objects
- * with totals, we can use those directly.
+ * Strategy:
+ * 1. Paginate through /fill-tags to find tags matching known custom queue names
+ * 2. For each match, query /prescription-fills with tag filter to get total count
+ * 3. Fall back to prescription_fills array length if tag filtering doesn't work
  */
+const KNOWN_CUSTOM_QUEUES = [
+  "price check", "prepay", "ok to charge", "decline", "ok to charge clinic", "mochi",
+];
+
 async function fetchCustomQueueCountsViaExternalApi(): Promise<Record<string, number>> {
   try {
-    // Try the external API fill-tags endpoint
-    const fillTags = await drxFetch<unknown[]>("/fill-tags", { limit: 100 });
+    // Paginate through all fill tags to find our custom queue tags
+    // DRX has ~1,425 tags, max 100 per page = ~15 pages
+    const matchedTags: { id: number; name: string; fillCount: number }[] = [];
+    let offset = 0;
+    const PAGE_LIMIT = 100;
+    const MAX_PAGES = 20; // Safety limit
 
-    if (!fillTags || !Array.isArray(fillTags) || fillTags.length === 0) {
-      console.log("[DRX] /fill-tags returned empty or null");
-      return {};
-    }
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const raw = await drxFetch<unknown>("/fill-tags", { limit: PAGE_LIMIT, offset });
+      if (!raw) break;
 
-    console.log(`[DRX] /fill-tags returned ${fillTags.length} tags, sample:`, JSON.stringify(fillTags[0]).slice(0, 300));
+      const tags = extractFillTags(raw);
+      if (tags.length === 0) break;
 
-    // Check if tags have a "total" or "count" field (ideal case)
-    const firstTag = fillTags[0] as Record<string, unknown>;
-    if (typeof firstTag.total === "number" || typeof firstTag.count === "number") {
-      // Tags include counts — just map them
-      const counts: Record<string, number> = {};
-      for (const tag of fillTags) {
-        const t = tag as Record<string, unknown>;
-        const name = (t.name as string) || "";
-        const total = (typeof t.total === "number" ? t.total : typeof t.count === "number" ? t.count : 0);
-        if (name) counts[name] = total;
-      }
-      console.log("[DRX] fill-tags with counts:", JSON.stringify(counts));
-      return counts;
-    }
-
-    // Tags don't include counts — need to count fills per tag
-    // Get tag IDs and names, then query prescription-fills for each
-    const tagMap: { id: number; name: string }[] = [];
-    for (const tag of fillTags) {
-      const t = tag as Record<string, unknown>;
-      const id = t.id as number;
-      const name = (t.name as string) || "";
-      if (id && name) tagMap.push({ id, name });
-    }
-
-    // Only count tags that match known custom queue names
-    const KNOWN_CUSTOM_QUEUES = ["price check", "prepay", "ok to charge", "decline", "ok to charge clinic", "mochi"];
-    const relevantTags = tagMap.filter((t) =>
-      KNOWN_CUSTOM_QUEUES.some((q) => q.toLowerCase() === t.name.toLowerCase().trim())
-    );
-
-    if (relevantTags.length === 0) {
-      console.log("[DRX] No matching custom queue tags found in fill-tags");
-      return {};
-    }
-
-    // Count fills per tag by querying /prescription-fills with tag_id filter
-    const counts: Record<string, number> = {};
-    await Promise.all(
-      relevantTags.map(async (tag) => {
-        try {
-          // Try different param names that DRX might accept for tag filtering
-          const fills = await drxFetch<unknown[]>("/prescription-fills", {
-            fill_tag_id: tag.id,
-            limit: 1,
+      // Check each tag against known custom queue names
+      for (const tag of tags) {
+        const tagNameLower = (tag.name || "").toLowerCase().trim();
+        if (KNOWN_CUSTOM_QUEUES.some((q) => q.toLowerCase() === tagNameLower)) {
+          matchedTags.push({
+            id: tag.id,
+            name: tag.name,
+            fillCount: Array.isArray(tag.prescription_fills) ? tag.prescription_fills.length : 0,
           });
-          // If the endpoint returns results, check if it filtered properly
-          // For now, try with prescription_fill_tag_id param too
-          if (fills !== null) {
-            // DRX external API returns count via array length when limit=0 won't work
-            // We need total count — try fetching with a high limit
-            const allFills = await drxFetch<unknown[]>("/prescription-fills", {
-              fill_tag_id: tag.id,
-              limit: 100,
+        }
+      }
+
+      // If we found all 6 custom queues, stop early
+      if (matchedTags.length >= KNOWN_CUSTOM_QUEUES.length) break;
+
+      // If this page had fewer than limit, no more pages
+      if (tags.length < PAGE_LIMIT) break;
+      offset += PAGE_LIMIT;
+    }
+
+    console.log(`[DRX] Found ${matchedTags.length} matching custom queue tags:`, matchedTags.map((t) => `${t.name}(id=${t.id})`).join(", "));
+
+    if (matchedTags.length === 0) return {};
+
+    // For each matched tag, try to get exact fill count via /prescription-fills with tag filter
+    // Try multiple param names since we don't know exactly which one DRX uses
+    const TAG_FILTER_PARAMS = ["prescription_fill_tag_id", "fill_tag_id", "tag_id", "tag"];
+    const counts: Record<string, number> = {};
+
+    await Promise.all(
+      matchedTags.map(async (tag) => {
+        // Try each filter param to see which gives us a filtered count
+        for (const paramName of TAG_FILTER_PARAMS) {
+          try {
+            const raw = await drxFetch<Record<string, unknown>>("/prescription-fills", {
+              [paramName]: tag.id,
+              limit: 1,
               offset: 0,
             });
-            counts[tag.name] = allFills?.length || 0;
+            if (raw && typeof raw.total === "number") {
+              // Check if the total is actually filtered (should be < total fills)
+              // Total unfiltered fills is ~497k, custom queues are typically < 200 each
+              if (raw.total < 10000) {
+                counts[tag.name] = raw.total;
+                console.log(`[DRX] Tag "${tag.name}" count via ${paramName}: ${raw.total}`);
+                return; // Found working filter param
+              }
+            }
+          } catch {
+            // This param didn't work, try next
           }
-        } catch {
-          counts[tag.name] = 0;
         }
+
+        // Fallback: use the prescription_fills array length from the tag data
+        // Note: this may be truncated (DRX seems to return max 10 per tag in list response)
+        // Better than nothing, but may undercount
+        counts[tag.name] = tag.fillCount;
+        console.log(`[DRX] Tag "${tag.name}" fallback count from fill_tags array: ${tag.fillCount}`);
       })
     );
 
-    console.log("[DRX] fill-tags counts via external API:", JSON.stringify(counts));
+    console.log("[DRX] Custom queue counts via external API:", JSON.stringify(counts));
     return counts;
   } catch (e) {
     console.error("[DRX] Error fetching custom queues via external API:", e);
