@@ -532,26 +532,26 @@ async function syncPrescriptionFills(prisma: any, lastSync: Date | null): Promis
 }
 
 // ─── Targeted Queue Sync ──────────────────────
-// Fetches only active fills (non-Sold) by each DRX queue status.
-// Much faster than a full resync — ~500 fills total vs 238K.
+// Fetches active fills by DRX queue status and bulk-updates our DB.
+// Uses raw SQL UPDATE ... WHERE "externalId" IN (...) for speed.
+// Processes small/important statuses first, Hold last (43K+ fills).
 
 const ACTIVE_DRX_STATUSES = [
-  "Pre-Check",
-  "Adjudicating",
-  "Print",
-  "Scan",
-  "Verify",
-  "OOS",
-  "Hold",
-  "Waiting Bin",
-  "Rejected",
+  // Small/active statuses first — these matter most for the workflow queue
+  "Print",          // ~86
+  "Scan",           // ~205
+  "Verify",         // ~219
+  "OOS",            // ~19
+  "Pre-Check",      // small
+  "Adjudicating",   // small
+  "Rejected",       // small
+  "Waiting Bin",    // ~593
+  "Hold",           // ~43K — last because it's huge
 ];
 
 export async function syncActiveQueues(): Promise<{
   statusCounts: Record<string, number>;
   totalUpdated: number;
-  totalCreated: number;
-  totalSkipped: number;
   errors: number;
   duration: number;
 }> {
@@ -560,99 +560,59 @@ export async function syncActiveQueues(): Promise<{
 
   const statusCounts: Record<string, number> = {};
   let totalUpdated = 0;
-  let totalCreated = 0;
-  let totalSkipped = 0;
   let errors = 0;
 
   for (const drxStatus of ACTIVE_DRX_STATUSES) {
-    if (!hasTimeLeft()) break;
+    if (!hasTimeLeft()) {
+      console.log(`[Queue Sync] Time budget exhausted, stopping before ${drxStatus}`);
+      break;
+    }
 
     try {
-      let statusTotal = 0;
+      // Step 1: Collect all fill external IDs for this status from DRX
+      const extIds: string[] = [];
       await fetchAllPages<DrxPrescriptionFill>(
         "/prescription-fills",
         100,
         async (batch) => {
           for (const drx of batch) {
-            if (!hasTimeLeft()) return;
-            try {
-              const fill = drx.fill;
-              if (!fill?.id) { totalSkipped++; continue; }
-
-              const extId = String(fill.id);
-              const existing = await prisma.prescriptionFill.findFirst({
-                where: { externalId: extId },
-                select: { id: true },
-              });
-
-              if (existing) {
-                // Update the status to the raw DRX status
-                await prisma.prescriptionFill.update({
-                  where: { id: existing.id },
-                  data: {
-                    status: fill.status || drxStatus,
-                    binLocation: fill.will_call_location || null,
-                    copayAmount: fill.patient_pay_amount != null ? new Prisma.Decimal(fill.patient_pay_amount) : null,
-                    filledAt: fill.fill_date ? new Date(fill.fill_date) : null,
-                    dispensedAt: fill.first_sold_on ? new Date(fill.first_sold_on) : null,
-                  },
-                });
-                totalUpdated++;
-              } else {
-                // Fill doesn't exist in our DB yet — try to create it
-                const rx = drx.prescription?.id
-                  ? await prisma.prescription.findFirst({ where: { externalId: String(drx.prescription.id) }, select: { id: true } })
-                  : null;
-                if (!rx) { totalSkipped++; continue; }
-
-                const item = drx.dispensed_item?.id
-                  ? await prisma.item.findFirst({ where: { externalId: String(drx.dispensed_item.id) }, select: { id: true } })
-                  : null;
-
-                try {
-                  await prisma.prescriptionFill.create({
-                    data: {
-                      externalId: extId,
-                      prescriptionId: rx.id,
-                      itemId: item?.id || null,
-                      fillNumber: fill.refill || 0,
-                      ndc: drx.dispensed_item?.ndc || null,
-                      quantity: new Prisma.Decimal(fill.dispensed_quantity || 0),
-                      daysSupply: fill.days_supply,
-                      status: fill.status || drxStatus,
-                      binLocation: fill.will_call_location || null,
-                      copayAmount: fill.patient_pay_amount != null ? new Prisma.Decimal(fill.patient_pay_amount) : null,
-                      ingredientCost: fill.fill_cost != null ? new Prisma.Decimal(fill.fill_cost) : null,
-                      dispensingFee: fill.dispensing_fee != null ? new Prisma.Decimal(fill.dispensing_fee) : null,
-                      totalPrice: fill.retail_amount != null ? new Prisma.Decimal(fill.retail_amount) : null,
-                      filledAt: fill.fill_date ? new Date(fill.fill_date) : null,
-                      dispensedAt: fill.first_sold_on ? new Date(fill.first_sold_on) : null,
-                    },
-                  });
-                  totalCreated++;
-                } catch (e: any) {
-                  if (e?.code === "P2002") totalSkipped++; else errors++;
-                }
-              }
-              statusTotal++;
-            } catch { errors++; }
+            if (drx.fill?.id) {
+              extIds.push(String(drx.fill.id));
+            }
           }
         },
         { status: drxStatus },
         hasTimeLeft
       );
-      statusCounts[drxStatus] = statusTotal;
-      console.log(`[Queue Sync] ${drxStatus}: ${statusTotal} fills`);
+
+      if (extIds.length === 0) {
+        statusCounts[drxStatus] = 0;
+        console.log(`[Queue Sync] ${drxStatus}: 0 fills from DRX`);
+        continue;
+      }
+
+      // Step 2: Bulk UPDATE all matching fills in one SQL query
+      // This is ~1000x faster than individual Prisma updates
+      const placeholders = extIds.map((_, i) => `$${i + 2}`).join(", ");
+      const updated = await prisma.$executeRawUnsafe(
+        `UPDATE prescription_fills SET status = $1 WHERE "externalId" IN (${placeholders})`,
+        drxStatus,
+        ...extIds
+      );
+
+      statusCounts[drxStatus] = extIds.length;
+      totalUpdated += updated;
+      console.log(`[Queue Sync] ${drxStatus}: ${extIds.length} from DRX, ${updated} updated in DB`);
     } catch (e) {
-      console.error(`[Queue Sync] Error fetching ${drxStatus}:`, e);
+      console.error(`[Queue Sync] Error for ${drxStatus}:`, e);
       errors++;
     }
   }
 
   const duration = Date.now() - syncStartedAt;
-  console.log(`[Queue Sync] Done: ${totalUpdated} updated, ${totalCreated} created, ${totalSkipped} skipped, ${errors} errors (${duration}ms)`);
+  console.log(`[Queue Sync] Done: ${totalUpdated} updated, ${errors} errors (${duration}ms)`);
 
-  return { statusCounts, totalUpdated, totalCreated, totalSkipped, errors, duration };
+  return { statusCounts, totalUpdated, errors, duration };
 }
 
 // ─── Main Sync Orchestrator ────────────────────
