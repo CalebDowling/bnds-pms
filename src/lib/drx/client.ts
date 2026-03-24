@@ -84,7 +84,7 @@ async function drxFetchPage<T>(
     return { data: [], offset, limit, hasMore: false };
   }
 
-  // DRX returns arrays directly
+  // DRX returns arrays directly (unlikely but handle it)
   if (Array.isArray(raw)) {
     return {
       data: raw as T[],
@@ -94,9 +94,16 @@ async function drxFetchPage<T>(
     };
   }
 
-  // Handle object wrapper just in case
+  // DRX wraps data in named keys: { success: true, doctors: [...] }
+  // Find the first array value in the response object
   const obj = raw as Record<string, unknown>;
-  const data = (obj.data || obj.results || obj.items || obj.records || []) as T[];
+  let data: T[] = [];
+  for (const value of Object.values(obj)) {
+    if (Array.isArray(value)) {
+      data = value as T[];
+      break;
+    }
+  }
 
   return {
     data,
