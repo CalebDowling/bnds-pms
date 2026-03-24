@@ -244,16 +244,18 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              {COLUMNS.map((col) => (
+            <tr className="border-b-2 border-gray-300 bg-gray-100">
+              {COLUMNS.map((col, i) => (
                 <th
                   key={col.key}
-                  className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider select-none"
+                  className={`text-left px-3 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider select-none whitespace-nowrap ${
+                    i > 0 ? "border-l border-gray-200" : ""
+                  }`}
                 >
                   <span
-                    className="cursor-pointer hover:text-gray-700 inline-flex items-center"
+                    className="cursor-pointer hover:text-gray-800 inline-flex items-center"
                     onClick={() => handleSort(col.key)}
                   >
                     {col.label}
@@ -271,7 +273,7 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {processed.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm">
@@ -279,44 +281,58 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                 </td>
               </tr>
             ) : (
-              processed.map((fill) => (
-                <tr key={fill.fillId} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <span className="text-sm font-mono font-semibold text-gray-700">{fill.rxId}</span>
+              processed.map((fill, rowIdx) => (
+                <tr
+                  key={fill.fillId}
+                  className={`border-b border-gray-200 hover:bg-[#40721D]/5 transition-colors ${
+                    rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                  }`}
+                >
+                  {/* RX — monospace, bold, green accent */}
+                  <td className="px-3 py-2.5">
+                    <span className="text-sm font-mono font-bold text-[#40721D]">{fill.rxId}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm font-medium text-gray-900">{fill.patientName}</span>
+                  {/* Patient — bold black, key identifier */}
+                  <td className="px-3 py-2.5 border-l border-gray-100">
+                    <span className="text-sm font-semibold text-gray-900">{fill.patientName}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-600">{fill.phone || "—"}</span>
+                  {/* Phone — muted, smaller */}
+                  <td className="px-3 py-2.5 border-l border-gray-100">
+                    <span className="text-xs text-gray-500 font-mono">{fill.phone || "—"}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-600">{fill.itemName}</span>
+                  {/* Drug — regular weight, slightly emphasized */}
+                  <td className="px-3 py-2.5 border-l border-gray-200" style={{ maxWidth: "300px" }}>
+                    <span className="text-sm text-gray-700 line-clamp-1">{fill.itemName}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-600">{fill.quantity}</span>
+                  {/* Qty — centered, bold */}
+                  <td className="px-3 py-2.5 border-l border-gray-100 text-center">
+                    <span className="text-sm font-bold text-gray-800">{fill.quantity}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-gray-600">{formatDate(fill.fillDate)}</span>
+                  {/* Due — date styling */}
+                  <td className="px-3 py-2.5 border-l border-gray-100 whitespace-nowrap">
+                    <span className="text-xs text-gray-500">{formatDate(fill.fillDate)}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  {/* Tags — pills */}
+                  <td className="px-3 py-2.5 border-l border-gray-200">
                     <div className="flex flex-wrap gap-1">
                       {fill.tags.length > 0 ? fill.tags.map((tag, i) => (
-                        <span key={i} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded bg-amber-100 text-amber-800 border border-amber-200">
+                        <span key={i} className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
                           {tag}
                         </span>
-                      )) : <span className="text-gray-300 text-sm">—</span>}
+                      )) : <span className="text-gray-300 text-xs">—</span>}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  {/* Method — green pill */}
+                  <td className="px-3 py-2.5 border-l border-gray-100">
                     {fill.method ? (
-                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-700 border border-green-200">
+                      <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-green-50 text-green-700 border border-green-200">
                         {fill.method}
                       </span>
-                    ) : <span className="text-gray-300 text-sm">—</span>}
+                    ) : <span className="text-gray-300 text-xs">—</span>}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                  {/* Status — colored pill */}
+                  <td className="px-3 py-2.5 border-l border-gray-200">
+                    <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                       {fill.status}
                     </span>
                   </td>
