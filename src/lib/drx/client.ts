@@ -655,20 +655,79 @@ export async function fetchCustomQueueCounts(): Promise<Record<string, number>> 
 
 // Module-level cache for tag lookups (persists within a single serverless invocation)
 const tagCache = new Map<string, { id: number; fillIds: number[] } | null>();
+let allTagsPreloaded = false;
+let preloadPromise: Promise<void> | null = null;
+
+/**
+ * Pre-load ALL known custom queue tags in a single pass through /fill-tags.
+ * This avoids repeated pagination when switching between custom queue tabs.
+ * Only runs once per serverless invocation, then all lookups are cache hits.
+ */
+async function preloadAllCustomTags(): Promise<void> {
+  if (allTagsPreloaded) return;
+  // Deduplicate concurrent calls — only one pagination pass happens
+  if (preloadPromise) return preloadPromise;
+
+  preloadPromise = (async () => {
+    const remaining = new Set(KNOWN_CUSTOM_QUEUES.map((q) => q.toLowerCase().trim()));
+    let offset = 0;
+    const PAGE_LIMIT = 100;
+
+    for (let page = 0; page < 20; page++) {
+      const raw = await drxFetch<unknown>("/fill-tags", { limit: PAGE_LIMIT, offset });
+      if (!raw) break;
+
+      const tags = extractFillTags(raw);
+      if (tags.length === 0) break;
+
+      for (const tag of tags) {
+        const nameLower = (tag.name || "").toLowerCase().trim();
+        if (remaining.has(nameLower)) {
+          const fillIds = Array.isArray(tag.prescription_fills)
+            ? tag.prescription_fills.map((f) => f.prescription_fill_id).filter(Boolean)
+            : [];
+          tagCache.set(nameLower, { id: tag.id, fillIds });
+          remaining.delete(nameLower);
+          console.log(`[DRX] Preloaded tag "${tag.name}" → id=${tag.id}, ${fillIds.length} fills`);
+        }
+      }
+
+      // All found — stop early
+      if (remaining.size === 0) break;
+      if (tags.length < PAGE_LIMIT) break;
+      offset += PAGE_LIMIT;
+    }
+
+    // Mark any remaining as not found
+    for (const name of remaining) {
+      tagCache.set(name, null);
+    }
+
+    allTagsPreloaded = true;
+    console.log(`[DRX] Preloaded ${KNOWN_CUSTOM_QUEUES.length - remaining.size} custom queue tags`);
+  })();
+
+  return preloadPromise;
+}
 
 /**
  * Find a fill tag by name from the DRX /fill-tags endpoint.
  * Returns the tag's fill IDs (prescription_fill_id values).
- * Paginates through all tags to find a case-insensitive match.
- * Results are cached for the duration of the serverless invocation.
+ * Uses preloaded cache for known custom queues, falls back to pagination for others.
  */
 async function findFillTag(tagName: string): Promise<{ id: number; fillIds: number[] } | null> {
   const cacheKey = tagName.toLowerCase().trim();
+
+  // If this is a known custom queue, ensure all are preloaded in one pass
+  if (KNOWN_CUSTOM_QUEUES.some((q) => q.toLowerCase().trim() === cacheKey)) {
+    await preloadAllCustomTags();
+  }
+
   if (tagCache.has(cacheKey)) {
     return tagCache.get(cacheKey)!;
   }
 
-  const targetLower = cacheKey;
+  // Fallback: paginate to find unknown tags
   let offset = 0;
   const PAGE_LIMIT = 100;
 
@@ -680,7 +739,7 @@ async function findFillTag(tagName: string): Promise<{ id: number; fillIds: numb
     if (tags.length === 0) break;
 
     for (const tag of tags) {
-      if ((tag.name || "").toLowerCase().trim() === targetLower) {
+      if ((tag.name || "").toLowerCase().trim() === cacheKey) {
         const fillIds = Array.isArray(tag.prescription_fills)
           ? tag.prescription_fills.map((f) => f.prescription_fill_id).filter(Boolean)
           : [];
@@ -778,8 +837,8 @@ export async function fetchFillsByTagName(
   const pageIds = tag.fillIds.slice(offset, offset + limit);
   if (pageIds.length === 0) return { total, fills: [] };
 
-  // Fetch individual fills by ID with concurrency (10 at a time)
-  const CONCURRENCY = 10;
+  // Fetch individual fills by ID with concurrency (20 at a time)
+  const CONCURRENCY = 20;
   const fills: Record<string, unknown>[] = [];
   let loggedFirst = false;
 

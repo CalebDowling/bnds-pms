@@ -5,6 +5,33 @@ import Pagination from "@/components/ui/Pagination";
 import QueueTable from "./QueueTable";
 import { Suspense } from "react";
 
+// ─── Loading skeleton shown while queue data loads ───
+function QueueSkeleton() {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 animate-pulse">
+      {/* Fake count bar */}
+      <div className="px-4 py-2 border-b border-gray-100">
+        <div className="h-3 bg-gray-200 rounded w-32" />
+      </div>
+      {/* Header row */}
+      <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 flex gap-4">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div key={i} className="h-3 bg-gray-200 rounded w-16" />
+        ))}
+      </div>
+      {/* Body rows */}
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div key={i} className="px-4 py-3 flex gap-4 border-b border-gray-100">
+          {Array.from({ length: 9 }).map((_, j) => (
+            <div key={j} className="h-3 bg-gray-100 rounded" style={{ width: `${40 + (j * 7) % 40}px` }} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Async table content — streams in after data fetches ───
 async function QueueContent({
   searchParams,
 }: {
@@ -13,10 +40,55 @@ async function QueueContent({
   const params = await searchParams;
   const status = params.status || "print";
   const page = parseInt(params.page || "1", 10);
-  const limit = 50;
+  const limit = 100;
 
   const { fills, total, drxStatus, label } = await getQueueFills({ status, page, limit });
   const pages = Math.ceil(total / limit);
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200">
+      {/* Live count */}
+      <div className="px-4 py-2 border-b border-gray-100">
+        <p className="text-xs text-gray-500">
+          {total} fill{total !== 1 ? "s" : ""} in {label}
+          <span className="text-gray-400 ml-2">
+            (Live from DRX &middot; status: {drxStatus})
+          </span>
+        </p>
+      </div>
+
+      {fills.length === 0 ? (
+        <div className="p-12 text-center">
+          <p className="text-gray-400 text-lg mb-2">No fills in {label} queue</p>
+          <p className="text-gray-400 text-sm">
+            {total === 0
+              ? "This queue is currently empty in DRX."
+              : `${total} fills total — navigate pages to view more.`}
+          </p>
+        </div>
+      ) : (
+        <QueueTable fills={fills} />
+      )}
+      {pages > 1 && (
+        <div className="px-4 pb-4">
+          <Suspense fallback={null}>
+            <Pagination total={total} pages={pages} page={page} basePath="/queue" />
+          </Suspense>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Page shell — renders instantly (breadcrumb, title, pills) ───
+export default async function QueuePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; page?: string }>;
+}) {
+  const params = await searchParams;
+  const status = params.status || "print";
+  const label = QUEUE_LABELS[status] || status;
 
   return (
     <div>
@@ -32,12 +104,6 @@ async function QueueContent({
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{label} Queue</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {total} fill{total !== 1 ? "s" : ""} in {label}
-              <span className="text-gray-400 ml-2">
-                (Live from DRX &middot; status: {drxStatus})
-              </span>
-            </p>
           </div>
           <Link
             href="/dashboard"
@@ -66,37 +132,11 @@ async function QueueContent({
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200">
-          {fills.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-gray-400 text-lg mb-2">No fills in {label} queue</p>
-              <p className="text-gray-400 text-sm">
-                {total === 0
-                  ? "This queue is currently empty in DRX."
-                  : `${total} fills total — navigate pages to view more.`}
-              </p>
-            </div>
-          ) : (
-            <QueueTable fills={fills} />
-          )}
-          {pages > 1 && (
-            <div className="px-4 pb-4">
-              <Suspense fallback={null}>
-                <Pagination total={total} pages={pages} page={page} basePath="/queue" />
-              </Suspense>
-            </div>
-          )}
-        </div>
+        {/* Table — streamed in with skeleton fallback */}
+        <Suspense fallback={<QueueSkeleton />}>
+          <QueueContent searchParams={searchParams} />
+        </Suspense>
       </div>
     </div>
   );
-}
-
-export default async function QueuePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ status?: string; page?: string }>;
-}) {
-  return <QueueContent searchParams={searchParams} />;
 }
