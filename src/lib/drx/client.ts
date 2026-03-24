@@ -121,13 +121,17 @@ export async function fetchAllPages<T>(
   endpoint: string,
   limit: number,
   handler: (records: T[], page: number) => Promise<void>,
-  extraParams?: Record<string, string | number | boolean>
+  extraParams?: Record<string, string | number | boolean>,
+  shouldContinue?: () => boolean
 ): Promise<number> {
   let offset = 0;
   let total = 0;
   let page = 0;
 
   while (true) {
+    // Check time budget before fetching next page
+    if (shouldContinue && !shouldContinue()) break;
+
     const result = await drxFetchPage<T>(endpoint, offset, limit, extraParams);
     if (result.data.length === 0) break;
 

@@ -15,7 +15,6 @@
 import { Prisma } from "@prisma/client";
 import {
   fetchAllPages,
-  fetchModifiedSince,
   type DrxPatient,
   type DrxDoctor,
   type DrxItem,
@@ -139,74 +138,54 @@ async function syncDoctors(prisma: any, lastSync: Date | null): Promise<SyncResu
   const result: SyncResult = { entity: "doctors", imported: 0, updated: 0, skipped: 0, errors: 0, duration: 0 };
 
   try {
-    if (lastSync) {
-      // Delta sync
-      const doctors = await fetchModifiedSince<DrxDoctor>("/doctors", lastSync);
-      for (const drx of doctors) {
-        if (!hasTimeLeft()) { result.timedOut = true; break; }
+    // Streaming page-by-page for both full and delta sync
+    const extraParams: Record<string, string> = lastSync ? { updatedAfter: lastSync.toISOString() } : {};
+    await fetchAllPages<DrxDoctor>("/doctors", 100, async (batch) => {
+      for (const drx of batch) {
+        if (!hasTimeLeft()) { result.timedOut = true; return; }
         try {
           if (!drx.npi) { result.skipped++; continue; }
           const extId = String(drx.id);
-          const phone = drx.phone_numbers?.[0]?.number || null;
-          const existing = await prisma.prescriber.findFirst({ where: { externalId: extId }, select: { id: true } });
+          const phone = drx.phone_numbers?.[0]?.number || drx.fax_number || null;
+          const addr = drx.addresses?.[0];
+
+          const existing = await prisma.prescriber.findFirst({
+            where: { externalId: extId },
+            select: { id: true },
+          });
+
           if (existing) {
             await prisma.prescriber.update({
               where: { id: existing.id },
-              data: { firstName: drx.first_name || "", lastName: drx.last_name || "", phone },
+              data: {
+                firstName: drx.first_name || "",
+                lastName: drx.last_name || "",
+                phone, fax: drx.fax_number || null,
+              },
             });
             result.updated++;
+          } else {
+            try {
+              await prisma.prescriber.create({
+                data: {
+                  externalId: extId, npi: drx.npi,
+                  deaNumber: drx.dea || null,
+                  firstName: drx.first_name || "", lastName: drx.last_name || "",
+                  specialty: drx.prescriber_type || null, phone, fax: drx.fax_number || null,
+                  email: drx.email || null,
+                  addressLine1: addr?.street || null, city: addr?.city || null,
+                  state: addr?.state || null, zip: addr?.zip_code || null,
+                  stateLicense: drx.state_license || null, isActive: true,
+                },
+              });
+              result.imported++;
+            } catch (e: any) {
+              if (e?.code === "P2002") { result.skipped++; } else throw e;
+            }
           }
         } catch { result.errors++; }
       }
-    } else {
-      // Full sync — use paginated list endpoint (100 per page)
-      await fetchAllPages<DrxDoctor>("/doctors", 100, async (batch) => {
-        for (const drx of batch) {
-          if (!hasTimeLeft()) { result.timedOut = true; return; }
-          try {
-            if (!drx.npi) { result.skipped++; continue; }
-            const extId = String(drx.id);
-            const phone = drx.phone_numbers?.[0]?.number || drx.fax_number || null;
-            const addr = drx.addresses?.[0];
-
-            const existing = await prisma.prescriber.findFirst({
-              where: { externalId: extId },
-              select: { id: true },
-            });
-
-            if (existing) {
-              await prisma.prescriber.update({
-                where: { id: existing.id },
-                data: {
-                  firstName: drx.first_name || "",
-                  lastName: drx.last_name || "",
-                  phone, fax: drx.fax_number || null,
-                },
-              });
-              result.updated++;
-            } else {
-              try {
-                await prisma.prescriber.create({
-                  data: {
-                    externalId: extId, npi: drx.npi,
-                    deaNumber: drx.dea || null,
-                    firstName: drx.first_name || "", lastName: drx.last_name || "",
-                    specialty: drx.prescriber_type || null, phone, fax: drx.fax_number || null,
-                    email: drx.email || null,
-                    addressLine1: addr?.street || null, city: addr?.city || null,
-                    state: addr?.state || null, zip: addr?.zip_code || null,
-                    stateLicense: drx.state_license || null, isActive: true,
-                  },
-                });
-                result.imported++;
-              } catch (e: any) {
-                if (e?.code === "P2002") { result.skipped++; } else throw e;
-              }
-            }
-          } catch { result.errors++; }
-        }
-      });
-    }
+    }, extraParams, hasTimeLeft);
   } catch (e) {
     console.error("Doctor sync error:", e);
     result.errors++;
@@ -221,11 +200,11 @@ async function syncItems(prisma: any, lastSync: Date | null): Promise<SyncResult
   const result: SyncResult = { entity: "items", imported: 0, updated: 0, skipped: 0, errors: 0, duration: 0 };
 
   try {
-    if (lastSync) {
-      // Delta sync
-      const items = await fetchModifiedSince<DrxItem>("/items", lastSync);
-      for (const drx of items) {
-        if (!hasTimeLeft()) { result.timedOut = true; break; }
+    // Streaming page-by-page for both full and delta sync
+    const extraParams: Record<string, string> = lastSync ? { updatedAfter: lastSync.toISOString() } : {};
+    await fetchAllPages<DrxItem>("/items", 100, async (batch) => {
+      for (const drx of batch) {
+        if (!hasTimeLeft()) { result.timedOut = true; return; }
         try {
           const data = mapDrxItemToDb(drx);
           const existing = await prisma.item.findFirst({
@@ -237,38 +216,16 @@ async function syncItems(prisma: any, lastSync: Date | null): Promise<SyncResult
             await prisma.item.update({ where: { id: existing.id }, data: updateData });
             result.updated++;
           } else {
-            await prisma.item.create({ data });
-            result.imported++;
+            try {
+              await prisma.item.create({ data });
+              result.imported++;
+            } catch (e: any) {
+              if (e?.code === "P2002") result.skipped++; else throw e;
+            }
           }
         } catch { result.errors++; }
       }
-    } else {
-      // Full sync via paginated list
-      await fetchAllPages<DrxItem>("/items", 100, async (batch) => {
-        for (const drx of batch) {
-          if (!hasTimeLeft()) { result.timedOut = true; return; }
-          try {
-            const data = mapDrxItemToDb(drx);
-            const existing = await prisma.item.findFirst({
-              where: { externalId: String(drx.id) },
-              select: { id: true },
-            });
-            if (existing) {
-              const { externalId, ndc, ...updateData } = data;
-              await prisma.item.update({ where: { id: existing.id }, data: updateData });
-              result.updated++;
-            } else {
-              try {
-                await prisma.item.create({ data });
-                result.imported++;
-              } catch (e: any) {
-                if (e?.code === "P2002") result.skipped++; else throw e;
-              }
-            }
-          } catch { result.errors++; }
-        }
-      });
-    }
+    }, extraParams, hasTimeLeft);
   } catch (e) {
     console.error("Item sync error:", e);
     result.errors++;
@@ -379,21 +336,16 @@ async function syncPatients(prisma: any, lastSync: Date | null): Promise<SyncRes
   }
 
   try {
-    if (lastSync) {
-      const patients = await fetchModifiedSince<DrxPatient>("/patients", lastSync);
-      for (const drx of patients) {
-        if (!hasTimeLeft()) { result.timedOut = true; break; }
+    // Use streaming page-by-page processing for both full and delta sync.
+    // fetchModifiedSince collects ALL records into memory before processing,
+    // which causes timeouts for large datasets like patients (168K+).
+    const extraParams: Record<string, string> = lastSync ? { updatedAfter: lastSync.toISOString() } : {};
+    await fetchAllPages<DrxPatient>("/patients", 100, async (batch) => {
+      for (const drx of batch) {
+        if (!hasTimeLeft()) { result.timedOut = true; return; }
         try { await processPatient(drx); } catch { result.errors++; }
       }
-    } else {
-      // Full sync via paginated list
-      await fetchAllPages<DrxPatient>("/patients", 100, async (batch) => {
-        for (const drx of batch) {
-          if (!hasTimeLeft()) { result.timedOut = true; return; }
-          try { await processPatient(drx); } catch { result.errors++; }
-        }
-      });
-    }
+    }, extraParams, hasTimeLeft);
   } catch (e) {
     console.error("Patient sync error:", e);
     result.errors++;
@@ -472,21 +424,14 @@ async function syncPrescriptions(prisma: any, lastSync: Date | null): Promise<Sy
   }
 
   try {
-    if (lastSync) {
-      const rxs = await fetchModifiedSince<DrxPrescription>("/prescriptions", lastSync);
-      for (const drx of rxs) {
-        if (!hasTimeLeft()) { result.timedOut = true; break; }
+    // Streaming page-by-page for both full and delta sync
+    const extraParams: Record<string, string> = lastSync ? { updatedAfter: lastSync.toISOString() } : {};
+    await fetchAllPages<DrxPrescription>("/prescriptions", 100, async (batch) => {
+      for (const drx of batch) {
+        if (!hasTimeLeft()) { result.timedOut = true; return; }
         try { await processRx(drx); } catch { result.errors++; }
       }
-    } else {
-      // Full sync via paginated list
-      await fetchAllPages<DrxPrescription>("/prescriptions", 100, async (batch) => {
-        for (const drx of batch) {
-          if (!hasTimeLeft()) { result.timedOut = true; return; }
-          try { await processRx(drx); } catch { result.errors++; }
-        }
-      });
-    }
+    }, extraParams, hasTimeLeft);
   } catch (e) {
     console.error("Prescription sync error:", e);
     result.errors++;
@@ -553,21 +498,14 @@ async function syncPrescriptionFills(prisma: any, lastSync: Date | null): Promis
   }
 
   try {
-    if (lastSync) {
-      const fills = await fetchModifiedSince<DrxPrescriptionFill>("/prescription-fills", lastSync);
-      for (const drx of fills) {
-        if (!hasTimeLeft()) { result.timedOut = true; break; }
+    // Streaming page-by-page for both full and delta sync
+    const extraParams: Record<string, string> = lastSync ? { updatedAfter: lastSync.toISOString() } : {};
+    await fetchAllPages<DrxPrescriptionFill>("/prescription-fills", 100, async (batch) => {
+      for (const drx of batch) {
+        if (!hasTimeLeft()) { result.timedOut = true; return; }
         try { await processFill(drx); } catch { result.errors++; }
       }
-    } else {
-      // Full sync via paginated list
-      await fetchAllPages<DrxPrescriptionFill>("/prescription-fills", 100, async (batch) => {
-        for (const drx of batch) {
-          if (!hasTimeLeft()) { result.timedOut = true; return; }
-          try { await processFill(drx); } catch { result.errors++; }
-        }
-      });
-    }
+    }, extraParams, hasTimeLeft);
   } catch (e) {
     console.error("Fill sync error:", e);
     result.errors++;
