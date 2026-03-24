@@ -130,7 +130,7 @@ async function syncDoctors(prisma: any, lastSync: Date | null): Promise<SyncResu
 
   try {
     const doctors = lastSync
-      ? await fetchModifiedSince<DrxDoctor>("/doctor", lastSync)
+      ? await fetchModifiedSince<DrxDoctor>("/doctors", lastSync)
       : [];
 
     // If no delta support or first sync, use ID iteration
@@ -242,7 +242,7 @@ async function syncItems(prisma: any, lastSync: Date | null): Promise<SyncResult
       });
     } else {
       // Delta sync — only items modified since last sync
-      const items = await fetchModifiedSince<DrxItem>("/item", lastSync);
+      const items = await fetchModifiedSince<DrxItem>("/items", lastSync);
       for (const drx of items) {
         try {
           const data = mapDrxItemToDb(drx);
@@ -380,7 +380,7 @@ async function syncPatients(prisma: any, lastSync: Date | null): Promise<SyncRes
         },
       });
     } else {
-      const patients = await fetchModifiedSince<DrxPatient>("/patient", lastSync);
+      const patients = await fetchModifiedSince<DrxPatient>("/patients", lastSync);
       for (const drx of patients) {
         try { await processPatient(drx); } catch { result.errors++; }
       }
@@ -472,7 +472,7 @@ async function syncPrescriptions(prisma: any, lastSync: Date | null): Promise<Sy
         },
       });
     } else {
-      const rxs = await fetchModifiedSince<DrxPrescription>("/prescription", lastSync);
+      const rxs = await fetchModifiedSince<DrxPrescription>("/prescriptions", lastSync);
       for (const drx of rxs) {
         try { await processRx(drx); } catch { result.errors++; }
       }
@@ -552,7 +552,7 @@ async function syncPrescriptionFills(prisma: any, lastSync: Date | null): Promis
         },
       });
     } else {
-      const fills = await fetchModifiedSince<DrxPrescriptionFill>("/prescriptionfill", lastSync);
+      const fills = await fetchModifiedSince<DrxPrescriptionFill>("/prescription-fills", lastSync);
       for (const drx of fills) {
         try { await processFill(drx); } catch { result.errors++; }
       }

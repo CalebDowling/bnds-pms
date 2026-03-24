@@ -2,19 +2,27 @@
  * DRX API Client — Shadow Mode Sync
  *
  * Connects to DRX pharmacy system at boudreaux.drxapp.com
- * Supports both individual record fetch and paginated list endpoints.
- * Auth via api-key header (application API key from DRX Location Settings).
+ * Auth via X-DRX-Key header (API key from DRX Location Settings → API Options).
+ * Docs: https://getdrx.readme.io/reference/getting-started-with-your-api-1
+ *
+ * Key facts from DRX API docs:
+ * - Header: X-DRX-Key
+ * - URL prefix: /external_api/v1/
+ * - Pagination: limit (max 100, default 10) + offset
+ * - List endpoints are plural: /patients, /doctors, /items, /prescriptions, /prescription-fills
+ * - Individual endpoints are singular: /patient/{id}, /doctor/{id}, etc.
+ * - Delta sync: updatedAfter, createdAfter params (ISO 8601)
  */
 
 const DRX_BASE_URL =
-  process.env.DRX_BASE_URL || "https://boudreaux.drxapp.com/api/v1";
+  process.env.DRX_BASE_URL || "https://boudreaux.drxapp.com/external_api/v1";
 const DRX_API_KEY = process.env.DRX_API_KEY || "";
 
 // ─── Core fetch helper ─────────────────────────
 
 async function drxFetch<T>(
   endpoint: string,
-  params?: Record<string, string | number>
+  params?: Record<string, string | number | boolean>
 ): Promise<T | null> {
   const url = new URL(`${DRX_BASE_URL}${endpoint}`);
   if (params) {
@@ -25,8 +33,7 @@ async function drxFetch<T>(
 
   const res = await fetch(url.toString(), {
     headers: {
-      "api-key": DRX_API_KEY,
-      Authorization: `Bearer ${DRX_API_KEY}`,
+      "X-DRX-Key": DRX_API_KEY,
       Accept: "application/json",
     },
     signal: AbortSignal.timeout(30_000),
@@ -49,83 +56,80 @@ async function drxFetch<T>(
 
 export interface DrxPage<T> {
   data: T[];
-  totalCount: number;
-  pageIndex: number;
-  pageSize: number;
+  offset: number;
+  limit: number;
   hasMore: boolean;
 }
 
 /**
  * Fetch a paginated list from DRX.
- * The API may return the list directly as an array,
- * or wrapped in { data, totalCount, ... } etc.
- * We handle both cases.
+ * DRX returns arrays directly from list endpoints.
+ * Pagination uses limit (max 100) + offset query params.
  */
 async function drxFetchPage<T>(
   endpoint: string,
-  pageIndex: number,
-  pageSize: number,
-  extraParams?: Record<string, string | number>
+  offset: number,
+  limit: number,
+  extraParams?: Record<string, string | number | boolean>
 ): Promise<DrxPage<T>> {
-  const params: Record<string, string | number> = {
-    pageIndex,
-    pageSize,
+  const params: Record<string, string | number | boolean> = {
+    limit,
+    offset,
     ...extraParams,
   };
 
   const raw = await drxFetch<unknown>(endpoint, params);
 
   if (raw === null) {
-    return { data: [], totalCount: 0, pageIndex, pageSize, hasMore: false };
+    return { data: [], offset, limit, hasMore: false };
   }
 
-  // Handle array response
+  // DRX returns arrays directly
   if (Array.isArray(raw)) {
     return {
       data: raw as T[],
-      totalCount: raw.length,
-      pageIndex,
-      pageSize,
-      hasMore: raw.length >= pageSize,
+      offset,
+      limit,
+      hasMore: raw.length >= limit,
     };
   }
 
-  // Handle object with data array
+  // Handle object wrapper just in case
   const obj = raw as Record<string, unknown>;
   const data = (obj.data || obj.results || obj.items || obj.records || []) as T[];
-  const totalCount = (obj.totalCount || obj.total || obj.count || data.length) as number;
 
   return {
     data,
-    totalCount,
-    pageIndex,
-    pageSize,
-    hasMore: data.length >= pageSize,
+    offset,
+    limit,
+    hasMore: data.length >= limit,
   };
 }
 
 /**
  * Iterate through ALL pages of a DRX list endpoint.
- * Calls handler for each record.
+ * Calls handler for each batch of records.
  */
 export async function fetchAllPages<T>(
   endpoint: string,
-  pageSize: number,
-  handler: (records: T[], pageIndex: number) => Promise<void>,
-  extraParams?: Record<string, string | number>
+  limit: number,
+  handler: (records: T[], page: number) => Promise<void>,
+  extraParams?: Record<string, string | number | boolean>
 ): Promise<number> {
-  let pageIndex = 0;
+  let offset = 0;
   let total = 0;
+  let page = 0;
 
   while (true) {
-    const page = await drxFetchPage<T>(endpoint, pageIndex, pageSize, extraParams);
-    if (page.data.length === 0) break;
+    const result = await drxFetchPage<T>(endpoint, offset, limit, extraParams);
+    if (result.data.length === 0) break;
 
-    await handler(page.data, pageIndex);
-    total += page.data.length;
+    await handler(result.data, page);
+    total += result.data.length;
 
-    if (!page.hasMore || page.data.length < pageSize) break;
-    pageIndex++;
+    if (!result.hasMore || result.data.length < limit) break;
+    offset += limit;
+    page++;
   }
 
   return total;
@@ -351,7 +355,7 @@ export interface DrxInventory {
   [key: string]: unknown;
 }
 
-// ─── Individual fetch methods ──────────────────
+// ─── Individual fetch methods (singular paths) ──
 
 export async function fetchPatientById(id: number): Promise<DrxPatient | null> {
   return drxFetch<DrxPatient>(`/patient/${id}`);
@@ -370,86 +374,71 @@ export async function fetchPrescriptionById(id: number): Promise<DrxPrescription
 }
 
 export async function fetchPrescriptionFillById(id: number): Promise<DrxPrescriptionFill | null> {
-  return drxFetch<DrxPrescriptionFill>(`/prescriptionfill/${id}`);
+  return drxFetch<DrxPrescriptionFill>(`/prescription-fill/${id}`);
 }
 
 export async function fetchClaimById(id: number): Promise<DrxClaim | null> {
   return drxFetch<DrxClaim>(`/claim/${id}`);
 }
 
-// ─── List endpoints (paginated) ────────────────
+// ─── List endpoints (plural paths, paginated) ──
 
-export async function fetchPatients(pageIndex = 0, pageSize = 100) {
-  return drxFetchPage<DrxPatient>("/patient", pageIndex, pageSize);
+export async function fetchPatients(offset = 0, limit = 100) {
+  return drxFetchPage<DrxPatient>("/patients", offset, limit);
 }
 
-export async function fetchDoctors(pageIndex = 0, pageSize = 100) {
-  return drxFetchPage<DrxDoctor>("/doctor", pageIndex, pageSize);
+export async function fetchDoctors(offset = 0, limit = 100) {
+  return drxFetchPage<DrxDoctor>("/doctors", offset, limit);
 }
 
-export async function fetchItems(pageIndex = 0, pageSize = 100) {
-  return drxFetchPage<DrxItem>("/item", pageIndex, pageSize);
+export async function fetchItems(offset = 0, limit = 100) {
+  return drxFetchPage<DrxItem>("/items", offset, limit);
 }
 
-export async function fetchPrescriptions(pageIndex = 0, pageSize = 100) {
-  return drxFetchPage<DrxPrescription>("/prescription", pageIndex, pageSize);
+export async function fetchPrescriptions(offset = 0, limit = 100) {
+  return drxFetchPage<DrxPrescription>("/prescriptions", offset, limit);
 }
 
-export async function fetchPrescriptionFills(pageIndex = 0, pageSize = 100) {
-  return drxFetchPage<DrxPrescriptionFill>("/prescriptionfill", pageIndex, pageSize);
+export async function fetchPrescriptionFills(offset = 0, limit = 100) {
+  return drxFetchPage<DrxPrescriptionFill>("/prescription-fills", offset, limit);
 }
 
-export async function fetchClaims(pageIndex = 0, pageSize = 100) {
-  return drxFetchPage<DrxClaim>("/claim", pageIndex, pageSize);
+export async function fetchClaims(offset = 0, limit = 100) {
+  return drxFetchPage<DrxClaim>("/claims", offset, limit);
 }
 
-export async function fetchRefillRequests(pageIndex = 0, pageSize = 100) {
-  return drxFetchPage<DrxRefillRequest>("/refillrequest", pageIndex, pageSize);
+export async function fetchRefillRequests(offset = 0, limit = 100) {
+  return drxFetchPage<DrxRefillRequest>("/refill-requests", offset, limit);
 }
 
-export async function fetchInventory(pageIndex = 0, pageSize = 100) {
-  return drxFetchPage<DrxInventory>("/inventory", pageIndex, pageSize);
+export async function fetchInventory(offset = 0, limit = 100) {
+  return drxFetchPage<DrxInventory>("/inventory", offset, limit);
 }
 
 // ─── Modified-since endpoints (for delta sync) ──
 
 /**
  * Fetch records modified after a given timestamp.
- * Falls back to full page fetch if the API doesn't support modified_since.
+ * DRX supports updatedAfter/createdAfter on items, prescriptions, and fills.
+ * For patients/doctors, we fall back to fetching all and filtering client-side.
  */
 export async function fetchModifiedSince<T>(
   endpoint: string,
   since: Date,
-  pageSize = 100
+  limit = 100
 ): Promise<T[]> {
   const allRecords: T[] = [];
   const sinceStr = since.toISOString();
 
-  try {
-    await fetchAllPages<T>(
-      endpoint,
-      pageSize,
-      async (records) => {
-        allRecords.push(...records);
-      },
-      { modified_since: sinceStr, updated_since: sinceStr }
-    );
-  } catch {
-    // If modified_since isn't supported, fall back to fetching all
-    await fetchAllPages<T>(
-      endpoint,
-      pageSize,
-      async (records) => {
-        // Filter client-side by updated_at
-        const filtered = records.filter((r) => {
-          const updatedAt = (r as Record<string, unknown>).updated_at;
-          if (!updatedAt) return true;
-          return new Date(updatedAt as string) >= since;
-        });
-        allRecords.push(...filtered);
-      }
-    );
-  }
+  // DRX uses updatedAfter param (ISO 8601)
+  await fetchAllPages<T>(
+    endpoint,
+    limit,
+    async (records) => {
+      allRecords.push(...records);
+    },
+    { updatedAfter: sinceStr }
+  );
 
   return allRecords;
 }
@@ -503,11 +492,12 @@ export async function iterateByIdRange<T>(
   return found;
 }
 
-// ─── Connection test ───────────────────────────
+// ─── Connection test (uses /heartbeat) ──────────
 
 export async function testConnection(): Promise<{
   connected: boolean;
   error?: string;
+  heartbeat?: number;
   listSupported?: boolean;
 }> {
   try {
@@ -515,11 +505,10 @@ export async function testConnection(): Promise<{
       return { connected: false, error: "DRX_API_KEY not set" };
     }
 
-    // Test with a single patient fetch
-    const res = await fetch(`${DRX_BASE_URL}/patient/1`, {
+    // Test with the heartbeat endpoint (recommended by DRX docs)
+    const res = await fetch(`${DRX_BASE_URL}/heartbeat`, {
       headers: {
-        "api-key": DRX_API_KEY,
-        Authorization: `Bearer ${DRX_API_KEY}`,
+        "X-DRX-Key": DRX_API_KEY,
         Accept: "application/json",
       },
       signal: AbortSignal.timeout(10_000),
@@ -529,13 +518,20 @@ export async function testConnection(): Promise<{
       return { connected: false, error: "Invalid API key or insufficient permissions" };
     }
 
-    // Test list endpoint
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return { connected: false, error: `DRX API returned ${res.status}: ${text}` };
+    }
+
+    const data = await res.json().catch(() => ({}));
+    const heartbeat = data?.pulse;
+
+    // Also test list endpoint
     let listSupported = false;
     try {
-      const listRes = await fetch(`${DRX_BASE_URL}/patient?pageIndex=0&pageSize=1`, {
+      const listRes = await fetch(`${DRX_BASE_URL}/patients?limit=1&offset=0`, {
         headers: {
-          "api-key": DRX_API_KEY,
-          Authorization: `Bearer ${DRX_API_KEY}`,
+          "X-DRX-Key": DRX_API_KEY,
           Accept: "application/json",
         },
         signal: AbortSignal.timeout(10_000),
@@ -545,7 +541,7 @@ export async function testConnection(): Promise<{
       listSupported = false;
     }
 
-    return { connected: res.ok || res.status === 404, listSupported };
+    return { connected: true, heartbeat, listSupported };
   } catch (e) {
     return { connected: false, error: (e as Error).message };
   }

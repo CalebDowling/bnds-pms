@@ -1,6 +1,6 @@
 /**
  * DRX Connection Test
- * GET /api/drx-sync/test — Test the DRX API connection
+ * GET /api/drx-sync/test — Test the DRX API connection via heartbeat
  */
 
 import { NextResponse } from "next/server";
