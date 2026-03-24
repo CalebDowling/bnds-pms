@@ -424,16 +424,40 @@ interface DrxCustomQueue {
 export async function fetchCustomQueueCounts(): Promise<Record<string, number>> {
   try {
     const url = `${DRX_INTERNAL_BASE}/api/v1/custom_workflow_queue`;
-    const res = await fetch(url, {
-      headers: {
-        "X-DRX-Key": DRX_API_KEY,
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(10_000),
-    });
 
-    if (!res.ok) {
-      console.log(`[DRX] custom_workflow_queue returned ${res.status}`);
+    // The internal API may require different auth than the external API.
+    // Try X-DRX-Key + Bearer together first, fall back to each individually.
+    const authVariants = [
+      { "X-DRX-Key": DRX_API_KEY, Authorization: `Bearer ${DRX_API_KEY}` },
+      { Authorization: `Bearer ${DRX_API_KEY}` },
+      { "X-DRX-Key": DRX_API_KEY },
+    ];
+
+    let res: Response | null = null;
+    for (const authHeaders of authVariants) {
+      const attempt = await fetch(url, {
+        headers: {
+          ...authHeaders,
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (attempt.ok) {
+        res = attempt;
+        break;
+      }
+      // 401/403 = wrong auth, try next variant
+      if (attempt.status === 401 || attempt.status === 403) {
+        console.log(`[DRX] custom_workflow_queue auth attempt returned ${attempt.status}, trying next...`);
+        continue;
+      }
+      // Other errors = stop trying
+      console.log(`[DRX] custom_workflow_queue returned ${attempt.status}`);
+      return {};
+    }
+
+    if (!res || !res.ok) {
+      console.log(`[DRX] custom_workflow_queue: all auth variants failed`);
       return {};
     }
 

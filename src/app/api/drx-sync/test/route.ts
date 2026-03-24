@@ -81,19 +81,33 @@ export async function GET() {
       "https://boudreaux.drxapp.com";
     const customQueueUrl = `${DRX_INTERNAL_BASE}/api/v1/custom_workflow_queue`;
 
+    // Test all auth variants to see which works from Vercel
+    const authResults: Record<string, { status: number; ok: boolean }> = {};
+    const authVariants: Record<string, Record<string, string>> = {
+      "X-DRX-Key only": { "X-DRX-Key": DRX_API_KEY },
+      "Bearer only": { Authorization: `Bearer ${DRX_API_KEY}` },
+      "Both headers": { "X-DRX-Key": DRX_API_KEY, Authorization: `Bearer ${DRX_API_KEY}` },
+    };
+
     let customQueueRaw: unknown = null;
     let customQueueStatus = 0;
     let customQueueError: string | null = null;
-    try {
-      const cqRes = await fetch(customQueueUrl, {
-        headers: { "X-DRX-Key": DRX_API_KEY, Accept: "application/json" },
-        signal: AbortSignal.timeout(10_000),
-      });
-      customQueueStatus = cqRes.status;
-      const text = await cqRes.text();
-      try { customQueueRaw = JSON.parse(text); } catch { customQueueRaw = text.slice(0, 1000); }
-    } catch (e) {
-      customQueueError = (e as Error).message;
+
+    for (const [label, headers] of Object.entries(authVariants)) {
+      try {
+        const r = await fetch(customQueueUrl, {
+          headers: { ...headers, Accept: "application/json" },
+          signal: AbortSignal.timeout(10_000),
+        });
+        authResults[label] = { status: r.status, ok: r.ok };
+        if (r.ok && !customQueueRaw) {
+          customQueueStatus = r.status;
+          const text = await r.text();
+          try { customQueueRaw = JSON.parse(text); } catch { customQueueRaw = text.slice(0, 1000); }
+        }
+      } catch (e) {
+        authResults[label] = { status: 0, ok: false };
+      }
     }
 
     // Also run the actual fetchCustomQueueCounts to see parsed output
@@ -120,6 +134,7 @@ export async function GET() {
         url: customQueueUrl,
         internalBase: DRX_INTERNAL_BASE,
         envDrxBaseUrl: process.env.DRX_BASE_URL || "(not set)",
+        authResults,
         httpStatus: customQueueStatus,
         rawResponse: customQueueRaw,
         parsedCounts: parsedCustomCounts,
