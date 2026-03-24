@@ -53,19 +53,11 @@ export default function PinnedActions() {
           key={action.href}
           href={action.href}
           title={`${action.label} (${action.shortcut})`}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium cursor-pointer transition-all no-underline group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#40721d] ${
-            action.primary
-              ? "bg-gradient-to-br from-[#40721d] to-[#5a9f2a] text-white hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-lg"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-95 shadow-sm hover:shadow-md"
-          }`}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium cursor-pointer transition-all no-underline group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#40721d] bg-gradient-to-br from-[#40721d] to-[#5a9f2a] text-white hover:scale-[1.02] active:scale-95 shadow-md hover:shadow-lg"
         >
           {getIcon(action.label)}
           <span>{action.label}</span>
-          <span className={`kbd-badge px-1.5 py-0.5 rounded ${
-            action.primary
-              ? "bg-white/20 text-white"
-              : "bg-gray-200 text-gray-600"
-          }`}>
+          <span className="kbd-badge px-1.5 py-0.5 rounded bg-white/20 text-white">
             {action.shortcut}
           </span>
         </Link>
