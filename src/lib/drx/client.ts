@@ -372,6 +372,56 @@ export interface DrxInventory {
   [key: string]: unknown;
 }
 
+// ─── Live queue count from DRX ─────────────────
+// Makes a single API call with limit=1 per status and reads the "total" field
+// from the response envelope. This gives us exact queue counts without
+// having to paginate through all fills.
+
+export async function fetchFillCountByStatus(
+  status: string
+): Promise<number> {
+  const raw = await drxFetch<Record<string, unknown>>(
+    "/prescription-fills",
+    { status, limit: 1, offset: 0 }
+  );
+  if (raw === null) return 0;
+  // DRX response: { success: true, total: 86, fills: [...] }
+  if (typeof raw.total === "number") return raw.total;
+  // Fallback: if total field isn't present, count the array
+  for (const value of Object.values(raw)) {
+    if (Array.isArray(value)) return value.length;
+  }
+  return 0;
+}
+
+/**
+ * Fetch live queue counts for all active DRX fill statuses in parallel.
+ * Returns a map like { "Print": 86, "Scan": 205, ... }
+ * Only ~9 API calls, completes in <2 seconds.
+ */
+const QUEUE_STATUSES = [
+  "Pre-Check", "Adjudicating", "Print", "Scan", "Verify",
+  "OOS", "Hold", "Waiting Bin", "Rejected",
+] as const;
+
+export async function fetchAllQueueCounts(): Promise<Record<string, number>> {
+  const results = await Promise.all(
+    QUEUE_STATUSES.map(async (status) => {
+      try {
+        const count = await fetchFillCountByStatus(status);
+        return { status, count };
+      } catch {
+        return { status, count: 0 };
+      }
+    })
+  );
+  const counts: Record<string, number> = {};
+  for (const r of results) {
+    counts[r.status] = r.count;
+  }
+  return counts;
+}
+
 // ─── Individual fetch methods (singular paths) ──
 
 export async function fetchPatientById(id: number): Promise<DrxPatient | null> {

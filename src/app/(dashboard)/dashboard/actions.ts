@@ -61,7 +61,6 @@ export async function getDashboardData() {
 }
 
 export async function getQueueCounts() {
-  const { prisma } = await import("@/lib/prisma");
   const fallback = {
     intake: 0,
     pre_check: 0,
@@ -77,28 +76,34 @@ export async function getQueueCounts() {
   };
 
   try {
-    // Query prescription_fills by DRX fill status using case-insensitive matching.
-    // DRX fill statuses: Pre-Check, Adjudicating, Print, Scan, Verify, OOS, Hold,
-    // Waiting Bin, Rejected, Sold
-    const [pre_check, adjudicating, print, scan, verify, oos, hold, waiting_bin, rejected, refills] =
-      await Promise.all([
-        prisma.prescriptionFill.count({ where: { status: { equals: "Pre-Check", mode: "insensitive" } } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: { equals: "Adjudicating", mode: "insensitive" } } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: { equals: "Print", mode: "insensitive" } } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: { equals: "Scan", mode: "insensitive" } } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: { equals: "Verify", mode: "insensitive" } } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: { equals: "OOS", mode: "insensitive" } } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: { equals: "Hold", mode: "insensitive" } } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: { equals: "Waiting Bin", mode: "insensitive" } } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: { equals: "Rejected", mode: "insensitive" } } }).catch(() => 0),
-        prisma.refillRequest.count({ where: { status: "pending" } }).catch(() => 0),
-      ]);
+    // Fetch live fill counts directly from DRX API (9 parallel calls with limit=1).
+    // This reads the "total" field from the response — no DB sync needed.
+    const { fetchAllQueueCounts } = await import("@/lib/drx/client");
+    const { prisma } = await import("@/lib/prisma");
 
-    // Count intake from prescriptions (new Rx without fills yet)
-    const intake = await prisma.prescription.count({ where: { status: "intake" } }).catch(() => 0);
+    const [drxCounts, intake, refills] = await Promise.all([
+      fetchAllQueueCounts(),
+      // Intake = new Rx without fills (from our DB)
+      prisma.prescription.count({ where: { status: "intake" } }).catch(() => 0),
+      // Refills = pending refill requests (from our DB)
+      prisma.refillRequest.count({ where: { status: "pending" } }).catch(() => 0),
+    ]);
 
-    return { intake, pre_check, adjudicating, print, scan, verify, oos, hold, waiting_bin, rejected, refills };
-  } catch {
+    return {
+      intake,
+      pre_check: drxCounts["Pre-Check"] || 0,
+      adjudicating: drxCounts["Adjudicating"] || 0,
+      print: drxCounts["Print"] || 0,
+      scan: drxCounts["Scan"] || 0,
+      verify: drxCounts["Verify"] || 0,
+      oos: drxCounts["OOS"] || 0,
+      hold: drxCounts["Hold"] || 0,
+      waiting_bin: drxCounts["Waiting Bin"] || 0,
+      rejected: drxCounts["Rejected"] || 0,
+      refills,
+    };
+  } catch (e) {
+    console.error("[getQueueCounts] Error fetching from DRX:", e);
     return fallback;
   }
 }
