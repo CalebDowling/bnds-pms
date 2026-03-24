@@ -51,7 +51,7 @@ async function probe(endpoint: string, limit = 2, extraParams?: Record<string, s
 
 export async function GET() {
   try {
-    const { testConnection } = await import("@/lib/drx/client");
+    const { testConnection, fetchCustomQueueCounts, fetchAllQueueCounts } = await import("@/lib/drx/client");
     const connection = await testConnection();
 
     // Probe all list endpoints with limit=2
@@ -74,10 +74,58 @@ export async function GET() {
       probe("/prescription-fills", 1, { status: "Waiting Bin" }),
     ]);
 
+    // ─── Custom queue diagnostic ───────────────────────
+    // Direct probe of the internal API to see raw response from Vercel's servers
+    const DRX_INTERNAL_BASE =
+      process.env.DRX_BASE_URL?.replace("/external_api/v1", "") ||
+      "https://boudreaux.drxapp.com";
+    const customQueueUrl = `${DRX_INTERNAL_BASE}/api/v1/custom_workflow_queue`;
+
+    let customQueueRaw: unknown = null;
+    let customQueueStatus = 0;
+    let customQueueError: string | null = null;
+    try {
+      const cqRes = await fetch(customQueueUrl, {
+        headers: { "X-DRX-Key": DRX_API_KEY, Accept: "application/json" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      customQueueStatus = cqRes.status;
+      const text = await cqRes.text();
+      try { customQueueRaw = JSON.parse(text); } catch { customQueueRaw = text.slice(0, 1000); }
+    } catch (e) {
+      customQueueError = (e as Error).message;
+    }
+
+    // Also run the actual fetchCustomQueueCounts to see parsed output
+    let parsedCustomCounts: Record<string, number> = {};
+    try {
+      parsedCustomCounts = await fetchCustomQueueCounts();
+    } catch (e) {
+      customQueueError = (customQueueError || "") + " | parsedError: " + (e as Error).message;
+    }
+
+    // And the full fetchAllQueueCounts
+    let allCounts: Record<string, number> = {};
+    try {
+      allCounts = await fetchAllQueueCounts();
+    } catch (e) {
+      customQueueError = (customQueueError || "") + " | allCountsError: " + (e as Error).message;
+    }
+
     return NextResponse.json({
       connection,
       probes,
       queueProbes,
+      customQueueDiagnostic: {
+        url: customQueueUrl,
+        internalBase: DRX_INTERNAL_BASE,
+        envDrxBaseUrl: process.env.DRX_BASE_URL || "(not set)",
+        httpStatus: customQueueStatus,
+        rawResponse: customQueueRaw,
+        parsedCounts: parsedCustomCounts,
+        allQueueCounts: allCounts,
+        error: customQueueError,
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (e) {
