@@ -77,20 +77,20 @@ export async function getQueueCounts() {
   };
 
   try {
-    // Query prescription_fills by DRX fill status.
+    // Query prescription_fills by DRX fill status using case-insensitive matching.
     // DRX fill statuses: Pre-Check, Adjudicating, Print, Scan, Verify, OOS, Hold,
     // Waiting Bin, Rejected, Sold
     const [pre_check, adjudicating, print, scan, verify, oos, hold, waiting_bin, rejected, refills] =
       await Promise.all([
-        prisma.prescriptionFill.count({ where: { status: "Pre-Check" } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: "Adjudicating" } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: "Print" } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: "Scan" } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: "Verify" } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: "OOS" } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: "Hold" } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: "Waiting Bin" } }).catch(() => 0),
-        prisma.prescriptionFill.count({ where: { status: "Rejected" } }).catch(() => 0),
+        prisma.prescriptionFill.count({ where: { status: { equals: "Pre-Check", mode: "insensitive" } } }).catch(() => 0),
+        prisma.prescriptionFill.count({ where: { status: { equals: "Adjudicating", mode: "insensitive" } } }).catch(() => 0),
+        prisma.prescriptionFill.count({ where: { status: { equals: "Print", mode: "insensitive" } } }).catch(() => 0),
+        prisma.prescriptionFill.count({ where: { status: { equals: "Scan", mode: "insensitive" } } }).catch(() => 0),
+        prisma.prescriptionFill.count({ where: { status: { equals: "Verify", mode: "insensitive" } } }).catch(() => 0),
+        prisma.prescriptionFill.count({ where: { status: { equals: "OOS", mode: "insensitive" } } }).catch(() => 0),
+        prisma.prescriptionFill.count({ where: { status: { equals: "Hold", mode: "insensitive" } } }).catch(() => 0),
+        prisma.prescriptionFill.count({ where: { status: { equals: "Waiting Bin", mode: "insensitive" } } }).catch(() => 0),
+        prisma.prescriptionFill.count({ where: { status: { equals: "Rejected", mode: "insensitive" } } }).catch(() => 0),
         prisma.refillRequest.count({ where: { status: "pending" } }).catch(() => 0),
       ]);
 

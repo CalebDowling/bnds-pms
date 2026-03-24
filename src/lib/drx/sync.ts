@@ -531,6 +531,130 @@ async function syncPrescriptionFills(prisma: any, lastSync: Date | null): Promis
   return result;
 }
 
+// ─── Targeted Queue Sync ──────────────────────
+// Fetches only active fills (non-Sold) by each DRX queue status.
+// Much faster than a full resync — ~500 fills total vs 238K.
+
+const ACTIVE_DRX_STATUSES = [
+  "Pre-Check",
+  "Adjudicating",
+  "Print",
+  "Scan",
+  "Verify",
+  "OOS",
+  "Hold",
+  "Waiting Bin",
+  "Rejected",
+];
+
+export async function syncActiveQueues(): Promise<{
+  statusCounts: Record<string, number>;
+  totalUpdated: number;
+  totalCreated: number;
+  totalSkipped: number;
+  errors: number;
+  duration: number;
+}> {
+  const { prisma } = await import("@/lib/prisma");
+  syncStartedAt = Date.now();
+
+  const statusCounts: Record<string, number> = {};
+  let totalUpdated = 0;
+  let totalCreated = 0;
+  let totalSkipped = 0;
+  let errors = 0;
+
+  for (const drxStatus of ACTIVE_DRX_STATUSES) {
+    if (!hasTimeLeft()) break;
+
+    try {
+      let statusTotal = 0;
+      await fetchAllPages<DrxPrescriptionFill>(
+        "/prescription-fills",
+        100,
+        async (batch) => {
+          for (const drx of batch) {
+            if (!hasTimeLeft()) return;
+            try {
+              const fill = drx.fill;
+              if (!fill?.id) { totalSkipped++; continue; }
+
+              const extId = String(fill.id);
+              const existing = await prisma.prescriptionFill.findFirst({
+                where: { externalId: extId },
+                select: { id: true },
+              });
+
+              if (existing) {
+                // Update the status to the raw DRX status
+                await prisma.prescriptionFill.update({
+                  where: { id: existing.id },
+                  data: {
+                    status: fill.status || drxStatus,
+                    binLocation: fill.will_call_location || null,
+                    copayAmount: fill.patient_pay_amount != null ? new Prisma.Decimal(fill.patient_pay_amount) : null,
+                    filledAt: fill.fill_date ? new Date(fill.fill_date) : null,
+                    dispensedAt: fill.first_sold_on ? new Date(fill.first_sold_on) : null,
+                  },
+                });
+                totalUpdated++;
+              } else {
+                // Fill doesn't exist in our DB yet — try to create it
+                const rx = drx.prescription?.id
+                  ? await prisma.prescription.findFirst({ where: { externalId: String(drx.prescription.id) }, select: { id: true } })
+                  : null;
+                if (!rx) { totalSkipped++; continue; }
+
+                const item = drx.dispensed_item?.id
+                  ? await prisma.item.findFirst({ where: { externalId: String(drx.dispensed_item.id) }, select: { id: true } })
+                  : null;
+
+                try {
+                  await prisma.prescriptionFill.create({
+                    data: {
+                      externalId: extId,
+                      prescriptionId: rx.id,
+                      itemId: item?.id || null,
+                      fillNumber: fill.refill || 0,
+                      ndc: drx.dispensed_item?.ndc || null,
+                      quantity: new Prisma.Decimal(fill.dispensed_quantity || 0),
+                      daysSupply: fill.days_supply,
+                      status: fill.status || drxStatus,
+                      binLocation: fill.will_call_location || null,
+                      copayAmount: fill.patient_pay_amount != null ? new Prisma.Decimal(fill.patient_pay_amount) : null,
+                      ingredientCost: fill.fill_cost != null ? new Prisma.Decimal(fill.fill_cost) : null,
+                      dispensingFee: fill.dispensing_fee != null ? new Prisma.Decimal(fill.dispensing_fee) : null,
+                      totalPrice: fill.retail_amount != null ? new Prisma.Decimal(fill.retail_amount) : null,
+                      filledAt: fill.fill_date ? new Date(fill.fill_date) : null,
+                      dispensedAt: fill.first_sold_on ? new Date(fill.first_sold_on) : null,
+                    },
+                  });
+                  totalCreated++;
+                } catch (e: any) {
+                  if (e?.code === "P2002") totalSkipped++; else errors++;
+                }
+              }
+              statusTotal++;
+            } catch { errors++; }
+          }
+        },
+        { status: drxStatus },
+        hasTimeLeft
+      );
+      statusCounts[drxStatus] = statusTotal;
+      console.log(`[Queue Sync] ${drxStatus}: ${statusTotal} fills`);
+    } catch (e) {
+      console.error(`[Queue Sync] Error fetching ${drxStatus}:`, e);
+      errors++;
+    }
+  }
+
+  const duration = Date.now() - syncStartedAt;
+  console.log(`[Queue Sync] Done: ${totalUpdated} updated, ${totalCreated} created, ${totalSkipped} skipped, ${errors} errors (${duration}ms)`);
+
+  return { statusCounts, totalUpdated, totalCreated, totalSkipped, errors, duration };
+}
+
 // ─── Main Sync Orchestrator ────────────────────
 
 export type SyncEntity = "doctors" | "items" | "patients" | "prescriptions" | "fills" | "all";
