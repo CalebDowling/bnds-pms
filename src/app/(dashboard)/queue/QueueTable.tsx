@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import type { QueueFill } from "./constants";
 
 function formatDate(dateStr: string | null): string {
@@ -13,82 +13,229 @@ function formatDate(dateStr: string | null): string {
   }
 }
 
-/** Inline filter input shown under each column header */
-function ColumnFilter({
-  value,
-  onChange,
-  placeholder,
+// ─── Types ──────────────────────────────────────
+type SortDir = "asc" | "desc" | null;
+type ColKey = "rxId" | "patientName" | "phone" | "itemName" | "quantity" | "fillDate" | "tags" | "method" | "status";
+
+const COLUMNS: { key: ColKey; label: string }[] = [
+  { key: "rxId", label: "Rx" },
+  { key: "patientName", label: "Patient" },
+  { key: "phone", label: "Phone" },
+  { key: "itemName", label: "Drug" },
+  { key: "quantity", label: "Qty" },
+  { key: "fillDate", label: "Due" },
+  { key: "tags", label: "Tags" },
+  { key: "method", label: "Method" },
+  { key: "status", label: "Status" },
+];
+
+// ─── Sort arrow icon ────────────────────────────
+function SortIcon({ dir }: { dir: SortDir }) {
+  if (!dir) return <span className="text-gray-300 ml-1">&#8597;</span>;
+  return <span className="text-[#40721D] ml-1">{dir === "asc" ? "▲" : "▼"}</span>;
+}
+
+// ─── Filter dropdown ────────────────────────────
+function FilterDropdown({
+  values,
+  selected,
+  onSelect,
+  onClear,
+  isOpen,
+  onToggle,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
+  values: string[];
+  selected: Set<string>;
+  onSelect: (value: string) => void;
+  onClear: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        if (isOpen) onToggle();
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [isOpen, onToggle]);
+
+  const hasFilter = selected.size > 0;
+
   return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full mt-1.5 px-2 py-1 text-xs font-normal normal-case tracking-normal border border-gray-200 rounded bg-white text-gray-700 placeholder:text-gray-300 focus:outline-none focus:border-[#40721D] focus:ring-1 focus:ring-[#40721D]/20"
-    />
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className={`ml-1 inline-flex items-center justify-center w-4 h-4 rounded text-[10px] leading-none ${
+          hasFilter
+            ? "bg-[#40721D] text-white"
+            : "text-gray-400 hover:text-gray-600"
+        }`}
+        title="Filter"
+      >
+        ▾
+      </button>
+      {isOpen && (
+        <div className="absolute z-50 top-6 left-0 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[160px] max-h-[240px] overflow-hidden">
+          {hasFilter && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onClear(); }}
+              className="w-full text-left px-3 py-1.5 text-xs text-[#40721D] font-medium hover:bg-gray-50 border-b border-gray-100"
+            >
+              Clear filter
+            </button>
+          )}
+          <div className="overflow-y-auto max-h-[200px]">
+            {values.map((v) => (
+              <label
+                key={v}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(v)}
+                  onChange={() => onSelect(v)}
+                  className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-3.5 h-3.5"
+                />
+                <span className="truncate">{v || "(empty)"}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-export default function QueueTable({ fills }: { fills: QueueFill[] }) {
-  const [filters, setFilters] = useState({
-    rxId: "",
-    patientName: "",
-    phone: "",
-    itemName: "",
-    quantity: "",
-    fillDate: "",
-    tags: "",
-    method: "",
-    status: "",
-  });
+// ─── Get value for sorting/filtering ────────────
+function getCellValue(fill: QueueFill, key: ColKey): string {
+  switch (key) {
+    case "rxId": return fill.rxId;
+    case "patientName": return fill.patientName;
+    case "phone": return fill.phone || "";
+    case "itemName": return fill.itemName;
+    case "quantity": return String(fill.quantity);
+    case "fillDate": return fill.fillDate || "";
+    case "tags": return fill.tags.join(", ");
+    case "method": return fill.method || "";
+    case "status": return fill.status;
+  }
+}
 
-  function setFilter(key: keyof typeof filters, value: string) {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+// ─── Main component ─────────────────────────────
+export default function QueueTable({ fills }: { fills: QueueFill[] }) {
+  const [sortCol, setSortCol] = useState<ColKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [filters, setFilters] = useState<Record<ColKey, Set<string>>>({
+    rxId: new Set(), patientName: new Set(), phone: new Set(), itemName: new Set(),
+    quantity: new Set(), fillDate: new Set(), tags: new Set(), method: new Set(), status: new Set(),
+  });
+  const [openDropdown, setOpenDropdown] = useState<ColKey | null>(null);
+
+  // Unique values per column (computed from all fills, not filtered)
+  const uniqueValues = useMemo(() => {
+    const result: Record<ColKey, string[]> = {
+      rxId: [], patientName: [], phone: [], itemName: [],
+      quantity: [], fillDate: [], tags: [], method: [], status: [],
+    };
+    for (const col of COLUMNS) {
+      const set = new Set<string>();
+      for (const fill of fills) {
+        const v = getCellValue(fill, col.key);
+        if (v) set.add(v);
+      }
+      result[col.key] = Array.from(set).sort();
+    }
+    return result;
+  }, [fills]);
+
+  // Handle sort click
+  function handleSort(col: ColKey) {
+    if (sortCol === col) {
+      if (sortDir === "asc") setSortDir("desc");
+      else if (sortDir === "desc") { setSortCol(null); setSortDir(null); }
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
   }
 
-  const filtered = useMemo(() => {
-    return fills.filter((fill) => {
-      const match = (value: string | null | undefined, filter: string) => {
-        if (!filter) return true;
-        return (value || "").toLowerCase().includes(filter.toLowerCase());
-      };
-
-      return (
-        match(fill.rxId, filters.rxId) &&
-        match(fill.patientName, filters.patientName) &&
-        match(fill.phone, filters.phone) &&
-        match(fill.itemName, filters.itemName) &&
-        match(String(fill.quantity), filters.quantity) &&
-        match(fill.fillDate, filters.fillDate) &&
-        match(fill.tags.join(", "), filters.tags) &&
-        match(fill.method, filters.method) &&
-        match(fill.status, filters.status)
-      );
+  // Handle filter toggle
+  function toggleFilter(col: ColKey, value: string) {
+    setFilters((prev) => {
+      const next = new Set(prev[col]);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return { ...prev, [col]: next };
     });
-  }, [fills, filters]);
+  }
 
-  const hasActiveFilters = Object.values(filters).some((v) => v.length > 0);
+  function clearFilter(col: ColKey) {
+    setFilters((prev) => ({ ...prev, [col]: new Set<string>() }));
+  }
+
+  function clearAllFilters() {
+    setFilters({
+      rxId: new Set(), patientName: new Set(), phone: new Set(), itemName: new Set(),
+      quantity: new Set(), fillDate: new Set(), tags: new Set(), method: new Set(), status: new Set(),
+    });
+  }
+
+  // Filter then sort
+  const processed = useMemo(() => {
+    let result = fills.filter((fill) => {
+      for (const col of COLUMNS) {
+        const filterSet = filters[col.key];
+        if (filterSet.size > 0) {
+          const val = getCellValue(fill, col.key);
+          if (!filterSet.has(val)) return false;
+        }
+      }
+      return true;
+    });
+
+    if (sortCol && sortDir) {
+      result = [...result].sort((a, b) => {
+        let va = getCellValue(a, sortCol);
+        let vb = getCellValue(b, sortCol);
+        // Numeric sort for quantity
+        if (sortCol === "quantity") {
+          return sortDir === "asc" ? Number(va) - Number(vb) : Number(vb) - Number(va);
+        }
+        // Date sort
+        if (sortCol === "fillDate") {
+          const da = va ? new Date(va).getTime() : 0;
+          const db = vb ? new Date(vb).getTime() : 0;
+          return sortDir === "asc" ? da - db : db - da;
+        }
+        // String sort
+        va = va.toLowerCase();
+        vb = vb.toLowerCase();
+        if (va < vb) return sortDir === "asc" ? -1 : 1;
+        if (va > vb) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [fills, filters, sortCol, sortDir]);
+
+  const hasActiveFilters = Object.values(filters).some((s) => s.size > 0);
 
   return (
     <div>
-      {/* Filter summary bar */}
+      {/* Active filter bar */}
       {hasActiveFilters && (
         <div className="px-4 py-2 bg-[#40721D]/5 border-b border-gray-200 flex items-center justify-between">
           <span className="text-xs text-[#40721D] font-medium">
-            Showing {filtered.length} of {fills.length} fills
+            Showing {processed.length} of {fills.length} fills
           </span>
           <button
-            onClick={() =>
-              setFilters({
-                rxId: "", patientName: "", phone: "", itemName: "",
-                quantity: "", fillDate: "", tags: "", method: "", status: "",
-              })
-            }
+            onClick={clearAllFilters}
             className="text-xs text-[#40721D] hover:text-[#2d5114] font-medium underline"
           >
             Clear all filters
@@ -100,53 +247,39 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Rx
-                <ColumnFilter value={filters.rxId} onChange={(v) => setFilter("rxId", v)} placeholder="Filter..." />
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Patient
-                <ColumnFilter value={filters.patientName} onChange={(v) => setFilter("patientName", v)} placeholder="Filter..." />
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Phone
-                <ColumnFilter value={filters.phone} onChange={(v) => setFilter("phone", v)} placeholder="Filter..." />
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Drug
-                <ColumnFilter value={filters.itemName} onChange={(v) => setFilter("itemName", v)} placeholder="Filter..." />
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Qty
-                <ColumnFilter value={filters.quantity} onChange={(v) => setFilter("quantity", v)} placeholder="Filter..." />
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Due
-                <ColumnFilter value={filters.fillDate} onChange={(v) => setFilter("fillDate", v)} placeholder="Filter..." />
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Tags
-                <ColumnFilter value={filters.tags} onChange={(v) => setFilter("tags", v)} placeholder="Filter..." />
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Method
-                <ColumnFilter value={filters.method} onChange={(v) => setFilter("method", v)} placeholder="Filter..." />
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Status
-                <ColumnFilter value={filters.status} onChange={(v) => setFilter("status", v)} placeholder="Filter..." />
-              </th>
+              {COLUMNS.map((col) => (
+                <th
+                  key={col.key}
+                  className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider select-none"
+                >
+                  <span
+                    className="cursor-pointer hover:text-gray-700 inline-flex items-center"
+                    onClick={() => handleSort(col.key)}
+                  >
+                    {col.label}
+                    <SortIcon dir={sortCol === col.key ? sortDir : null} />
+                  </span>
+                  <FilterDropdown
+                    values={uniqueValues[col.key]}
+                    selected={filters[col.key]}
+                    onSelect={(v) => toggleFilter(col.key, v)}
+                    onClear={() => clearFilter(col.key)}
+                    isOpen={openDropdown === col.key}
+                    onToggle={() => setOpenDropdown(openDropdown === col.key ? null : col.key)}
+                  />
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filtered.length === 0 ? (
+            {processed.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm">
                   No fills match your filters
                 </td>
               </tr>
             ) : (
-              filtered.map((fill) => (
+              processed.map((fill) => (
                 <tr key={fill.fillId} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     <span className="text-sm font-mono font-semibold text-gray-700">{fill.rxId}</span>
