@@ -335,8 +335,7 @@ export async function getRevenueByCategory(startDate: string, endDate: string) {
   });
 
   // Get compound vs non-compound breakdown
-  const byCompound = await prisma.prescriptionFill.groupBy({
-    by: [],
+  const byCompound = await prisma.prescriptionFill.aggregate({
     where: {
       createdAt: { gte: start, lte: end },
       prescription: { isCompound: true },
@@ -344,8 +343,7 @@ export async function getRevenueByCategory(startDate: string, endDate: string) {
     _sum: { totalPrice: true },
   });
 
-  const nonCompound = await prisma.prescriptionFill.groupBy({
-    by: [],
+  const nonCompound = await prisma.prescriptionFill.aggregate({
     where: {
       createdAt: { gte: start, lte: end },
       prescription: { isCompound: false },
@@ -353,8 +351,8 @@ export async function getRevenueByCategory(startDate: string, endDate: string) {
     _sum: { totalPrice: true },
   });
 
-  const compoundRevenue = Number(byCompound[0]?._sum.totalPrice || 0);
-  const retailRevenue = Number(nonCompound[0]?._sum.totalPrice || 0);
+  const compoundRevenue = Number(byCompound._sum.totalPrice || 0);
+  const retailRevenue = Number(nonCompound._sum.totalPrice || 0);
 
   return [
     {
@@ -391,7 +389,7 @@ export async function getTopDrugs(startDate: string, endDate: string, limit: num
     },
     _count: true,
     _sum: { totalPrice: true },
-    orderBy: { _count: "desc" },
+    orderBy: { _count: { id: "desc" } },
     take: limit,
   });
 
@@ -411,8 +409,8 @@ export async function getTopDrugs(startDate: string, endDate: string, limit: num
       : "Unknown";
     return {
       name,
-      fills: d._count,
-      revenue: Number(d._sum.totalPrice || 0),
+      fills: typeof d._count === "number" ? d._count : 0,
+      revenue: Number(d._sum?.totalPrice || 0),
     };
   });
 }
