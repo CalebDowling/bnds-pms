@@ -81,7 +81,7 @@ export default function QueueBar() {
                         ? "text-[#ef4444] animate-[warning-glow_2s_ease-out_infinite]"
                         : isIntake
                         ? "text-[#40721d] animate-[subtle-pulse_2s_ease-out_infinite]"
-                        : "text-gray-400"
+                        : "text-gray-700 dark:text-gray-300"
                     }`}
                   >
                     {item.count}
@@ -91,7 +91,7 @@ export default function QueueBar() {
                       ? "text-[#ef4444]"
                       : isIntake
                       ? "text-[#40721d]"
-                      : "text-gray-400"
+                      : "text-gray-900 dark:text-gray-100"
                   }`}>
                     {item.label}
                   </span>
