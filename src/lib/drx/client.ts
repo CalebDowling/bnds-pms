@@ -645,6 +645,98 @@ export async function fetchCustomQueueCounts(): Promise<Record<string, number>> 
   }
 }
 
+// ─── Custom queue fills by tag name ──────────────────
+// Custom queues are based on fill tags, not DRX statuses.
+// To list fills for a custom queue, we need to:
+// 1. Find the fill tag ID by name (paginate /fill-tags)
+// 2. Query /prescription-fills with the tag filter param
+
+const TAG_FILTER_PARAMS_LIST = ["prescription_fill_tag_id", "fill_tag_id", "tag_id", "tag"];
+
+/**
+ * Find a fill tag ID by name from the DRX /fill-tags endpoint.
+ * Paginates through all tags to find a case-insensitive match.
+ */
+async function findFillTagId(tagName: string): Promise<number | null> {
+  const targetLower = tagName.toLowerCase().trim();
+  let offset = 0;
+  const PAGE_LIMIT = 100;
+
+  for (let page = 0; page < 20; page++) {
+    const raw = await drxFetch<unknown>("/fill-tags", { limit: PAGE_LIMIT, offset });
+    if (!raw) break;
+
+    const tags = extractFillTags(raw);
+    if (tags.length === 0) break;
+
+    for (const tag of tags) {
+      if ((tag.name || "").toLowerCase().trim() === targetLower) {
+        console.log(`[DRX] Found fill tag "${tagName}" → id=${tag.id}`);
+        return tag.id;
+      }
+    }
+
+    if (tags.length < PAGE_LIMIT) break;
+    offset += PAGE_LIMIT;
+  }
+
+  console.log(`[DRX] Fill tag "${tagName}" not found`);
+  return null;
+}
+
+/**
+ * Check if a queue name is a custom queue (fill-tag-based) rather than a standard status.
+ */
+export function isCustomQueue(drxName: string): boolean {
+  return KNOWN_CUSTOM_QUEUES.some((q) => q.toLowerCase() === drxName.toLowerCase().trim());
+}
+
+/**
+ * Fetch fills for a custom queue (tag-based) from the external API.
+ * Returns the total count and a page of fill records.
+ */
+export async function fetchFillsByTagName(
+  tagName: string,
+  limit: number,
+  offset: number
+): Promise<{ total: number; fills: Record<string, unknown>[] }> {
+  const tagId = await findFillTagId(tagName);
+  if (!tagId) return { total: 0, fills: [] };
+
+  // Try each tag filter param to find one that works
+  for (const paramName of TAG_FILTER_PARAMS_LIST) {
+    try {
+      const raw = await drxFetch<Record<string, unknown>>("/prescription-fills", {
+        [paramName]: tagId,
+        limit,
+        offset,
+      });
+      if (raw && typeof raw.total === "number" && raw.total < 10000) {
+        // Extract fills array from response
+        let fills: Record<string, unknown>[] = [];
+        if (Array.isArray(raw.fills)) {
+          fills = raw.fills as Record<string, unknown>[];
+        } else {
+          // Find first array in response
+          for (const value of Object.values(raw)) {
+            if (Array.isArray(value)) {
+              fills = value as Record<string, unknown>[];
+              break;
+            }
+          }
+        }
+        console.log(`[DRX] Tag "${tagName}" fills via ${paramName}: total=${raw.total}, page=${fills.length}`);
+        return { total: raw.total, fills };
+      }
+    } catch {
+      // Try next param
+    }
+  }
+
+  console.log(`[DRX] No working tag filter for "${tagName}"`);
+  return { total: 0, fills: [] };
+}
+
 export async function fetchAllQueueCounts(): Promise<Record<string, number>> {
   // Fetch standard statuses + custom queues in parallel
   const [standardResults, customCounts] = await Promise.all([

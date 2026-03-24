@@ -58,9 +58,14 @@ export async function getQueueFills({
 
   try {
     const drxClient = await import("@/lib/drx/client");
-
-    // Get total count + one page of fills in parallel
     const offset = (page - 1) * limit;
+
+    // Custom queues (fill-tag-based) need different fetching than standard status queues
+    if (drxClient.isCustomQueue(drxStatus)) {
+      return await getCustomQueueFills(drxClient, drxStatus, offset, limit, label);
+    }
+
+    // Standard status-based queue fetching
     const fills: QueueFill[] = [];
 
     const [total] = await Promise.all([
@@ -70,53 +75,7 @@ export async function getQueueFills({
         limit,
         async (batch: any[]) => {
           for (const drx of batch) {
-            const fill = drx.fill;
-            if (!fill?.id) continue;
-
-            const patient = drx.patient as any;
-            const patientName = patient
-              ? `${patient.first_name || ""} ${patient.last_name || ""}`.trim()
-              : "Unknown";
-
-            // Phone: first phone number from patient record
-            let phone: string | null = null;
-            if (patient?.phone_numbers && Array.isArray(patient.phone_numbers) && patient.phone_numbers.length > 0) {
-              phone = patient.phone_numbers[0].number || null;
-            }
-
-            // Tags: DRX may have prescription_fill_tags on the fill or top-level drx object
-            const rawTags =
-              (fill as any).prescription_fill_tags ||
-              (fill as any).tags ||
-              (drx as any).prescription_fill_tags ||
-              (drx as any).tags ||
-              [];
-            const tags: string[] = Array.isArray(rawTags)
-              ? rawTags.map((t: any) => (typeof t === "string" ? t : t?.name || t?.tag || t?.prescription_fill_tag?.name || "")).filter(Boolean)
-              : [];
-
-            // Method: DRX uses delivery_method_override on fill, or delivery_method on patient
-            const method: string | null =
-              (fill as any).delivery_method_override ||
-              (fill as any).delivery_method ||
-              patient?.delivery_method ||
-              null;
-
-            fills.push({
-              fillId: String(fill.id),
-              rxId: drx.prescription?.id ? String(drx.prescription.id) : "—",
-              patientName,
-              phone,
-              itemName: drx.dispensed_item?.name || "Unknown",
-              status: fill.status || drxStatus,
-              fillDate: fill.fill_date || fill.created_at || null,
-              quantity: fill.dispensed_quantity || 0,
-              daysSupply: fill.days_supply || null,
-              tags,
-              method,
-              pharmacist: fill.pharmacist || null,
-              binLocation: fill.will_call_location || null,
-            });
+            fills.push(parseDrxFillToQueueFill(drx, drxStatus));
           }
         },
         { status: drxStatus, offset },
@@ -128,6 +87,86 @@ export async function getQueueFills({
     return { fills, total, drxStatus, label };
   } catch (e) {
     console.error(`[Queue] Error fetching ${drxStatus}:`, e);
+    return { fills: [], total: 0, drxStatus, label };
+  }
+}
+
+/**
+ * Parse a DRX fill record into a QueueFill for the table.
+ */
+function parseDrxFillToQueueFill(drx: any, drxStatus: string): QueueFill {
+  const fill = drx.fill;
+  if (!fill?.id) {
+    return {
+      fillId: "0", rxId: "—", patientName: "Unknown", phone: null,
+      itemName: "Unknown", status: drxStatus, fillDate: null,
+      quantity: 0, daysSupply: null, tags: [], method: null,
+      pharmacist: null, binLocation: null,
+    };
+  }
+
+  const patient = drx.patient as any;
+  const patientName = patient
+    ? `${patient.first_name || ""} ${patient.last_name || ""}`.trim()
+    : "Unknown";
+
+  let phone: string | null = null;
+  if (patient?.phone_numbers && Array.isArray(patient.phone_numbers) && patient.phone_numbers.length > 0) {
+    phone = patient.phone_numbers[0].number || null;
+  }
+
+  const rawTags =
+    (fill as any).prescription_fill_tags ||
+    (fill as any).tags ||
+    (drx as any).prescription_fill_tags ||
+    (drx as any).tags ||
+    [];
+  const tags: string[] = Array.isArray(rawTags)
+    ? rawTags.map((t: any) => (typeof t === "string" ? t : t?.name || t?.tag || t?.prescription_fill_tag?.name || "")).filter(Boolean)
+    : [];
+
+  const method: string | null =
+    (fill as any).delivery_method_override ||
+    (fill as any).delivery_method ||
+    patient?.delivery_method ||
+    null;
+
+  return {
+    fillId: String(fill.id),
+    rxId: drx.prescription?.id ? String(drx.prescription.id) : "—",
+    patientName,
+    phone,
+    itemName: drx.dispensed_item?.name || "Unknown",
+    status: fill.status || drxStatus,
+    fillDate: fill.fill_date || fill.created_at || null,
+    quantity: fill.dispensed_quantity || 0,
+    daysSupply: fill.days_supply || null,
+    tags,
+    method,
+    pharmacist: fill.pharmacist || null,
+    binLocation: fill.will_call_location || null,
+  };
+}
+
+/**
+ * Fetch fills for a custom queue (fill-tag-based).
+ * Custom queues use DRX fill tags, not the standard status filter.
+ */
+async function getCustomQueueFills(
+  drxClient: any,
+  drxStatus: string,
+  offset: number,
+  limit: number,
+  label: string,
+): Promise<{ fills: QueueFill[]; total: number; drxStatus: string; label: string }> {
+  try {
+    const { total, fills: rawFills } = await drxClient.fetchFillsByTagName(drxStatus, limit, offset);
+
+    const fills: QueueFill[] = rawFills.map((drx: any) => parseDrxFillToQueueFill(drx, drxStatus));
+
+    return { fills, total, drxStatus, label };
+  } catch (e) {
+    console.error(`[Queue] Error fetching custom queue "${drxStatus}":`, e);
     return { fills: [], total: 0, drxStatus, label };
   }
 }
