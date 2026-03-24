@@ -30,7 +30,7 @@ const COLUMNS: { key: ColKey; label: string }[] = [
   { key: "status", label: "Status" },
 ];
 
-const COL_COUNT = COLUMNS.length + 1; // +1 for checkbox column
+const COL_COUNT = COLUMNS.length + 2; // +1 checkbox, +1 actions column
 
 // ─── Bulk action definitions ────────────────────
 const BULK_ACTIONS = [
@@ -39,6 +39,15 @@ const BULK_ACTIONS = [
   { key: "edit", label: "Edit", icon: Pencil, bg: "#2563eb", hover: "#1d4ed8" },
   { key: "verify", label: "Verify", icon: CheckCircle, bg: "#10b981", hover: "#059669" },
   { key: "assign", label: "Assign", icon: UserPlus, bg: "#f59e0b", hover: "#d97706" },
+] as const;
+
+// Row-level actions (always visible on each row)
+const ROW_ACTIONS = [
+  { key: "print", label: "Print", icon: Printer, bg: "#40721D" },
+  { key: "scan", label: "Scan", icon: ScanLine, bg: "#0d9488" },
+  { key: "edit", label: "Edit", icon: Pencil, bg: "#2563eb" },
+  { key: "verify", label: "Verify", icon: CheckCircle, bg: "#10b981" },
+  { key: "assign", label: "Assign", icon: UserPlus, bg: "#f59e0b" },
 ] as const;
 
 // ─── Sort arrow icon ────────────────────────────
@@ -307,6 +316,10 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
     alert(`${action} action on ${count} fill(s):\n${ids.join(", ")}`);
   }
 
+  function handleRowAction(action: string, fill: QueueFill) {
+    alert(`${action}: Rx ${fill.rxId} — ${fill.patientName}\n(Fill ID: ${fill.fillId})`);
+  }
+
   // Filter then sort
   const processed = useMemo(() => {
     let result = fills.filter((fill) => {
@@ -381,6 +394,10 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                   title={allSelected ? "Deselect all" : "Select all"}
                 />
               </th>
+              {/* Actions column header — left side */}
+              <th className="text-center px-2 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-l border-gray-200 whitespace-nowrap">
+                Actions
+              </th>
               {COLUMNS.map((col, i) => (
                 <th
                   key={col.key}
@@ -440,6 +457,26 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                           onChange={() => toggleSelect(fill.fillId)}
                           className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-4 h-4 cursor-pointer"
                         />
+                      </td>
+                      {/* Inline row actions — always visible, left side */}
+                      <td className="px-2 py-1.5 border-l border-gray-200" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1">
+                          {ROW_ACTIONS.map((action) => {
+                            const Icon = action.icon;
+                            return (
+                              <button
+                                key={action.key}
+                                onClick={() => handleRowAction(action.label, fill)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-white transition-all hover:scale-110 hover:shadow-sm active:scale-95"
+                                style={{ backgroundColor: action.bg }}
+                                title={action.label}
+                              >
+                                <Icon size={12} />
+                                <span className="hidden xl:inline">{action.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </td>
                       {/* RX — monospace, bold, green accent */}
                       <td className="px-3 py-2.5">
