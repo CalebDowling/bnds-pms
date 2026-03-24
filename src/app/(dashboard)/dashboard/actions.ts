@@ -63,44 +63,54 @@ export async function getDashboardData() {
 export async function getQueueCounts() {
   const fallback = {
     intake: 0,
-    pre_check: 0,
-    adjudicating: 0,
+    sync: 0,
+    reject: 0,
     print: 0,
     scan: 0,
     verify: 0,
     oos: 0,
-    hold: 0,
     waiting_bin: 0,
-    rejected: 0,
-    refills: 0,
+    renewals: 0,
+    todo: 0,
+    price_check: 0,
+    prepay: 0,
+    ok_to_charge: 0,
+    decline: 0,
+    ok_to_charge_clinic: 0,
+    mochi: 0,
   };
 
   try {
-    // Fetch live fill counts directly from DRX API (9 parallel calls with limit=1).
-    // This reads the "total" field from the response — no DB sync needed.
+    // Fetch live fill counts directly from DRX API (parallel calls with limit=1).
+    // Reads the "total" field from each response — no DB sync needed.
     const { fetchAllQueueCounts } = await import("@/lib/drx/client");
     const { prisma } = await import("@/lib/prisma");
 
-    const [drxCounts, intake, refills] = await Promise.all([
+    const [drxCounts, renewals] = await Promise.all([
       fetchAllQueueCounts(),
-      // Intake = new Rx without fills (from our DB)
-      prisma.prescription.count({ where: { status: "intake" } }).catch(() => 0),
-      // Refills = pending refill requests (from our DB)
+      // Renewals = pending refill requests (from our DB)
       prisma.refillRequest.count({ where: { status: "pending" } }).catch(() => 0),
     ]);
 
     return {
-      intake,
-      pre_check: drxCounts["Pre-Check"] || 0,
-      adjudicating: drxCounts["Adjudicating"] || 0,
+      // Standard DRX statuses (mapped to QueueBar keys)
+      intake: drxCounts["Pre-Check"] || 0,
+      sync: drxCounts["Adjudicating"] || 0,
+      reject: drxCounts["Rejected"] || 0,
       print: drxCounts["Print"] || 0,
       scan: drxCounts["Scan"] || 0,
       verify: drxCounts["Verify"] || 0,
       oos: drxCounts["OOS"] || 0,
-      hold: drxCounts["Hold"] || 0,
       waiting_bin: drxCounts["Waiting Bin"] || 0,
-      rejected: drxCounts["Rejected"] || 0,
-      refills,
+      renewals,
+      todo: 0, // DRX-internal feature, not exposed via API
+      // Custom DRX queues (Boudreaux's-specific)
+      price_check: drxCounts["price check"] || 0,
+      prepay: drxCounts["prepay"] || 0,
+      ok_to_charge: drxCounts["ok to charge"] || 0,
+      decline: drxCounts["Decline"] || 0,
+      ok_to_charge_clinic: drxCounts["ok to charge clinic"] || 0,
+      mochi: drxCounts["mochi"] || 0,
     };
   } catch (e) {
     console.error("[getQueueCounts] Error fetching from DRX:", e);

@@ -400,8 +400,12 @@ export async function fetchFillCountByStatus(
  * Only ~9 API calls, completes in <2 seconds.
  */
 const QUEUE_STATUSES = [
-  "Pre-Check", "Adjudicating", "Print", "Scan", "Verify",
-  "OOS", "Hold", "Waiting Bin", "Rejected",
+  // Standard DRX fill statuses
+  "Pre-Check", "Adjudicating", "Rejected", "Print", "Scan", "Verify",
+  "OOS", "Waiting Bin",
+  // Custom DRX queues (Boudreaux's-specific)
+  "price check", "prepay", "ok to charge", "Decline",
+  "ok to charge clinic", "mochi",
 ] as const;
 
 export async function fetchAllQueueCounts(): Promise<Record<string, number>> {

@@ -9,25 +9,28 @@ interface QueueItem {
   status: string;
   count: number;
   tooltip: string;
-  href?: string; // custom href overrides default /prescriptions?status=X
+  href?: string;
 }
 
-// Queue items match DRX fill workflow statuses
+// Queue items match DRX queue bar — same options, same order
 const defaultQueueItems: QueueItem[] = [
   { label: "Intake", status: "intake", count: 0, tooltip: "View Intake Queue", href: "/intake" },
-  { label: "Pre-Check", status: "pre_check", count: 0, tooltip: "View Pre-Check Queue" },
-  { label: "Adjudicating", status: "adjudicating", count: 0, tooltip: "View Adjudicating" },
+  { label: "Sync", status: "sync", count: 0, tooltip: "View Sync Queue" },
+  { label: "Reject", status: "reject", count: 0, tooltip: "View Rejected Claims" },
   { label: "Print", status: "print", count: 0, tooltip: "View Print Queue" },
   { label: "Scan", status: "scan", count: 0, tooltip: "View Scan Queue" },
   { label: "Verify", status: "verify", count: 0, tooltip: "View Verification Queue" },
   { label: "OOS", status: "oos", count: 0, tooltip: "View Out of Stock" },
-  { label: "Hold", status: "hold", count: 0, tooltip: "View On-Hold Rx" },
   { label: "Waiting Bin", status: "waiting_bin", count: 0, tooltip: "View Waiting Bin" },
-  { label: "Rejected", status: "rejected", count: 0, tooltip: "View Rejected Claims" },
-  { label: "Refills", status: "refills", count: 0, tooltip: "View Refill Requests", href: "/refills" },
+  { label: "Renewals", status: "renewals", count: 0, tooltip: "View Renewals", href: "/refills" },
+  { label: "Todo", status: "todo", count: 0, tooltip: "View Todo Queue" },
+  { label: "price check", status: "price_check", count: 0, tooltip: "View Price Check Queue" },
+  { label: "prepay", status: "prepay", count: 0, tooltip: "View Prepay Queue" },
+  { label: "ok to charge", status: "ok_to_charge", count: 0, tooltip: "View OK to Charge Queue" },
+  { label: "Decline", status: "decline", count: 0, tooltip: "View Decline Queue" },
+  { label: "ok to charge clinic", status: "ok_to_charge_clinic", count: 0, tooltip: "View OK to Charge Clinic" },
+  { label: "mochi", status: "mochi", count: 0, tooltip: "View Mochi Queue" },
 ];
-
-// Removed pilStyle function and pillStyles - styles now applied inline based on item state
 
 export default function QueueBar() {
   const [queueItems, setQueueItems] = useState<QueueItem[]>(defaultQueueItems);
@@ -56,7 +59,7 @@ export default function QueueBar() {
         }
       `}</style>
       <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] mr-2 whitespace-nowrap">
-        Workflow
+        Queues
       </div>
       <div className="flex items-center gap-4">
         {queueItems.map((item, i) => {
