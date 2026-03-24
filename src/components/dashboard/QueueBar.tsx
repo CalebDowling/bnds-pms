@@ -58,7 +58,7 @@ export default function QueueBar() {
           50% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1); }
         }
       `}</style>
-      <div className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-muted)] mr-2 whitespace-nowrap">
+      <div className="text-[11px] font-bold uppercase tracking-wide text-black dark:text-white mr-2 whitespace-nowrap">
         Queues
       </div>
       <div className="flex items-center gap-4">
@@ -69,7 +69,7 @@ export default function QueueBar() {
 
           return (
             <div key={item.status} className="flex items-center gap-2 relative">
-              {i > 0 && <div className="h-[1px] w-8 bg-gray-300 absolute -left-6" />}
+              {i > 0 && <div className="h-[1px] w-8 bg-black/30 dark:bg-white/30 absolute -left-6" />}
               <div className="relative group">
                 <Link
                   href={item.href || `/queue?status=${item.status}`}
@@ -81,7 +81,7 @@ export default function QueueBar() {
                         ? "text-[#ef4444] animate-[warning-glow_2s_ease-out_infinite]"
                         : isIntake
                         ? "text-[#40721d] animate-[subtle-pulse_2s_ease-out_infinite]"
-                        : "text-gray-700 dark:text-gray-300"
+                        : "text-black dark:text-white"
                     }`}
                   >
                     {item.count}
@@ -91,7 +91,7 @@ export default function QueueBar() {
                       ? "text-[#ef4444]"
                       : isIntake
                       ? "text-[#40721d]"
-                      : "text-gray-900 dark:text-gray-100"
+                      : "text-black dark:text-white"
                   }`}>
                     {item.label}
                   </span>
