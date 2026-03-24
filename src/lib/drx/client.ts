@@ -649,17 +649,26 @@ export async function fetchCustomQueueCounts(): Promise<Record<string, number>> 
 // Custom queues are based on fill tags, not DRX statuses.
 // The DRX /prescription-fills endpoint does NOT support filtering by tag.
 // Strategy:
-// 1. Find the tag by name in /fill-tags (paginate to find it)
+// 1. Find the tag by name in /fill-tags (paginate to find it) — cached per invocation
 // 2. Get the fill IDs from the tag's prescription_fills array
 // 3. Fetch individual fills via /prescription-fill/{id} with concurrency
+
+// Module-level cache for tag lookups (persists within a single serverless invocation)
+const tagCache = new Map<string, { id: number; fillIds: number[] } | null>();
 
 /**
  * Find a fill tag by name from the DRX /fill-tags endpoint.
  * Returns the tag's fill IDs (prescription_fill_id values).
  * Paginates through all tags to find a case-insensitive match.
+ * Results are cached for the duration of the serverless invocation.
  */
 async function findFillTag(tagName: string): Promise<{ id: number; fillIds: number[] } | null> {
-  const targetLower = tagName.toLowerCase().trim();
+  const cacheKey = tagName.toLowerCase().trim();
+  if (tagCache.has(cacheKey)) {
+    return tagCache.get(cacheKey)!;
+  }
+
+  const targetLower = cacheKey;
   let offset = 0;
   const PAGE_LIMIT = 100;
 
@@ -676,7 +685,9 @@ async function findFillTag(tagName: string): Promise<{ id: number; fillIds: numb
           ? tag.prescription_fills.map((f) => f.prescription_fill_id).filter(Boolean)
           : [];
         console.log(`[DRX] Found fill tag "${tagName}" → id=${tag.id}, ${fillIds.length} fill IDs`);
-        return { id: tag.id, fillIds };
+        const result = { id: tag.id, fillIds };
+        tagCache.set(cacheKey, result);
+        return result;
       }
     }
 
@@ -685,6 +696,7 @@ async function findFillTag(tagName: string): Promise<{ id: number; fillIds: numb
   }
 
   console.log(`[DRX] Fill tag "${tagName}" not found`);
+  tagCache.set(cacheKey, null);
   return null;
 }
 
@@ -693,6 +705,58 @@ async function findFillTag(tagName: string): Promise<{ id: number; fillIds: numb
  */
 export function isCustomQueue(drxName: string): boolean {
   return KNOWN_CUSTOM_QUEUES.some((q) => q.toLowerCase() === drxName.toLowerCase().trim());
+}
+
+/**
+ * Unwrap a DRX individual fill response into the standard nested format.
+ * The /prescription-fill/{id} endpoint may return differently than /prescription-fills.
+ * Possible formats:
+ *   A) Same as list: { patient: {...}, fill: {...}, dispensed_item: {...}, ... }
+ *   B) Wrapped: { success: true, prescription_fill: { patient: {...}, fill: {...}, ... } }
+ *   C) Flat fill record: { id: 123, status: "Print", ... }
+ * We normalize all to format A.
+ */
+function unwrapFillResponse(raw: Record<string, unknown>): Record<string, unknown> {
+  // Format A: already has nested 'fill' object with 'id'
+  if (raw.fill && typeof raw.fill === "object" && (raw.fill as Record<string, unknown>).id) {
+    return raw;
+  }
+
+  // Format B: wrapped in a key like 'prescription_fill'
+  for (const key of ["prescription_fill", "data", "result"]) {
+    if (raw[key] && typeof raw[key] === "object") {
+      const inner = raw[key] as Record<string, unknown>;
+      if (inner.fill && typeof inner.fill === "object") {
+        return inner;
+      }
+    }
+  }
+
+  // Format B fallback: find first nested object that has a 'fill' sub-object
+  for (const value of Object.values(raw)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const obj = value as Record<string, unknown>;
+      if (obj.fill && typeof obj.fill === "object") {
+        return obj;
+      }
+    }
+  }
+
+  // Format C: flat fill record (id, status, fill_date at top level)
+  // Wrap it into the expected nested format
+  if (typeof raw.id === "number" && typeof raw.status === "string") {
+    return {
+      fill: raw,
+      patient: null,
+      dispensed_item: null,
+      doctor: null,
+      prescription: null,
+    };
+  }
+
+  // Log unknown format for debugging
+  console.log(`[DRX] Unknown fill response format. Keys: ${Object.keys(raw).join(", ")}`);
+  return raw;
 }
 
 /**
@@ -714,9 +778,10 @@ export async function fetchFillsByTagName(
   const pageIds = tag.fillIds.slice(offset, offset + limit);
   if (pageIds.length === 0) return { total, fills: [] };
 
-  // Fetch individual fills by ID with concurrency (5 at a time)
-  const CONCURRENCY = 5;
+  // Fetch individual fills by ID with concurrency (10 at a time)
+  const CONCURRENCY = 10;
   const fills: Record<string, unknown>[] = [];
+  let loggedFirst = false;
 
   for (let i = 0; i < pageIds.length; i += CONCURRENCY) {
     const batch = pageIds.slice(i, i + CONCURRENCY);
@@ -727,7 +792,12 @@ export async function fetchFillsByTagName(
     );
     for (const result of results) {
       if (result.status === "fulfilled" && result.value) {
-        fills.push(result.value);
+        // Log the first response to see the format
+        if (!loggedFirst) {
+          console.log(`[DRX] Individual fill response keys: ${Object.keys(result.value).join(", ")}`);
+          loggedFirst = true;
+        }
+        fills.push(unwrapFillResponse(result.value));
       }
     }
   }
