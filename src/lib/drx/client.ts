@@ -450,7 +450,7 @@ function parseCustomQueueResponse(data: unknown): Record<string, number> {
   }
 
   for (const q of queues) {
-    const name = q.name || (q as Record<string, unknown> & { prescription_fill_tag?: { name?: string } }).prescription_fill_tag?.name;
+    const name = q.name || (q as unknown as { prescription_fill_tag?: { name?: string } }).prescription_fill_tag?.name;
     const total = typeof q.total === "number" ? q.total : 0;
     if (name) {
       counts[name] = total;
