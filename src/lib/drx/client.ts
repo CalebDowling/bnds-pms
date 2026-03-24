@@ -427,7 +427,7 @@ export async function fetchCustomQueueCounts(): Promise<Record<string, number>> 
 
     // The internal API may require different auth than the external API.
     // Try X-DRX-Key + Bearer together first, fall back to each individually.
-    const authVariants = [
+    const authVariants: Record<string, string>[] = [
       { "X-DRX-Key": DRX_API_KEY, Authorization: `Bearer ${DRX_API_KEY}` },
       { Authorization: `Bearer ${DRX_API_KEY}` },
       { "X-DRX-Key": DRX_API_KEY },
