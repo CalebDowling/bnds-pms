@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, Fragment } from "react";
 import type { QueueFill } from "./constants";
 
 function formatDate(dateStr: string | null): string {
@@ -126,10 +126,91 @@ function getCellValue(fill: QueueFill, key: ColKey): string {
   }
 }
 
+// ─── Fill detail panel ─────────────────────────
+function FillDetailPanel({ fill }: { fill: QueueFill }) {
+  return (
+    <tr>
+      <td colSpan={9} className="bg-[#40721D]/[0.03] border-b border-[#40721D]/20">
+        <div className="px-6 py-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Fill ID</p>
+              <p className="text-sm font-mono font-semibold text-gray-800">{fill.fillId}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">RX Number</p>
+              <p className="text-sm font-mono font-bold text-[#40721D]">{fill.rxId}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Patient</p>
+              <p className="text-sm font-semibold text-gray-900">{fill.patientName}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Phone</p>
+              <p className="text-sm font-mono text-gray-600">{fill.phone || "—"}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Drug</p>
+              <p className="text-sm text-gray-700">{fill.itemName}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Quantity</p>
+              <p className="text-sm font-bold text-gray-800">{fill.quantity}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Days Supply</p>
+              <p className="text-sm text-gray-700">{fill.daysSupply ?? "—"}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Fill Date</p>
+              <p className="text-sm text-gray-600">{formatDate(fill.fillDate)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Status</p>
+              <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                {fill.status}
+              </span>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Method</p>
+              {fill.method ? (
+                <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-green-50 text-green-700 border border-green-200">
+                  {fill.method}
+                </span>
+              ) : <p className="text-sm text-gray-400">—</p>}
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Pharmacist</p>
+              <p className="text-sm text-gray-600">{fill.pharmacist || "—"}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Bin Location</p>
+              <p className="text-sm text-gray-600">{fill.binLocation || "—"}</p>
+            </div>
+          </div>
+          {fill.tags.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Tags</p>
+              <div className="flex flex-wrap gap-1.5">
+                {fill.tags.map((tag, i) => (
+                  <span key={i} className="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // ─── Main component ─────────────────────────────
 export default function QueueTable({ fills }: { fills: QueueFill[] }) {
   const [sortCol, setSortCol] = useState<ColKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [filters, setFilters] = useState<Record<ColKey, Set<string>>>({
     rxId: new Set(), patientName: new Set(), phone: new Set(), itemName: new Set(),
     quantity: new Set(), fillDate: new Set(), tags: new Set(), method: new Set(), status: new Set(),
@@ -281,63 +362,70 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                 </td>
               </tr>
             ) : (
-              processed.map((fill, rowIdx) => (
-                <tr
-                  key={fill.fillId}
-                  className={`border-b border-gray-200 hover:bg-[#40721D]/5 transition-colors ${
-                    rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-                  }`}
-                >
-                  {/* RX — monospace, bold, green accent */}
-                  <td className="px-3 py-2.5">
-                    <span className="text-sm font-mono font-bold text-[#40721D]">{fill.rxId}</span>
-                  </td>
-                  {/* Patient — bold black, key identifier */}
-                  <td className="px-3 py-2.5 border-l border-gray-100">
-                    <span className="text-sm font-semibold text-gray-900">{fill.patientName}</span>
-                  </td>
-                  {/* Phone — muted, smaller */}
-                  <td className="px-3 py-2.5 border-l border-gray-100">
-                    <span className="text-xs text-gray-500 font-mono">{fill.phone || "—"}</span>
-                  </td>
-                  {/* Drug — regular weight, slightly emphasized */}
-                  <td className="px-3 py-2.5 border-l border-gray-200" style={{ maxWidth: "300px" }}>
-                    <span className="text-sm text-gray-700 line-clamp-1">{fill.itemName}</span>
-                  </td>
-                  {/* Qty — centered, bold */}
-                  <td className="px-3 py-2.5 border-l border-gray-100 text-center">
-                    <span className="text-sm font-bold text-gray-800">{fill.quantity}</span>
-                  </td>
-                  {/* Due — date styling */}
-                  <td className="px-3 py-2.5 border-l border-gray-100 whitespace-nowrap">
-                    <span className="text-xs text-gray-500">{formatDate(fill.fillDate)}</span>
-                  </td>
-                  {/* Tags — pills */}
-                  <td className="px-3 py-2.5 border-l border-gray-200">
-                    <div className="flex flex-wrap gap-1">
-                      {fill.tags.length > 0 ? fill.tags.map((tag, i) => (
-                        <span key={i} className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                          {tag}
+              processed.map((fill, rowIdx) => {
+                const isExpanded = expandedRow === fill.fillId;
+                return (
+                  <Fragment key={fill.fillId}>
+                    <tr
+                      onClick={() => setExpandedRow(isExpanded ? null : fill.fillId)}
+                      className={`border-b border-gray-200 hover:bg-[#40721D]/5 transition-colors cursor-pointer ${
+                        isExpanded ? "bg-[#40721D]/5" : rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                      }`}
+                    >
+                      {/* RX — monospace, bold, green accent */}
+                      <td className="px-3 py-2.5">
+                        <span className="text-sm font-mono font-bold text-[#40721D]">{fill.rxId}</span>
+                      </td>
+                      {/* Patient — bold black, key identifier */}
+                      <td className="px-3 py-2.5 border-l border-gray-100">
+                        <span className="text-sm font-semibold text-gray-900">{fill.patientName}</span>
+                      </td>
+                      {/* Phone — muted, smaller */}
+                      <td className="px-3 py-2.5 border-l border-gray-100">
+                        <span className="text-xs text-gray-500 font-mono">{fill.phone || "—"}</span>
+                      </td>
+                      {/* Drug — regular weight, slightly emphasized */}
+                      <td className="px-3 py-2.5 border-l border-gray-200" style={{ maxWidth: "300px" }}>
+                        <span className="text-sm text-gray-700 line-clamp-1">{fill.itemName}</span>
+                      </td>
+                      {/* Qty — centered, bold */}
+                      <td className="px-3 py-2.5 border-l border-gray-100 text-center">
+                        <span className="text-sm font-bold text-gray-800">{fill.quantity}</span>
+                      </td>
+                      {/* Due — date styling */}
+                      <td className="px-3 py-2.5 border-l border-gray-100 whitespace-nowrap">
+                        <span className="text-xs text-gray-500">{formatDate(fill.fillDate)}</span>
+                      </td>
+                      {/* Tags — pills */}
+                      <td className="px-3 py-2.5 border-l border-gray-200">
+                        <div className="flex flex-wrap gap-1">
+                          {fill.tags.length > 0 ? fill.tags.map((tag, i) => (
+                            <span key={i} className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                              {tag}
+                            </span>
+                          )) : <span className="text-gray-300 text-xs">—</span>}
+                        </div>
+                      </td>
+                      {/* Method — green pill */}
+                      <td className="px-3 py-2.5 border-l border-gray-100">
+                        {fill.method ? (
+                          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-green-50 text-green-700 border border-green-200">
+                            {fill.method}
+                          </span>
+                        ) : <span className="text-gray-300 text-xs">—</span>}
+                      </td>
+                      {/* Status — colored pill */}
+                      <td className="px-3 py-2.5 border-l border-gray-200">
+                        <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                          {fill.status}
                         </span>
-                      )) : <span className="text-gray-300 text-xs">—</span>}
-                    </div>
-                  </td>
-                  {/* Method — green pill */}
-                  <td className="px-3 py-2.5 border-l border-gray-100">
-                    {fill.method ? (
-                      <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-green-50 text-green-700 border border-green-200">
-                        {fill.method}
-                      </span>
-                    ) : <span className="text-gray-300 text-xs">—</span>}
-                  </td>
-                  {/* Status — colored pill */}
-                  <td className="px-3 py-2.5 border-l border-gray-200">
-                    <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                      {fill.status}
-                    </span>
-                  </td>
-                </tr>
-              ))
+                      </td>
+                    </tr>
+                    {isExpanded && <FillDetailPanel fill={fill} />}
+                  </Fragment>
+                );
+              })
+
             )}
           </tbody>
         </table>
