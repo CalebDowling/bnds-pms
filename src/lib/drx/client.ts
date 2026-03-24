@@ -268,55 +268,61 @@ export interface DrxItem {
   [key: string]: unknown;
 }
 
+// DRX /prescriptions endpoint returns nested objects:
+// { patient: {...}, doctor: {...}, prescribed_item: {...}, id, sig, ... }
 export interface DrxPrescription {
   id: number;
+  store_id: number;
   created_at: string;
-  updated_at: string;
-  rx_number: string;
-  patient_id: number;
-  doctor_id: number;
-  item_id: number | null;
-  status: string;
-  quantity_prescribed: number | null;
-  quantity_dispensed: number | null;
-  days_supply: number | null;
-  directions: string | null;
-  sig: string | null;
-  daw_code: string | null;
-  refills_authorized: number;
-  refills_remaining: number;
-  date_written: string | null;
-  date_received: string | null;
-  date_filled: string | null;
+  updated_at: string | null;
+  written_date: string | null;
   expiration_date: string | null;
-  prescriber_notes: string | null;
-  internal_notes: string | null;
-  priority: string | null;
-  source: string | null;
-  is_compound: boolean;
-  formula_id: number | null;
+  inactivated: boolean;
+  sig: string | null;
+  sig_code: string | null;
+  daw: boolean;
+  daw_code: string | null;
+  refills: number;
+  origin_code: string | null;
+  total_qty_remaining: number;
+  last_filled_on: string | null;
+  last_fill_id: number | null;
+  last_fill_status: string | null;
+  // Nested objects
+  patient: { id: number; first_name: string; last_name: string; [key: string]: unknown } | null;
+  doctor: { id: number; first_name: string; last_name: string; npi: string; [key: string]: unknown } | null;
+  prescribed_item: { id: number; name: string; ndc: string | null; [key: string]: unknown } | null;
+  prescription_fills: { id: number; status: string; fill_date: string; days_supply: number; dispensed_quantity: number; [key: string]: unknown }[];
   [key: string]: unknown;
 }
 
+// DRX /prescription-fills endpoint returns nested objects:
+// { patient: {...}, dispensed_item: {...}, doctor: {...}, prescription: {...}, fill: {...} }
 export interface DrxPrescriptionFill {
-  id: number;
-  created_at: string;
-  updated_at: string;
-  prescription_id: number;
-  fill_number: number;
-  item_id: number | null;
-  ndc: string | null;
-  quantity: number;
-  days_supply: number | null;
-  status: string;
-  bin_location: string | null;
-  copay_amount: number | null;
-  ingredient_cost: number | null;
-  dispensing_fee: number | null;
-  total_price: number | null;
-  filled_at: string | null;
-  verified_at: string | null;
-  dispensed_at: string | null;
+  patient: { id: number; [key: string]: unknown } | null;
+  dispensed_item: { id: number; name: string; ndc: string | null; dea_schedule: number | null; [key: string]: unknown } | null;
+  doctor: { id: number; [key: string]: unknown } | null;
+  prescription: { id: number; created_at: string; sig: string | null; [key: string]: unknown } | null;
+  fill: {
+    id: number;
+    refill: number;
+    status: string;
+    fill_date: string | null;
+    dispensed_quantity: number;
+    days_supply: number | null;
+    patient_pay_amount: number | null;
+    fill_cost: number | null;
+    retail_amount: number | null;
+    dispensing_fee?: number | null;
+    created_at: string;
+    updated_at: string | null;
+    first_sold_on: string | null;
+    last_sold_on: string | null;
+    pharmacist: string | null;
+    will_call_location: string | null;
+    tracking_number: string | null;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 

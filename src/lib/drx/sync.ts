@@ -109,26 +109,38 @@ function mapDrxItemToDb(drx: DrxItem) {
   };
 }
 
-function mapDrxStatus(drxStatus: string): string {
+/**
+ * Map DRX fill status to BNDS workflow status.
+ * DRX fill statuses: Hold, Adjudicating, Rejected, Print, OOS, Scan, Verify,
+ *                    Waiting Bin, Sold, Pre-Check
+ * These correspond to the queue positions visible in the DRX UI.
+ */
+function mapDrxFillStatus(drxStatus: string | null | undefined): string {
+  if (!drxStatus) return "intake";
   const statusMap: Record<string, string> = {
-    new: "intake",
-    entered: "intake",
-    processing: "in_progress",
-    filling: "in_progress",
-    compounding: "compounding",
-    ready_to_fill: "ready_to_fill",
-    waiting_verification: "ready_for_verification",
-    verified: "ready",
-    ready: "ready",
-    dispensed: "dispensed",
-    sold: "dispensed",
-    shipped: "shipped",
-    on_hold: "on_hold",
-    cancelled: "cancelled",
-    transferred: "transferred",
-    expired: "expired",
+    // DRX fill statuses → BNDS workflow statuses
+    "pre-check": "intake",
+    "adjudicating": "in_progress",
+    "print": "in_progress",
+    "scan": "in_progress",
+    "verify": "ready_for_verification",
+    "hold": "on_hold",
+    "oos": "on_hold",
+    "rejected": "on_hold",
+    "waiting bin": "ready",
+    "sold": "dispensed",
   };
-  return statusMap[drxStatus?.toLowerCase()] || drxStatus?.toLowerCase() || "intake";
+  return statusMap[drxStatus.toLowerCase()] || drxStatus.toLowerCase() || "intake";
+}
+
+/**
+ * Map DRX prescription last_fill_status to BNDS status.
+ * Uses the same fill status mapping.
+ */
+function mapDrxPrescriptionStatus(lastFillStatus: string | null | undefined, inactivated: boolean): string {
+  if (inactivated) return "cancelled";
+  if (!lastFillStatus) return "intake";
+  return mapDrxFillStatus(lastFillStatus);
 }
 
 // ─── Entity Sync Functions (paginated list endpoints) ─────
@@ -362,15 +374,15 @@ async function syncPrescriptions(prisma: any, lastSync: Date | null): Promise<Sy
   async function processRx(drx: DrxPrescription) {
     const extId = String(drx.id);
 
-    // Resolve foreign keys
-    const patient = drx.patient_id
-      ? await prisma.patient.findFirst({ where: { externalId: String(drx.patient_id) }, select: { id: true } })
+    // Resolve foreign keys — DRX nests patient/doctor/item as objects
+    const patient = drx.patient?.id
+      ? await prisma.patient.findFirst({ where: { externalId: String(drx.patient.id) }, select: { id: true } })
       : null;
-    const prescriber = drx.doctor_id
-      ? await prisma.prescriber.findFirst({ where: { externalId: String(drx.doctor_id) }, select: { id: true } })
+    const prescriber = drx.doctor?.id
+      ? await prisma.prescriber.findFirst({ where: { externalId: String(drx.doctor.id) }, select: { id: true } })
       : null;
-    const item = drx.item_id
-      ? await prisma.item.findFirst({ where: { externalId: String(drx.item_id) }, select: { id: true } })
+    const item = drx.prescribed_item?.id
+      ? await prisma.item.findFirst({ where: { externalId: String(drx.prescribed_item.id) }, select: { id: true } })
       : null;
 
     if (!patient || !prescriber) { result.skipped++; return; }
@@ -380,22 +392,22 @@ async function syncPrescriptions(prisma: any, lastSync: Date | null): Promise<Sy
       select: { id: true },
     });
 
+    // Get the most recent fill status for workflow queue
+    const latestFillStatus = drx.last_fill_status
+      || drx.prescription_fills?.[0]?.status
+      || null;
+
     const data = {
-      status: mapDrxStatus(drx.status),
-      quantityPrescribed: drx.quantity_prescribed != null ? new Prisma.Decimal(drx.quantity_prescribed) : null,
-      quantityDispensed: drx.quantity_dispensed != null ? new Prisma.Decimal(drx.quantity_dispensed) : null,
-      daysSupply: drx.days_supply,
-      directions: drx.directions || drx.sig || null,
-      dawCode: drx.daw_code || null,
-      refillsAuthorized: drx.refills_authorized || 0,
-      refillsRemaining: drx.refills_remaining || 0,
-      dateWritten: drx.date_written ? new Date(drx.date_written) : new Date(),
-      dateFilled: drx.date_filled ? new Date(drx.date_filled) : null,
+      status: mapDrxPrescriptionStatus(latestFillStatus, drx.inactivated),
+      directions: drx.sig || drx.sig_code || null,
+      dawCode: drx.daw_code || (drx.daw ? "1" : "0"),
+      refillsAuthorized: drx.refills || 0,
+      refillsRemaining: drx.total_qty_remaining || 0,
+      dateWritten: drx.written_date ? new Date(drx.written_date) : new Date(),
+      dateFilled: drx.last_filled_on ? new Date(drx.last_filled_on) : null,
       expirationDate: drx.expiration_date ? new Date(drx.expiration_date) : null,
-      prescriberNotes: drx.prescriber_notes || null,
-      internalNotes: drx.internal_notes || null,
-      priority: drx.priority || "normal",
-      isCompound: drx.is_compound || false,
+      priority: "normal",
+      isCompound: false,
     };
 
     if (existing) {
@@ -407,13 +419,13 @@ async function syncPrescriptions(prisma: any, lastSync: Date | null): Promise<Sy
           data: {
             ...data,
             externalId: extId,
-            rxNumber: drx.rx_number || `DRX-${drx.id}`,
+            rxNumber: `DRX-${drx.id}`,
             patientId: patient.id,
             prescriberId: prescriber.id,
             itemId: item?.id || null,
-            source: drx.source || "drx_sync",
-            dateReceived: drx.date_received ? new Date(drx.date_received) : new Date(),
-            isActive: true,
+            source: drx.origin_code || "drx_sync",
+            dateReceived: drx.created_at ? new Date(drx.created_at) : new Date(),
+            isActive: !drx.inactivated,
           },
         });
         result.imported++;
@@ -446,14 +458,18 @@ async function syncPrescriptionFills(prisma: any, lastSync: Date | null): Promis
   const result: SyncResult = { entity: "fills", imported: 0, updated: 0, skipped: 0, errors: 0, duration: 0 };
 
   async function processFill(drx: DrxPrescriptionFill) {
-    const extId = String(drx.id);
-    const rx = drx.prescription_id
-      ? await prisma.prescription.findFirst({ where: { externalId: String(drx.prescription_id) }, select: { id: true } })
+    // DRX nests fill data under drx.fill, prescription under drx.prescription
+    const fill = drx.fill;
+    if (!fill?.id) { result.skipped++; return; }
+
+    const extId = String(fill.id);
+    const rx = drx.prescription?.id
+      ? await prisma.prescription.findFirst({ where: { externalId: String(drx.prescription.id) }, select: { id: true } })
       : null;
     if (!rx) { result.skipped++; return; }
 
-    const item = drx.item_id
-      ? await prisma.item.findFirst({ where: { externalId: String(drx.item_id) }, select: { id: true } })
+    const item = drx.dispensed_item?.id
+      ? await prisma.item.findFirst({ where: { externalId: String(drx.dispensed_item.id) }, select: { id: true } })
       : null;
 
     const existing = await prisma.prescriptionFill.findFirst({
@@ -462,19 +478,19 @@ async function syncPrescriptionFills(prisma: any, lastSync: Date | null): Promis
     });
 
     const data = {
-      fillNumber: drx.fill_number || 0,
-      ndc: drx.ndc || null,
-      quantity: new Prisma.Decimal(drx.quantity || 0),
-      daysSupply: drx.days_supply,
-      status: drx.status || "pending",
-      binLocation: drx.bin_location || null,
-      copayAmount: drx.copay_amount != null ? new Prisma.Decimal(drx.copay_amount) : null,
-      ingredientCost: drx.ingredient_cost != null ? new Prisma.Decimal(drx.ingredient_cost) : null,
-      dispensingFee: drx.dispensing_fee != null ? new Prisma.Decimal(drx.dispensing_fee) : null,
-      totalPrice: drx.total_price != null ? new Prisma.Decimal(drx.total_price) : null,
-      filledAt: drx.filled_at ? new Date(drx.filled_at) : null,
-      verifiedAt: drx.verified_at ? new Date(drx.verified_at) : null,
-      dispensedAt: drx.dispensed_at ? new Date(drx.dispensed_at) : null,
+      fillNumber: fill.refill || 0,
+      ndc: drx.dispensed_item?.ndc || null,
+      quantity: new Prisma.Decimal(fill.dispensed_quantity || 0),
+      daysSupply: fill.days_supply,
+      status: fill.status || "pending",
+      binLocation: fill.will_call_location || null,
+      copayAmount: fill.patient_pay_amount != null ? new Prisma.Decimal(fill.patient_pay_amount) : null,
+      ingredientCost: fill.fill_cost != null ? new Prisma.Decimal(fill.fill_cost) : null,
+      dispensingFee: fill.dispensing_fee != null ? new Prisma.Decimal(fill.dispensing_fee) : null,
+      totalPrice: fill.retail_amount != null ? new Prisma.Decimal(fill.retail_amount) : null,
+      filledAt: fill.fill_date ? new Date(fill.fill_date) : null,
+      verifiedAt: null,
+      dispensedAt: fill.first_sold_on ? new Date(fill.first_sold_on) : null,
     };
 
     if (existing) {

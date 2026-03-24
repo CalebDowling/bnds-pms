@@ -56,9 +56,21 @@ export async function GET() {
       probe("/prescription-fills", 2),
     ]);
 
+    // Probe for queue/workflow endpoints
+    const queueProbes = await Promise.all([
+      probe("/queues", 2),
+      probe("/queue-counts", 2),
+      probe("/fills/queues", 2),
+      probe("/workflow", 2),
+      probe("/prescription-fills?status=In+Progress", 2),
+      probe("/prescription-fills?status=Waiting", 2),
+      probe("/prescription-fills?status=Intake", 2),
+    ]);
+
     return NextResponse.json({
       connection,
       probes,
+      queueProbes,
       timestamp: new Date().toISOString(),
     });
   } catch (e) {

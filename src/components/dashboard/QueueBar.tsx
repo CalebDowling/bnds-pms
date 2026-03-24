@@ -12,16 +12,18 @@ interface QueueItem {
   href?: string; // custom href overrides default /prescriptions?status=X
 }
 
+// Queue items match DRX fill workflow statuses
 const defaultQueueItems: QueueItem[] = [
   { label: "Intake", status: "intake", count: 0, tooltip: "View Intake Queue", href: "/intake" },
-  { label: "In Progress", status: "in_progress", count: 0, tooltip: "View In-Progress Rx" },
-  { label: "Compounding", status: "compounding", count: 0, tooltip: "View Compounding Queue", href: "/compounding" },
-  { label: "Ready to Fill", status: "ready_to_fill", count: 0, tooltip: "View Fill Queue" },
-  { label: "Verify", status: "ready_for_verification", count: 0, tooltip: "View Verification Queue" },
-  { label: "On Hold", status: "on_hold", count: 0, tooltip: "View On-Hold Rx" },
-  { label: "Ready", status: "ready", count: 0, tooltip: "View Ready for Pickup" },
-  { label: "Waiting", status: "waiting", count: 0, tooltip: "View Waiting Bin", href: "/waiting-bin" },
-  { label: "Shipped", status: "shipped", count: 0, tooltip: "View Shipped Orders", href: "/shipping" },
+  { label: "Pre-Check", status: "pre_check", count: 0, tooltip: "View Pre-Check Queue" },
+  { label: "Adjudicating", status: "adjudicating", count: 0, tooltip: "View Adjudicating" },
+  { label: "Print", status: "print", count: 0, tooltip: "View Print Queue" },
+  { label: "Scan", status: "scan", count: 0, tooltip: "View Scan Queue" },
+  { label: "Verify", status: "verify", count: 0, tooltip: "View Verification Queue" },
+  { label: "OOS", status: "oos", count: 0, tooltip: "View Out of Stock" },
+  { label: "Hold", status: "hold", count: 0, tooltip: "View On-Hold Rx" },
+  { label: "Waiting Bin", status: "waiting_bin", count: 0, tooltip: "View Waiting Bin" },
+  { label: "Rejected", status: "rejected", count: 0, tooltip: "View Rejected Claims" },
   { label: "Refills", status: "refills", count: 0, tooltip: "View Refill Requests", href: "/refills" },
 ];
 
