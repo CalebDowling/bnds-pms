@@ -33,8 +33,9 @@ export interface SyncResult {
   timedOut?: boolean;
 }
 
-// Time budget: stop 30s before Vercel's 300s limit to flush results
-const SYNC_TIMEOUT_MS = 270_000;
+// Time budget: stop 5s before Vercel's function limit to flush results.
+// Hobby plan = 60s max, Pro plan = 300s max. Use 50s to be safe.
+const SYNC_TIMEOUT_MS = 50_000;
 let syncStartedAt = 0;
 
 function timeRemaining(): number {
@@ -593,62 +594,66 @@ export async function runSync(
 
   const results: SyncResult[] = [];
 
-  const entitiesToSync: SyncEntity[] =
-    entities === "all"
-      ? ["doctors", "items", "patients", "prescriptions", "fills"]
-      : [entities];
+  // Priority order for sync
+  const allEntities: SyncEntity[] = ["doctors", "items", "patients", "prescriptions", "fills"];
 
-  for (const entity of entitiesToSync) {
-    if (!hasTimeLeft()) {
-      console.log(`[DRX Sync] Skipping ${entity} — out of time (${Math.round(timeRemaining() / 1000)}s left)`);
-      break;
-    }
-
+  if (entities !== "all") {
+    // Specific entity requested — sync just that one
+    const entity = entities;
     const lastSync = fullResync ? null : await getLastSyncTime(prisma, entity);
-    let result: SyncResult;
-
-    console.log(`[DRX Sync] Starting ${entity} sync (${lastSync ? `delta since ${lastSync.toISOString()}` : "full sync"})... (${Math.round(timeRemaining() / 1000)}s remaining)`);
-
-    switch (entity) {
-      case "doctors":
-        result = await syncDoctors(prisma, lastSync);
-        break;
-      case "items":
-        result = await syncItems(prisma, lastSync);
-        break;
-      case "patients":
-        result = await syncPatients(prisma, lastSync);
-        break;
-      case "prescriptions":
-        result = await syncPrescriptions(prisma, lastSync);
-        break;
-      case "fills":
-        result = await syncPrescriptionFills(prisma, lastSync);
-        break;
-      default:
-        continue;
-    }
-
-    console.log(
-      `[DRX Sync] ${entity}: ${result.imported} imported, ${result.updated} updated, ${result.skipped} skipped, ${result.errors} errors (${result.duration}ms)${result.timedOut ? " [TIMED OUT]" : ""}`
-    );
-
-    // Always save progress — even partial results
+    console.log(`[DRX Sync] Starting ${entity} (${lastSync ? `delta since ${lastSync.toISOString()}` : "full"}) [${Math.round(timeRemaining() / 1000)}s budget]`);
+    const result = await runEntitySync(prisma, entity, lastSync);
+    console.log(`[DRX Sync] ${entity}: ${result.imported} imported, ${result.updated} updated, ${result.skipped} skipped, ${result.errors} errors (${result.duration}ms)${result.timedOut ? " [PARTIAL]" : ""}`);
     await updateSyncLog(prisma, entity, result);
     results.push(result);
-
-    // If this entity timed out, don't start the next one
-    if (result.timedOut) {
-      console.log(`[DRX Sync] Stopping — ${entity} timed out. Will continue next cron run.`);
-      break;
-    }
+    return results;
   }
 
-  const totalImported = results.reduce((s, r) => s + r.imported, 0);
-  const totalUpdated = results.reduce((s, r) => s + r.updated, 0);
-  console.log(`[DRX Sync] Complete: ${totalImported} imported, ${totalUpdated} updated across ${results.length} entities (${Date.now() - syncStartedAt}ms total)`);
+  // "all" mode: pick ONE entity per cron run to stay within timeout.
+  // Priority: entities that have never been synced first, then oldest sync.
+  const syncTimes: { entity: SyncEntity; lastSync: Date | null }[] = [];
+  for (const e of allEntities) {
+    const ls = fullResync ? null : await getLastSyncTime(prisma, e);
+    syncTimes.push({ entity: e, lastSync: ls });
+  }
+
+  // Sort: never-synced first, then oldest lastSync
+  syncTimes.sort((a, b) => {
+    if (!a.lastSync && !b.lastSync) return 0;
+    if (!a.lastSync) return -1;
+    if (!b.lastSync) return 1;
+    return a.lastSync.getTime() - b.lastSync.getTime();
+  });
+
+  // Pick the first (highest priority) entity
+  const target = syncTimes[0];
+  console.log(`[DRX Sync] Picking ${target.entity} (${target.lastSync ? `delta since ${target.lastSync.toISOString()}` : "full"}) [${Math.round(timeRemaining() / 1000)}s budget]`);
+
+  const result = await runEntitySync(prisma, target.entity, target.lastSync);
+
+  console.log(`[DRX Sync] ${target.entity}: ${result.imported} imported, ${result.updated} updated, ${result.skipped} skipped, ${result.errors} errors (${result.duration}ms)${result.timedOut ? " [PARTIAL]" : ""}`);
+
+  await updateSyncLog(prisma, target.entity, result);
+  results.push(result);
 
   return results;
+}
+
+async function runEntitySync(prisma: any, entity: SyncEntity, lastSync: Date | null): Promise<SyncResult> {
+  switch (entity) {
+    case "doctors":
+      return syncDoctors(prisma, lastSync);
+    case "items":
+      return syncItems(prisma, lastSync);
+    case "patients":
+      return syncPatients(prisma, lastSync);
+    case "prescriptions":
+      return syncPrescriptions(prisma, lastSync);
+    case "fills":
+      return syncPrescriptionFills(prisma, lastSync);
+    default:
+      return { entity, imported: 0, updated: 0, skipped: 0, errors: 0, duration: 0 };
+  }
 }
 
 // ─── Ensure sync log table ─────────────────────
