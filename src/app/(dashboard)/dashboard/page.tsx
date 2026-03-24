@@ -5,7 +5,7 @@ import PinnedActions from "@/components/dashboard/PinnedActions";
 import CardGrid, { type DashboardData } from "@/components/dashboard/CardGrid";
 import RightRail from "@/components/dashboard/RightRail";
 import PhoneDialer from "@/components/dashboard/PhoneDialer";
-import QueueOverview from "@/components/dashboard/QueueOverview";
+
 import { getDashboardData } from "./actions";
 
 const DEFAULT_DATA: DashboardData = {
@@ -43,7 +43,6 @@ export default function DashboardPage() {
 
       <div className="flex px-6 pt-3 pb-6 gap-6">
         <div className="flex-1">
-          <QueueOverview />
           <CardGrid data={data} />
         </div>
         <div className="w-[280px] flex-shrink-0 space-y-4">
