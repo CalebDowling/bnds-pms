@@ -36,9 +36,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--page-bg, #E8DFD0), var(--color-bg, #DDD4C4))" }}>
       <div className="w-full max-w-md px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-8">
+        <div className="rounded-2xl shadow-xl p-8" style={{ background: "var(--card-bg, #F5F0E8)" }}>
           {/* Logo and Title */}
           <div className="text-center mb-8">
             <img src="/logo.webp" alt="Boudreaux's New Drug Store" className="h-[60px] mx-auto mb-4" />
