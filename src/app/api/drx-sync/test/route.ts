@@ -11,7 +11,7 @@ const DRX_BASE_URL =
   process.env.DRX_BASE_URL || "https://boudreaux.drxapp.com/external_api/v1";
 const DRX_API_KEY = process.env.DRX_API_KEY || "";
 
-async function probe(endpoint: string, limit = 2): Promise<{
+async function probe(endpoint: string, limit = 2, extraParams?: Record<string, string>): Promise<{
   endpoint: string;
   status: number;
   count: number | null;
@@ -19,9 +19,16 @@ async function probe(endpoint: string, limit = 2): Promise<{
   isArray: boolean;
   raw: string;
 }> {
-  const url = `${DRX_BASE_URL}${endpoint}?limit=${limit}&offset=0`;
+  const url = new URL(`${DRX_BASE_URL}${endpoint}`);
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("offset", "0");
+  if (extraParams) {
+    for (const [k, v] of Object.entries(extraParams)) {
+      url.searchParams.set(k, v);
+    }
+  }
   try {
-    const res = await fetch(url, {
+    const res = await fetch(url.toString(), {
       headers: { "X-DRX-Key": DRX_API_KEY, Accept: "application/json" },
       signal: AbortSignal.timeout(15_000),
     });
@@ -56,15 +63,15 @@ export async function GET() {
       probe("/prescription-fills", 2),
     ]);
 
-    // Probe for queue/workflow endpoints
+    // Probe fills by each active DRX status to see if status filter works
     const queueProbes = await Promise.all([
-      probe("/queues", 2),
-      probe("/queue-counts", 2),
-      probe("/fills/queues", 2),
-      probe("/workflow", 2),
-      probe("/prescription-fills?status=In+Progress", 2),
-      probe("/prescription-fills?status=Waiting", 2),
-      probe("/prescription-fills?status=Intake", 2),
+      probe("/prescription-fills", 1, { status: "Print" }),
+      probe("/prescription-fills", 1, { status: "Scan" }),
+      probe("/prescription-fills", 1, { status: "Verify" }),
+      probe("/prescription-fills", 1, { status: "Sold" }),
+      probe("/prescription-fills", 1, { status: "OOS" }),
+      probe("/prescription-fills", 1, { status: "Hold" }),
+      probe("/prescription-fills", 1, { status: "Waiting Bin" }),
     ]);
 
     return NextResponse.json({
