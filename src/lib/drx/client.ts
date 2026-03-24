@@ -440,14 +440,38 @@ export async function fetchCustomQueueCounts(): Promise<Record<string, number>> 
     const data = await res.json();
     const counts: Record<string, number> = {};
 
-    if (data?.queues && Array.isArray(data.queues)) {
-      for (const q of data.queues as DrxCustomQueue[]) {
-        if (q.name && typeof q.total === "number") {
-          counts[q.name] = q.total;
+    // Find the array of queue objects — DRX may return:
+    // 1. A raw array: [{name, total, ...}, ...]
+    // 2. Wrapped: { queues: [...] } or { status: "ok", queues: [...] }
+    // 3. Or any other key containing the array
+    let queues: DrxCustomQueue[] = [];
+
+    if (Array.isArray(data)) {
+      queues = data;
+    } else if (data?.queues && Array.isArray(data.queues)) {
+      queues = data.queues;
+    } else if (typeof data === "object" && data !== null) {
+      // Find first array value in the response
+      for (const value of Object.values(data)) {
+        if (Array.isArray(value) && value.length > 0 && value[0]?.name !== undefined) {
+          queues = value as DrxCustomQueue[];
+          break;
         }
       }
     }
 
+    console.log(`[DRX] custom_workflow_queue: found ${queues.length} queues, response keys: ${typeof data === "object" && data !== null ? Object.keys(data).join(",") : typeof data}`);
+
+    for (const q of queues) {
+      // Support both top-level name/total and nested prescription_fill_tag.name
+      const name = q.name || (q as any).prescription_fill_tag?.name;
+      const total = typeof q.total === "number" ? q.total : 0;
+      if (name) {
+        counts[name] = total;
+      }
+    }
+
+    console.log(`[DRX] custom queue counts:`, JSON.stringify(counts));
     return counts;
   } catch (e) {
     console.error("[DRX] Error fetching custom queues:", e);

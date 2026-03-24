@@ -84,16 +84,21 @@ export async function getQueueFills({
               phone = patient.phone_numbers[0].number || null;
             }
 
-            // Tags: DRX returns prescription_fill_tags array on the fill
-            const rawTags = (fill as any).prescription_fill_tags || (fill as any).tags || [];
+            // Tags: DRX may have prescription_fill_tags on the fill or top-level drx object
+            const rawTags =
+              (fill as any).prescription_fill_tags ||
+              (fill as any).tags ||
+              (drx as any).prescription_fill_tags ||
+              (drx as any).tags ||
+              [];
             const tags: string[] = Array.isArray(rawTags)
-              ? rawTags.map((t: any) => (typeof t === "string" ? t : t?.name || t?.tag || "")).filter(Boolean)
+              ? rawTags.map((t: any) => (typeof t === "string" ? t : t?.name || t?.tag || t?.prescription_fill_tag?.name || "")).filter(Boolean)
               : [];
 
-            // Method: delivery method from fill or patient
+            // Method: DRX uses delivery_method_override on fill, or delivery_method on patient
             const method: string | null =
+              (fill as any).delivery_method_override ||
               (fill as any).delivery_method ||
-              (fill as any).method ||
               patient?.delivery_method ||
               null;
 
