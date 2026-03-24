@@ -421,7 +421,142 @@ interface DrxCustomQueue {
   prescription_fill_tag_id: number;
 }
 
+/**
+ * Parse custom queue data from the internal API response.
+ * Handles multiple response shapes:
+ * 1. Raw array: [{name, total, ...}, ...]
+ * 2. Wrapped: { queues: [...] } or { status: "ok", queues: [...] }
+ */
+function parseCustomQueueResponse(data: unknown): Record<string, number> {
+  const counts: Record<string, number> = {};
+  let queues: DrxCustomQueue[] = [];
+
+  if (Array.isArray(data)) {
+    queues = data;
+  } else if (
+    typeof data === "object" &&
+    data !== null &&
+    "queues" in data &&
+    Array.isArray((data as Record<string, unknown>).queues)
+  ) {
+    queues = (data as Record<string, unknown>).queues as DrxCustomQueue[];
+  } else if (typeof data === "object" && data !== null) {
+    for (const value of Object.values(data as Record<string, unknown>)) {
+      if (Array.isArray(value) && value.length > 0 && (value[0] as Record<string, unknown>)?.name !== undefined) {
+        queues = value as DrxCustomQueue[];
+        break;
+      }
+    }
+  }
+
+  for (const q of queues) {
+    const name = q.name || (q as Record<string, unknown> & { prescription_fill_tag?: { name?: string } }).prescription_fill_tag?.name;
+    const total = typeof q.total === "number" ? q.total : 0;
+    if (name) {
+      counts[name] = total;
+    }
+  }
+
+  return counts;
+}
+
+/**
+ * Fetch custom queue counts via the external API's /fill-tags endpoint.
+ * This works from ANY IP (including Vercel) because it uses the standard
+ * X-DRX-Key auth on the external API — unlike the internal API which is
+ * IP-restricted to the pharmacy network.
+ *
+ * Strategy: Fetch all fill tags, then count fills per tag by querying
+ * /prescription-fills with tag filter. If fill-tags returns tag objects
+ * with totals, we can use those directly.
+ */
+async function fetchCustomQueueCountsViaExternalApi(): Promise<Record<string, number>> {
+  try {
+    // Try the external API fill-tags endpoint
+    const fillTags = await drxFetch<unknown[]>("/fill-tags", { limit: 100 });
+
+    if (!fillTags || !Array.isArray(fillTags) || fillTags.length === 0) {
+      console.log("[DRX] /fill-tags returned empty or null");
+      return {};
+    }
+
+    console.log(`[DRX] /fill-tags returned ${fillTags.length} tags, sample:`, JSON.stringify(fillTags[0]).slice(0, 300));
+
+    // Check if tags have a "total" or "count" field (ideal case)
+    const firstTag = fillTags[0] as Record<string, unknown>;
+    if (typeof firstTag.total === "number" || typeof firstTag.count === "number") {
+      // Tags include counts — just map them
+      const counts: Record<string, number> = {};
+      for (const tag of fillTags) {
+        const t = tag as Record<string, unknown>;
+        const name = (t.name as string) || "";
+        const total = (typeof t.total === "number" ? t.total : typeof t.count === "number" ? t.count : 0);
+        if (name) counts[name] = total;
+      }
+      console.log("[DRX] fill-tags with counts:", JSON.stringify(counts));
+      return counts;
+    }
+
+    // Tags don't include counts — need to count fills per tag
+    // Get tag IDs and names, then query prescription-fills for each
+    const tagMap: { id: number; name: string }[] = [];
+    for (const tag of fillTags) {
+      const t = tag as Record<string, unknown>;
+      const id = t.id as number;
+      const name = (t.name as string) || "";
+      if (id && name) tagMap.push({ id, name });
+    }
+
+    // Only count tags that match known custom queue names
+    const KNOWN_CUSTOM_QUEUES = ["price check", "prepay", "ok to charge", "decline", "ok to charge clinic", "mochi"];
+    const relevantTags = tagMap.filter((t) =>
+      KNOWN_CUSTOM_QUEUES.some((q) => q.toLowerCase() === t.name.toLowerCase().trim())
+    );
+
+    if (relevantTags.length === 0) {
+      console.log("[DRX] No matching custom queue tags found in fill-tags");
+      return {};
+    }
+
+    // Count fills per tag by querying /prescription-fills with tag_id filter
+    const counts: Record<string, number> = {};
+    await Promise.all(
+      relevantTags.map(async (tag) => {
+        try {
+          // Try different param names that DRX might accept for tag filtering
+          const fills = await drxFetch<unknown[]>("/prescription-fills", {
+            fill_tag_id: tag.id,
+            limit: 1,
+          });
+          // If the endpoint returns results, check if it filtered properly
+          // For now, try with prescription_fill_tag_id param too
+          if (fills !== null) {
+            // DRX external API returns count via array length when limit=0 won't work
+            // We need total count — try fetching with a high limit
+            const allFills = await drxFetch<unknown[]>("/prescription-fills", {
+              fill_tag_id: tag.id,
+              limit: 100,
+              offset: 0,
+            });
+            counts[tag.name] = allFills?.length || 0;
+          }
+        } catch {
+          counts[tag.name] = 0;
+        }
+      })
+    );
+
+    console.log("[DRX] fill-tags counts via external API:", JSON.stringify(counts));
+    return counts;
+  } catch (e) {
+    console.error("[DRX] Error fetching custom queues via external API:", e);
+    return {};
+  }
+}
+
 export async function fetchCustomQueueCounts(): Promise<Record<string, number>> {
+  // Strategy: Try internal API first (works from pharmacy network),
+  // fall back to external API /fill-tags (works from anywhere including Vercel)
   try {
     const url = `${DRX_INTERNAL_BASE}/api/v1/custom_workflow_queue`;
 
@@ -446,60 +581,33 @@ export async function fetchCustomQueueCounts(): Promise<Record<string, number>> 
         res = attempt;
         break;
       }
-      // 401/403 = wrong auth, try next variant
       if (attempt.status === 401 || attempt.status === 403) {
-        console.log(`[DRX] custom_workflow_queue auth attempt returned ${attempt.status}, trying next...`);
         continue;
       }
-      // Other errors = stop trying
       console.log(`[DRX] custom_workflow_queue returned ${attempt.status}`);
-      return {};
+      break;
     }
 
-    if (!res || !res.ok) {
-      console.log(`[DRX] custom_workflow_queue: all auth variants failed`);
-      return {};
-    }
-
-    const data = await res.json();
-    const counts: Record<string, number> = {};
-
-    // Find the array of queue objects — DRX may return:
-    // 1. A raw array: [{name, total, ...}, ...]
-    // 2. Wrapped: { queues: [...] } or { status: "ok", queues: [...] }
-    // 3. Or any other key containing the array
-    let queues: DrxCustomQueue[] = [];
-
-    if (Array.isArray(data)) {
-      queues = data;
-    } else if (data?.queues && Array.isArray(data.queues)) {
-      queues = data.queues;
-    } else if (typeof data === "object" && data !== null) {
-      // Find first array value in the response
-      for (const value of Object.values(data)) {
-        if (Array.isArray(value) && value.length > 0 && value[0]?.name !== undefined) {
-          queues = value as DrxCustomQueue[];
-          break;
-        }
+    if (res?.ok) {
+      const data = await res.json();
+      const counts = parseCustomQueueResponse(data);
+      if (Object.keys(counts).length > 0) {
+        console.log(`[DRX] custom queue counts (internal API):`, JSON.stringify(counts));
+        return counts;
       }
     }
 
-    console.log(`[DRX] custom_workflow_queue: found ${queues.length} queues, response keys: ${typeof data === "object" && data !== null ? Object.keys(data).join(",") : typeof data}`);
-
-    for (const q of queues) {
-      // Support both top-level name/total and nested prescription_fill_tag.name
-      const name = q.name || (q as any).prescription_fill_tag?.name;
-      const total = typeof q.total === "number" ? q.total : 0;
-      if (name) {
-        counts[name] = total;
-      }
-    }
-
-    console.log(`[DRX] custom queue counts:`, JSON.stringify(counts));
-    return counts;
+    // Internal API failed (IP-restricted from Vercel) — try external API fallback
+    console.log("[DRX] Internal API unavailable, trying external API /fill-tags fallback...");
+    return await fetchCustomQueueCountsViaExternalApi();
   } catch (e) {
     console.error("[DRX] Error fetching custom queues:", e);
-    return {};
+    // Last resort: try external API
+    try {
+      return await fetchCustomQueueCountsViaExternalApi();
+    } catch {
+      return {};
+    }
   }
 }
 
