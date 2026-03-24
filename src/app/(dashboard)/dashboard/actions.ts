@@ -81,8 +81,9 @@ export async function getQueueCounts() {
   };
 
   try {
-    // Fetch live fill counts directly from DRX API (parallel calls with limit=1).
-    // Reads the "total" field from each response — no DB sync needed.
+    // Fetch live fill counts from DRX:
+    // - Standard statuses via external API (/external_api/v1/prescription-fills?status=X)
+    // - Custom queues via internal API (/api/v1/custom_workflow_queue)
     const { fetchAllQueueCounts } = await import("@/lib/drx/client");
     const { prisma } = await import("@/lib/prisma");
 
@@ -92,25 +93,37 @@ export async function getQueueCounts() {
       prisma.refillRequest.count({ where: { status: "pending" } }).catch(() => 0),
     ]);
 
+    // Helper: DRX custom queue names may have trailing spaces or case differences
+    function findCount(name: string): number {
+      // Try exact match first
+      if (drxCounts[name] !== undefined) return drxCounts[name];
+      // Try trimmed case-insensitive match
+      const lower = name.toLowerCase().trim();
+      for (const [key, val] of Object.entries(drxCounts)) {
+        if (key.toLowerCase().trim() === lower) return val;
+      }
+      return 0;
+    }
+
     return {
       // Standard DRX statuses (mapped to QueueBar keys)
-      intake: drxCounts["Pre-Check"] || 0,
-      sync: drxCounts["Adjudicating"] || 0,
-      reject: drxCounts["Rejected"] || 0,
-      print: drxCounts["Print"] || 0,
-      scan: drxCounts["Scan"] || 0,
-      verify: drxCounts["Verify"] || 0,
-      oos: drxCounts["OOS"] || 0,
-      waiting_bin: drxCounts["Waiting Bin"] || 0,
+      intake: findCount("Pre-Check"),
+      sync: findCount("Adjudicating"),
+      reject: findCount("Rejected"),
+      print: findCount("Print"),
+      scan: findCount("Scan"),
+      verify: findCount("Verify"),
+      oos: findCount("OOS"),
+      waiting_bin: findCount("Waiting Bin"),
       renewals,
       todo: 0, // DRX-internal feature, not exposed via API
-      // Custom DRX queues (Boudreaux's-specific)
-      price_check: drxCounts["price check"] || 0,
-      prepay: drxCounts["prepay"] || 0,
-      ok_to_charge: drxCounts["ok to charge"] || 0,
-      decline: drxCounts["Decline"] || 0,
-      ok_to_charge_clinic: drxCounts["ok to charge clinic"] || 0,
-      mochi: drxCounts["mochi"] || 0,
+      // Custom DRX queues (from /api/v1/custom_workflow_queue)
+      price_check: findCount("price check"),
+      prepay: findCount("prepay"),
+      ok_to_charge: findCount("ok to charge"),
+      decline: findCount("Decline"),
+      ok_to_charge_clinic: findCount("ok to charge clinic"),
+      mochi: findCount("mochi"),
     };
   } catch (e) {
     console.error("[getQueueCounts] Error fetching from DRX:", e);

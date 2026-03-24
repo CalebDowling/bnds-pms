@@ -397,32 +397,92 @@ export async function fetchFillCountByStatus(
 /**
  * Fetch live queue counts for all active DRX fill statuses in parallel.
  * Returns a map like { "Print": 86, "Scan": 205, ... }
- * Only ~9 API calls, completes in <2 seconds.
+ *
+ * Standard statuses come from the external API (/external_api/v1/prescription-fills?status=X).
+ * Custom queues come from DRX's internal API (/api/v1/custom_workflow_queue).
  */
-const QUEUE_STATUSES = [
-  // Standard DRX fill statuses
+const STANDARD_QUEUE_STATUSES = [
   "Pre-Check", "Adjudicating", "Rejected", "Print", "Scan", "Verify",
   "OOS", "Waiting Bin",
-  // Custom DRX queues (Boudreaux's-specific)
-  "price check", "prepay", "ok to charge", "Decline",
-  "ok to charge clinic", "mochi",
 ] as const;
 
-export async function fetchAllQueueCounts(): Promise<Record<string, number>> {
-  const results = await Promise.all(
-    QUEUE_STATUSES.map(async (status) => {
-      try {
-        const count = await fetchFillCountByStatus(status);
-        return { status, count };
-      } catch {
-        return { status, count: 0 };
+// ─── DRX Internal API for custom workflow queues ────────
+// DRX uses /api/v1/custom_workflow_queue (internal, cookie-based or API-key auth)
+// Returns: { status: "ok", queues: [{ name: "price check", total: 13, ... }, ...] }
+
+const DRX_INTERNAL_BASE =
+  process.env.DRX_BASE_URL?.replace("/external_api/v1", "") ||
+  "https://boudreaux.drxapp.com";
+
+interface DrxCustomQueue {
+  name: string;
+  total: number;
+  id: number;
+  prescription_fill_tag_id: number;
+}
+
+export async function fetchCustomQueueCounts(): Promise<Record<string, number>> {
+  try {
+    const url = `${DRX_INTERNAL_BASE}/api/v1/custom_workflow_queue`;
+    const res = await fetch(url, {
+      headers: {
+        "X-DRX-Key": DRX_API_KEY,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!res.ok) {
+      console.log(`[DRX] custom_workflow_queue returned ${res.status}`);
+      return {};
+    }
+
+    const data = await res.json();
+    const counts: Record<string, number> = {};
+
+    if (data?.queues && Array.isArray(data.queues)) {
+      for (const q of data.queues as DrxCustomQueue[]) {
+        if (q.name && typeof q.total === "number") {
+          counts[q.name] = q.total;
+        }
       }
-    })
-  );
+    }
+
+    return counts;
+  } catch (e) {
+    console.error("[DRX] Error fetching custom queues:", e);
+    return {};
+  }
+}
+
+export async function fetchAllQueueCounts(): Promise<Record<string, number>> {
+  // Fetch standard statuses + custom queues in parallel
+  const [standardResults, customCounts] = await Promise.all([
+    Promise.all(
+      STANDARD_QUEUE_STATUSES.map(async (status) => {
+        try {
+          const count = await fetchFillCountByStatus(status);
+          return { status, count };
+        } catch {
+          return { status, count: 0 };
+        }
+      })
+    ),
+    fetchCustomQueueCounts(),
+  ]);
+
   const counts: Record<string, number> = {};
-  for (const r of results) {
+
+  // Standard statuses
+  for (const r of standardResults) {
     counts[r.status] = r.count;
   }
+
+  // Custom queues (merge in)
+  for (const [name, total] of Object.entries(customCounts)) {
+    counts[name] = total;
+  }
+
   return counts;
 }
 
