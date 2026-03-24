@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, Fragment } from "react";
+import { Printer, ScanLine, Pencil, CheckCircle, UserPlus, X } from "lucide-react";
 import type { QueueFill } from "./constants";
 
 function formatDate(dateStr: string | null): string {
@@ -28,6 +29,17 @@ const COLUMNS: { key: ColKey; label: string }[] = [
   { key: "method", label: "Method" },
   { key: "status", label: "Status" },
 ];
+
+const COL_COUNT = COLUMNS.length + 1; // +1 for checkbox column
+
+// ─── Bulk action definitions ────────────────────
+const BULK_ACTIONS = [
+  { key: "print", label: "Print", icon: Printer, bg: "#40721D", hover: "#2D5114" },
+  { key: "scan", label: "Scan", icon: ScanLine, bg: "#0d9488", hover: "#0f766e" },
+  { key: "edit", label: "Edit", icon: Pencil, bg: "#2563eb", hover: "#1d4ed8" },
+  { key: "verify", label: "Verify", icon: CheckCircle, bg: "#10b981", hover: "#059669" },
+  { key: "assign", label: "Assign", icon: UserPlus, bg: "#f59e0b", hover: "#d97706" },
+] as const;
 
 // ─── Sort arrow icon ────────────────────────────
 function SortIcon({ dir }: { dir: SortDir }) {
@@ -130,7 +142,7 @@ function getCellValue(fill: QueueFill, key: ColKey): string {
 function FillDetailPanel({ fill }: { fill: QueueFill }) {
   return (
     <tr>
-      <td colSpan={9} className="bg-[#40721D]/[0.03] border-b border-[#40721D]/20">
+      <td colSpan={COL_COUNT} className="bg-[#40721D]/[0.03] border-b border-[#40721D]/20">
         <div className="px-6 py-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
@@ -216,6 +228,7 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
     quantity: new Set(), fillDate: new Set(), tags: new Set(), method: new Set(), status: new Set(),
   });
   const [openDropdown, setOpenDropdown] = useState<ColKey | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   // Unique values per column (computed from all fills, not filtered)
   const uniqueValues = useMemo(() => {
@@ -266,6 +279,34 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
     });
   }
 
+  // ─── Row selection ──────────────────────────────
+  function toggleSelect(fillId: string) {
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(fillId)) next.delete(fillId);
+      else next.add(fillId);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedRows.size === processed.length && processed.length > 0) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(processed.map((f) => f.fillId)));
+    }
+  }
+
+  function deselectAll() {
+    setSelectedRows(new Set());
+  }
+
+  function handleBulkAction(action: string) {
+    const count = selectedRows.size;
+    const ids = Array.from(selectedRows);
+    alert(`${action} action on ${count} fill(s):\n${ids.join(", ")}`);
+  }
+
   // Filter then sort
   const processed = useMemo(() => {
     let result = fills.filter((fill) => {
@@ -281,8 +322,8 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
 
     if (sortCol && sortDir) {
       result = [...result].sort((a, b) => {
-        let va = getCellValue(a, sortCol);
-        let vb = getCellValue(b, sortCol);
+        const va = getCellValue(a, sortCol);
+        const vb = getCellValue(b, sortCol);
         // Numeric sort for quantity
         if (sortCol === "quantity") {
           return sortDir === "asc" ? Number(va) - Number(vb) : Number(vb) - Number(va);
@@ -294,10 +335,10 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
           return sortDir === "asc" ? da - db : db - da;
         }
         // String sort
-        va = va.toLowerCase();
-        vb = vb.toLowerCase();
-        if (va < vb) return sortDir === "asc" ? -1 : 1;
-        if (va > vb) return sortDir === "asc" ? 1 : -1;
+        const la = va.toLowerCase();
+        const lb = vb.toLowerCase();
+        if (la < lb) return sortDir === "asc" ? -1 : 1;
+        if (la > lb) return sortDir === "asc" ? 1 : -1;
         return 0;
       });
     }
@@ -306,9 +347,11 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
   }, [fills, filters, sortCol, sortDir]);
 
   const hasActiveFilters = Object.values(filters).some((s) => s.size > 0);
+  const allSelected = selectedRows.size === processed.length && processed.length > 0;
+  const someSelected = selectedRows.size > 0;
 
   return (
-    <div>
+    <div className="relative">
       {/* Active filter bar */}
       {hasActiveFilters && (
         <div className="px-4 py-2 bg-[#40721D]/5 border-b border-gray-200 flex items-center justify-between">
@@ -328,6 +371,16 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b-2 border-gray-300 bg-gray-100">
+              {/* Select all checkbox */}
+              <th className="w-10 px-2 py-3 text-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-4 h-4 cursor-pointer"
+                  title={allSelected ? "Deselect all" : "Select all"}
+                />
+              </th>
               {COLUMNS.map((col, i) => (
                 <th
                   key={col.key}
@@ -357,21 +410,37 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
           <tbody>
             {processed.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={COL_COUNT} className="px-4 py-8 text-center text-gray-400 text-sm">
                   No fills match your filters
                 </td>
               </tr>
             ) : (
               processed.map((fill, rowIdx) => {
                 const isExpanded = expandedRow === fill.fillId;
+                const isSelected = selectedRows.has(fill.fillId);
                 return (
                   <Fragment key={fill.fillId}>
                     <tr
                       onClick={() => setExpandedRow(isExpanded ? null : fill.fillId)}
                       className={`border-b border-gray-200 hover:bg-[#40721D]/5 transition-colors cursor-pointer ${
-                        isExpanded ? "bg-[#40721D]/5" : rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                        isSelected
+                          ? "bg-[#40721D]/[0.08]"
+                          : isExpanded
+                          ? "bg-[#40721D]/5"
+                          : rowIdx % 2 === 0
+                          ? "bg-white"
+                          : "bg-gray-50/60"
                       }`}
                     >
+                      {/* Row checkbox */}
+                      <td className="w-10 px-2 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(fill.fillId)}
+                          className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-4 h-4 cursor-pointer"
+                        />
+                      </td>
                       {/* RX — monospace, bold, green accent */}
                       <td className="px-3 py-2.5">
                         <span className="text-sm font-mono font-bold text-[#40721D]">{fill.rxId}</span>
@@ -430,6 +499,55 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
           </tbody>
         </table>
       </div>
+
+      {/* ─── Sticky Bulk Action Bar ─────────────────── */}
+      {someSelected && (
+        <div
+          className="sticky bottom-0 left-0 right-0 z-40 border-t border-gray-200"
+          style={{
+            background: "rgba(255, 255, 255, 0.85)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            animation: "float-in 0.2s ease forwards",
+          }}
+        >
+          <div className="flex items-center justify-between px-4 py-3">
+            {/* Left: selection count */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-gray-900">
+                {selectedRows.size} selected
+              </span>
+              <button
+                onClick={deselectAll}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X size={12} />
+                Deselect
+              </button>
+            </div>
+
+            {/* Right: action buttons */}
+            <div className="flex items-center gap-2">
+              {BULK_ACTIONS.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.key}
+                    onClick={() => handleBulkAction(action.label)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:scale-105 hover:shadow-md active:scale-95"
+                    style={{ backgroundColor: action.bg }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = action.hover; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = action.bg; }}
+                  >
+                    <Icon size={15} />
+                    {action.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
