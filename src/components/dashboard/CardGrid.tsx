@@ -220,7 +220,7 @@ export default function CardGrid({ data }: { data: DashboardData }) {
       {cards.map((card, index) => (
         <div
           key={card.id}
-          className="glass-card card-gradient-border rounded-[10px] overflow-hidden relative"
+          className="glass-card rounded-[10px] overflow-hidden relative"
           style={{
             "--card-accent": card.accentColor,
             animation: `float-in 0.3s ease forwards`,
