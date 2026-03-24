@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 interface Prescription {
   id: string;
@@ -25,6 +26,7 @@ interface RefillRequest {
 
 export default function PatientDashboard(): React.ReactNode {
   const router = useRouter();
+  const supabase = createClient();
   const [patientName, setPatientName] = useState("");
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [refillRequests, setRefillRequests] = useState<RefillRequest[]>([]);
@@ -32,21 +34,31 @@ export default function PatientDashboard(): React.ReactNode {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem("patient_token");
-      const name = localStorage.getItem("patient_name");
+    const checkAuthAndFetch = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (!token) {
+        if (!session) {
+          router.push("/patient");
+          return;
+        }
+
+        // Get user metadata
+        const user = session.user;
+        const firstName = user.user_metadata?.firstName || user.email?.split("@")[0] || "Patient";
+        setPatientName(firstName);
+
+        await fetchDashboardData(session.access_token);
+      } catch (err) {
+        console.error("Auth check error:", err);
         router.push("/patient");
-        return;
       }
-
-      setPatientName(name || "");
-      fetchDashboardData(token);
     };
 
-    checkAuth();
-  }, [router]);
+    checkAuthAndFetch();
+  }, [router, supabase]);
 
   const fetchDashboardData = async (token: string) => {
     try {

@@ -275,16 +275,24 @@ export default function DashboardHeader() {
                       >
                         <div className="flex items-start gap-3">
                           {/* Icon based on type */}
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white" style={{
                             backgroundColor: notification.type === "low_stock" ? "#FFA500" :
                                            notification.type === "expiring_lot" ? "#FF4444" :
                                            notification.type === "refill_due" ? "#4CAF50" :
                                            notification.type === "claim_rejected" ? "#FF6B6B" : "#666"
                           }}>
-                            {notification.type === "low_stock" && "📦"}
-                            {notification.type === "expiring_lot" && "⏰"}
-                            {notification.type === "refill_due" && "💊"}
-                            {notification.type === "claim_rejected" && "❌"}
+                            {notification.type === "low_stock" && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                            )}
+                            {notification.type === "expiring_lot" && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            )}
+                            {notification.type === "refill_due" && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
+                            )}
+                            {notification.type === "claim_rejected" && (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                            )}
                           </div>
 
                           <div className="flex-1 min-w-0">

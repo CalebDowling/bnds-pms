@@ -1,3 +1,19 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { getReorderStatus } from "@/lib/inventory/reorder-check";
+
+interface ReorderItem {
+  itemId: string;
+  itemName: string;
+  ndc?: string;
+  currentStock: number;
+  reorderPoint: number;
+  reorderQuantity: number;
+  severity: "critical" | "low";
+}
+
 function getRelativeTime(minutesAgo: number): { text: string; isRecent: boolean } {
   if (minutesAgo < 5) return { text: `${minutesAgo}m ago`, isRecent: true };
   if (minutesAgo < 60) return { text: `${minutesAgo}m ago`, isRecent: false };
@@ -22,16 +38,36 @@ function VerifiedIcon() {
 }
 
 export default function RightRail() {
+  const [lowStockItems, setLowStockItems] = useState<ReorderItem[]>([]);
+  const [criticalItems, setCriticalItems] = useState<ReorderItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadReorderStatus = async () => {
+      try {
+        const result = await getReorderStatus();
+        setCriticalItems(result.critical.slice(0, 2));
+        setLowStockItems(result.low.slice(0, 3));
+      } catch (error) {
+        console.error("Failed to load reorder status:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadReorderStatus();
+    // Refresh every 5 minutes
+    const interval = setInterval(loadReorderStatus, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const recentActivity = [
     { rxNum: "714367", patient: "Destini Broussard", copay: "$250.00", profit: "$248.22", minutesAgo: 2 },
     { rxNum: "714360", patient: "Kayley Mancuso", copay: "$350.00", profit: "$342.44", minutesAgo: 12 },
     { rxNum: "714355", patient: "Mary Johnson", copay: "$45.00", profit: "$38.12", minutesAgo: 75 },
   ];
 
-  const lowStock = [
-    { name: "Progesterone USP", remaining: 2, reorderAt: 10 },
-    { name: "Testosterone Cypionate", remaining: 4, reorderAt: 8 },
-  ];
+  const allStockAlerts = [...criticalItems, ...lowStockItems];
 
   return (
     <div>
@@ -73,26 +109,63 @@ export default function RightRail() {
         </div>
       </div>
 
-      {/* Low Stock */}
-      <div className="bg-[var(--card-bg)] rounded-[10px] border border-[var(--border)] overflow-hidden">
-        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-gray-500 px-4 pt-3.5 pb-2">
-          Low Stock
-          <span className="text-[10px] bg-[var(--amber-100)] text-[var(--amber-700)] px-1.5 py-px rounded font-semibold">{lowStock.length}</span>
-        </div>
-        <div className="divide-y divide-[var(--border-light)]">
-          {lowStock.map((item) => (
-            <div
-              key={item.name}
-              className="px-4 py-3 border-l-[3px] border-l-[var(--amber-500)] cursor-pointer hover:bg-gray-50 transition-colors group"
+      {/* Stock Alerts */}
+      {!isLoading && allStockAlerts.length > 0 && (
+        <div className="bg-[var(--card-bg)] rounded-[10px] border border-[var(--border)] overflow-hidden">
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-gray-500 px-4 pt-3.5 pb-2">
+            Stock Alerts
+            <Link
+              href="/inventory"
+              className="text-[10px] font-semibold text-[#40721D] hover:underline"
             >
-              <div className="text-[13px] font-semibold text-[var(--amber-600)] mb-1.5">{item.name}</div>
-              <div className="text-[11px] text-[var(--text-muted)] group-hover:text-[var(--amber-700)] transition-colors">
-                <span className="font-tabular">{item.remaining}</span> remaining · Reorder at <span className="font-tabular">{item.reorderAt}</span>
-              </div>
-            </div>
-          ))}
+              View All
+            </Link>
+          </div>
+          <div className="divide-y divide-[var(--border-light)]">
+            {/* Critical Items */}
+            {criticalItems.map((item) => (
+              <Link
+                key={item.itemId}
+                href={`/inventory/${item.itemId}`}
+                className="px-4 py-3 border-l-[3px] border-l-red-500 cursor-pointer hover:bg-red-50 transition-colors group block"
+              >
+                <div className="text-[13px] font-semibold text-red-600 mb-1.5 truncate group-hover:text-red-700">
+                  {item.itemName}
+                </div>
+                <div className="text-[11px] text-[var(--text-muted)] group-hover:text-red-700 transition-colors">
+                  <span className="font-tabular">0</span> in stock · Reorder <span className="font-tabular">{item.reorderQuantity.toFixed(0)}</span>
+                </div>
+              </Link>
+            ))}
+
+            {/* Low Stock Items */}
+            {lowStockItems.map((item) => (
+              <Link
+                key={item.itemId}
+                href={`/inventory/${item.itemId}`}
+                className="px-4 py-3 border-l-[3px] border-l-amber-500 cursor-pointer hover:bg-amber-50 transition-colors group block"
+              >
+                <div className="text-[13px] font-semibold text-[var(--amber-600)] mb-1.5 truncate group-hover:text-amber-700">
+                  {item.itemName}
+                </div>
+                <div className="text-[11px] text-[var(--text-muted)] group-hover:text-amber-700 transition-colors">
+                  <span className="font-tabular">{item.currentStock.toFixed(0)}</span> remaining · Reorder at <span className="font-tabular">{item.reorderPoint.toFixed(0)}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && allStockAlerts.length === 0 && (
+        <div className="bg-[var(--card-bg)] rounded-[10px] border border-[var(--border)] overflow-hidden p-4">
+          <div className="text-center">
+            <div className="text-2xl mb-2">✓</div>
+            <p className="text-sm text-[var(--text-muted)]">All stock levels are healthy</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

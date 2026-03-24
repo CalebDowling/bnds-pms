@@ -12,21 +12,21 @@ export function SkeletonCard({ className = "" }: SkeletonCardProps) {
       {/* Header skeleton */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">
-          <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
-          <div className="h-3 bg-gray-100 rounded w-32 animate-pulse" />
+          <div className="h-4 bg-gray-200 rounded w-24 skeleton-shimmer" />
+          <div className="h-3 bg-gray-100 rounded w-32 skeleton-shimmer" />
         </div>
-        <div className="w-10 h-10 bg-gray-200 rounded-lg animate-pulse" />
+        <div className="w-10 h-10 bg-gray-200 rounded-lg skeleton-shimmer" />
       </div>
 
       {/* Main content skeleton */}
       <div className="space-y-2 py-2">
-        <div className="h-8 bg-gray-200 rounded w-16 animate-pulse" />
-        <div className="h-3 bg-gray-100 rounded w-20 animate-pulse" />
+        <div className="h-8 bg-gray-200 rounded w-16 skeleton-shimmer" />
+        <div className="h-3 bg-gray-100 rounded w-20 skeleton-shimmer" />
       </div>
 
       {/* Footer skeleton */}
       <div className="pt-2 border-t border-gray-100">
-        <div className="h-3 bg-gray-100 rounded w-24 animate-pulse" />
+        <div className="h-3 bg-gray-100 rounded w-24 skeleton-shimmer" />
       </div>
     </div>
   );
@@ -50,7 +50,7 @@ export function SkeletonTable({
         {Array.from({ length: columns }).map((_, i) => (
           <div key={`header-${i}`} className="flex-1">
             <div
-              className="h-4 bg-gray-200 rounded animate-pulse"
+              className="h-4 bg-gray-200 rounded skeleton-shimmer"
               style={{ width: `${60 + Math.random() * 40}%` }}
             />
           </div>
@@ -66,7 +66,7 @@ export function SkeletonTable({
           {Array.from({ length: columns }).map((_, colIdx) => (
             <div key={`cell-${rowIdx}-${colIdx}`} className="flex-1">
               <div
-                className="h-4 bg-gray-200 rounded animate-pulse"
+                className="h-4 bg-gray-200 rounded skeleton-shimmer"
                 style={{ width: `${70 + Math.random() * 30}%` }}
               />
             </div>
@@ -93,7 +93,7 @@ export function SkeletonText({
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={`line-${i}`}
-          className="h-4 bg-gray-200 rounded animate-pulse"
+          className="h-4 bg-gray-200 rounded skeleton-shimmer"
           style={{
             width: i === lines - 1 ? width : "100%",
           }}
@@ -114,9 +114,9 @@ export function SkeletonStat({
 }: SkeletonStatProps) {
   return (
     <div className={`space-y-3 ${className}`}>
-      {showLabel && <div className="h-3 bg-gray-200 rounded w-20 animate-pulse" />}
-      <div className="h-10 bg-gray-200 rounded w-32 animate-pulse" />
-      <div className="h-3 bg-gray-100 rounded w-24 animate-pulse" />
+      {showLabel && <div className="h-3 bg-gray-200 rounded w-20 skeleton-shimmer" />}
+      <div className="h-10 bg-gray-200 rounded w-32 skeleton-shimmer" />
+      <div className="h-3 bg-gray-100 rounded w-24 skeleton-shimmer" />
     </div>
   );
 }
@@ -128,12 +128,12 @@ interface SkeletonPipelineProps {
 export function SkeletonPipeline({ className = "" }: SkeletonPipelineProps) {
   return (
     <div className={`bg-white rounded-xl border border-gray-200 p-4 ${className}`}>
-      <div className="h-4 bg-gray-200 rounded w-32 mb-4 animate-pulse" />
+      <div className="h-4 bg-gray-200 rounded w-32 mb-4 skeleton-shimmer" />
       <div className="space-y-2">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={`stage-${i}`} className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-gray-200 rounded-full flex-shrink-0 animate-pulse" />
-            <div className="flex-1 h-3 bg-gray-100 rounded animate-pulse" />
+            <div className="w-3 h-3 bg-gray-200 rounded-full flex-shrink-0 skeleton-shimmer" />
+            <div className="flex-1 h-3 bg-gray-100 rounded skeleton-shimmer" />
           </div>
         ))}
       </div>

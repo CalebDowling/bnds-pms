@@ -1,11 +1,29 @@
-import { getDailyFillReport, getInventoryReport, getBatchReport, getAnalytics } from "./actions";
+import { getDailyFillReport, getInventoryReport, getBatchReport, getAnalytics, getRxVolumeData, getRevenueByCategory, getTopDrugs, getTurnaroundTimes } from "./actions";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import ReportsExportButton from "@/components/dashboard/ReportsExportButton";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import ReportsDashboard from "./ReportsDashboard";
 import type { PrescriptionFillWithRelations, CompoundingBatchWithRelations } from "@/types";
 
 export const dynamic = "force-dynamic";
+
+// Wrapper action to refresh dashboard data
+async function refreshDashboardData(startDate: string, endDate: string) {
+  "use server";
+  const [rxVolume, revenueByCategory, topDrugs, turnaroundTimes] = await Promise.all([
+    getRxVolumeData(startDate, endDate),
+    getRevenueByCategory(startDate, endDate),
+    getTopDrugs(startDate, endDate, 10),
+    getTurnaroundTimes(startDate, endDate),
+  ]);
+  return {
+    rxVolume,
+    revenueByCategory,
+    topDrugs,
+    turnaroundTimes,
+  };
+}
 
 async function ReportsPageContent({
   searchParams,
@@ -13,9 +31,10 @@ async function ReportsPageContent({
   searchParams: Promise<{ tab?: string; date?: string; startDate?: string; endDate?: string }>;
 }) {
   const params = await searchParams;
-  const tab = params.tab || "analytics";
+  const tab = params.tab || "dashboard";
 
   const TABS = [
+    { id: "dashboard", label: "Dashboard" },
     { id: "analytics", label: "Analytics" },
     { id: "fills", label: "Daily Fills" },
     { id: "inventory", label: "Inventory" },
@@ -43,11 +62,46 @@ async function ReportsPageContent({
         ))}
       </div>
 
+      {tab === "dashboard" && <DashboardTab startDate={params.startDate} endDate={params.endDate} />}
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "fills" && <DailyFillsTab date={params.date} />}
       {tab === "inventory" && <InventoryTab />}
       {tab === "batches" && <BatchTab startDate={params.startDate} endDate={params.endDate} />}
     </div>
+  );
+}
+
+async function DashboardTab({
+  startDate: initialStartDate = "",
+  endDate: initialEndDate = "",
+}: {
+  startDate?: string;
+  endDate?: string;
+}) {
+  // Calculate default date range (last 30 days)
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const startDate = initialStartDate || thirtyDaysAgo.toISOString().split("T")[0];
+  const endDate = initialEndDate || today.toISOString().split("T")[0];
+
+  const [rxVolume, revenueByCategory, topDrugs, turnaroundTimes] = await Promise.all([
+    getRxVolumeData(startDate, endDate),
+    getRevenueByCategory(startDate, endDate),
+    getTopDrugs(startDate, endDate, 10),
+    getTurnaroundTimes(startDate, endDate),
+  ]);
+
+  return (
+    <ReportsDashboard
+      initialRxVolume={rxVolume}
+      initialRevenueByCategory={revenueByCategory}
+      initialTopDrugs={topDrugs}
+      initialTurnaroundTimes={turnaroundTimes}
+      startDate={startDate}
+      endDate={endDate}
+      onDataRefresh={refreshDashboardData}
+    />
   );
 }
 

@@ -10,6 +10,8 @@ import SessionTimeoutProvider from "@/components/providers/SessionTimeoutProvide
 import ToastContainer from "@/components/ui/ToastContainer";
 import ToastProvider from "@/components/providers/ToastProvider";
 import ShadowModeBanner from "@/components/dashboard/ShadowModeBanner";
+import CommandPalette from "@/components/ui/CommandPalette";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import { PermissionsMap } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -60,10 +62,14 @@ export default async function DashboardLayout({
               <DashboardHeader />
               <QueueBar />
               <DashboardSearch />
-              <main className="p-0">
+              <CommandPalette />
+              <Breadcrumbs />
+              <main id="main-content" className="p-0" role="main">
                 <RealtimeProvider>{children}</RealtimeProvider>
               </main>
-              <ToastContainer />
+              <div aria-live="polite" aria-atomic="true">
+                <ToastContainer />
+              </div>
             </div>
           </SessionTimeoutProvider>
         </KeyboardShortcutsProvider>

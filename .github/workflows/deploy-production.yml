@@ -1,3 +1,7 @@
+# NOTE: If using Vercel's Git integration for auto-deploys, this workflow may be unnecessary.
+# Vercel automatically deploys on push to connected branches.
+# Keep this if you need custom deployment logic (Docker builds, custom health checks, etc.)
+
 name: Deploy to Production
 
 on:

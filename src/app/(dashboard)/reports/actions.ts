@@ -298,6 +298,210 @@ export async function getAnalytics() {
 }
 
 // ═══════════════════════════════════════════════
+// REPORTING DASHBOARD - NEW FUNCTIONS
+// ═══════════════════════════════════════════════
+
+export async function getRxVolumeData(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00.000-06:00`);
+  const end = new Date(`${endDate}T23:59:59.999-06:00`);
+
+  const dailyData = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
+    SELECT DATE(created_at AT TIME ZONE 'America/Chicago') as day, COUNT(*) as count
+    FROM prescription_fills
+    WHERE created_at >= ${start}
+      AND created_at <= ${end}
+    GROUP BY day
+    ORDER BY day ASC
+  `;
+
+  return dailyData.map(d => ({
+    date: new Date(d.day).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    volume: Number(d.count),
+  }));
+}
+
+export async function getRevenueByCategory(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00.000-06:00`);
+  const end = new Date(`${endDate}T23:59:59.999-06:00`);
+
+  // Get revenue breakdown by prescription type (compound vs retail vs mail-order)
+  const data = await prisma.prescriptionFill.groupBy({
+    by: ["status"],
+    where: {
+      createdAt: { gte: start, lte: end },
+    },
+    _sum: { totalPrice: true },
+    _count: true,
+  });
+
+  // Get compound vs non-compound breakdown
+  const byCompound = await prisma.prescriptionFill.groupBy({
+    by: [],
+    where: {
+      createdAt: { gte: start, lte: end },
+      prescription: { isCompound: true },
+    },
+    _sum: { totalPrice: true },
+  });
+
+  const nonCompound = await prisma.prescriptionFill.groupBy({
+    by: [],
+    where: {
+      createdAt: { gte: start, lte: end },
+      prescription: { isCompound: false },
+    },
+    _sum: { totalPrice: true },
+  });
+
+  const compoundRevenue = Number(byCompound[0]?._sum.totalPrice || 0);
+  const retailRevenue = Number(nonCompound[0]?._sum.totalPrice || 0);
+
+  return [
+    {
+      name: "Compounds",
+      value: compoundRevenue,
+      percentage: compoundRevenue + retailRevenue > 0
+        ? Math.round((compoundRevenue / (compoundRevenue + retailRevenue)) * 100)
+        : 0,
+    },
+    {
+      name: "Retail",
+      value: retailRevenue,
+      percentage: compoundRevenue + retailRevenue > 0
+        ? Math.round((retailRevenue / (compoundRevenue + retailRevenue)) * 100)
+        : 0,
+    },
+    {
+      name: "Mail Order",
+      value: 0, // Would need additional field in schema to track
+      percentage: 0,
+    },
+  ];
+}
+
+export async function getTopDrugs(startDate: string, endDate: string, limit: number = 10) {
+  const start = new Date(`${startDate}T00:00:00.000-06:00`);
+  const end = new Date(`${endDate}T23:59:59.999-06:00`);
+
+  const topDrugs = await prisma.prescriptionFill.groupBy({
+    by: ["itemId"],
+    where: {
+      createdAt: { gte: start, lte: end },
+      itemId: { not: null },
+    },
+    _count: true,
+    _sum: { totalPrice: true },
+    orderBy: { _count: "desc" },
+    take: limit,
+  });
+
+  // Get item details
+  const itemIds = topDrugs.map(d => d.itemId).filter(Boolean) as string[];
+  const items = await prisma.item.findMany({
+    where: { id: { in: itemIds } },
+    select: { id: true, name: true, strength: true },
+  });
+
+  const itemMap = new Map(items.map(i => [i.id, i]));
+
+  return topDrugs.map(d => {
+    const item = itemMap.get(d.itemId || "");
+    const name = item
+      ? `${item.name}${item.strength ? ` (${item.strength})` : ""}`
+      : "Unknown";
+    return {
+      name,
+      fills: d._count,
+      revenue: Number(d._sum.totalPrice || 0),
+    };
+  });
+}
+
+export async function getTurnaroundTimes(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00.000-06:00`);
+  const end = new Date(`${endDate}T23:59:59.999-06:00`);
+
+  // Get intake to fill times
+  const fills = await prisma.prescriptionFill.findMany({
+    where: {
+      createdAt: { gte: start, lte: end },
+      filledAt: { not: null },
+    },
+    select: {
+      id: true,
+      createdAt: true,
+      filledAt: true,
+      prescription: {
+        select: {
+          dateReceived: true,
+        },
+      },
+    },
+  });
+
+  if (fills.length === 0) {
+    return {
+      average: 0,
+      min: 0,
+      max: 0,
+      percentile95: 0,
+      byHour: [] as Array<{ hour: string; avgMinutes: number }>,
+    };
+  }
+
+  // Calculate turnaround times in minutes
+  const turnaroundTimes = fills
+    .map(f => {
+      const received = new Date(f.prescription.dateReceived).getTime();
+      const filled = new Date(f.filledAt!).getTime();
+      return (filled - received) / (1000 * 60); // minutes
+    })
+    .filter(t => t > 0);
+
+  if (turnaroundTimes.length === 0) {
+    return {
+      average: 0,
+      min: 0,
+      max: 0,
+      percentile95: 0,
+      byHour: [] as Array<{ hour: string; avgMinutes: number }>,
+    };
+  }
+
+  const sorted = [...turnaroundTimes].sort((a, b) => a - b);
+  const average = turnaroundTimes.reduce((a, b) => a + b, 0) / turnaroundTimes.length;
+  const percentile95 = sorted[Math.floor(sorted.length * 0.95)];
+
+  // Group by hour of day
+  const byHour: Record<number, number[]> = {};
+  fills.forEach(f => {
+    const hour = new Date(f.filledAt!).getHours();
+    const received = new Date(f.prescription.dateReceived).getTime();
+    const filled = new Date(f.filledAt!).getTime();
+    const minutes = (filled - received) / (1000 * 60);
+    if (minutes > 0) {
+      if (!byHour[hour]) byHour[hour] = [];
+      byHour[hour].push(minutes);
+    }
+  });
+
+  const byHourData = Object.entries(byHour)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([hour, times]) => ({
+      hour: `${hour}:00`,
+      avgMinutes: Math.round(times.reduce((a, b) => a + b, 0) / times.length),
+    }));
+
+  return {
+    average: Math.round(average),
+    min: Math.round(Math.min(...turnaroundTimes)),
+    max: Math.round(Math.max(...turnaroundTimes)),
+    percentile95: Math.round(percentile95),
+    byHour: byHourData,
+  };
+}
+
+// ═══════════════════════════════════════════════
 // REVENUE & TURNAROUND REPORTS
 // ═══════════════════════════════════════════════
 

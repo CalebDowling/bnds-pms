@@ -1,24 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getPatientFromRequest } from "@/lib/patient-auth";
+import { getSupabaseSession } from "@/lib/supabase-auth";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify patient from token
-    const patient = await getPatientFromRequest(request);
+    // Verify patient from Supabase Auth token
+    const authContext = await getSupabaseSession(request);
 
-    if (!patient) {
+    if (!authContext) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    // Find patient record by email
+    const patient = await prisma.patient.findFirst({
+      where: {
+        email: authContext.email,
+        status: "active",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!patient) {
+      return NextResponse.json(
+        { error: "Patient record not found" },
+        { status: 404 }
+      );
+    }
+
     // Fetch all prescriptions for the patient
     const prescriptions = await prisma.prescription.findMany({
       where: {
-        patientId: patient.patientId,
+        patientId: patient.id,
         isActive: true,
       },
       select: {

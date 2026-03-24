@@ -1,23 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getPatientFromRequest } from "@/lib/patient-auth";
+import { getSupabaseSession } from "@/lib/supabase-auth";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify patient from token
-    const patient = await getPatientFromRequest(request);
+    // Verify patient from Supabase Auth token
+    const authContext = await getSupabaseSession(request);
 
-    if (!patient) {
+    if (!authContext) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    // Find patient record by email
+    const patient = await prisma.patient.findFirst({
+      where: {
+        email: authContext.email,
+        status: "active",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!patient) {
+      return NextResponse.json(
+        { error: "Patient record not found" },
+        { status: 404 }
+      );
+    }
+
     // Fetch full patient profile with related data
     const patientData = await prisma.patient.findUnique({
-      where: { id: patient.patientId },
+      where: { id: patient.id },
       select: {
         id: true,
         firstName: true,
@@ -29,7 +47,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         preferredContact: true,
         gender: true,
         phoneNumbers: {
-          where: { patient: { id: patient.patientId } },
+          where: { patientId: patient.id },
           select: {
             number: true,
             phoneType: true,

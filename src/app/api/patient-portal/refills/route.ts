@@ -1,17 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getPatientFromRequest } from "@/lib/patient-auth";
+import { getSupabaseSession } from "@/lib/supabase-auth";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify patient from token
-    const patient = await getPatientFromRequest(request);
+    // Verify patient from Supabase Auth token
+    const authContext = await getSupabaseSession(request);
 
-    if (!patient) {
+    if (!authContext) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Find patient record by email
+    const patient = await prisma.patient.findFirst({
+      where: {
+        email: authContext.email,
+        status: "active",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!patient) {
+      return NextResponse.json(
+        { error: "Patient record not found" },
+        { status: 404 }
       );
     }
 
@@ -44,7 +62,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (prescription.patientId !== patient.patientId) {
+    if (prescription.patientId !== patient.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -71,7 +89,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const refillRequest = await prisma.refillRequest.create({
       data: {
         prescriptionId,
-        patientId: patient.patientId,
+        patientId: patient.id,
         source: "patient_portal",
         status: "pending",
         notes: notes || null,
@@ -105,20 +123,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify patient from token
-    const patient = await getPatientFromRequest(request);
+    // Verify patient from Supabase Auth token
+    const authContext = await getSupabaseSession(request);
 
-    if (!patient) {
+    if (!authContext) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    // Find patient record by email
+    const patient = await prisma.patient.findFirst({
+      where: {
+        email: authContext.email,
+        status: "active",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!patient) {
+      return NextResponse.json(
+        { error: "Patient record not found" },
+        { status: 404 }
+      );
+    }
+
     // Fetch refill request history for the patient
     const refillRequests = await prisma.refillRequest.findMany({
       where: {
-        patientId: patient.patientId,
+        patientId: patient.id,
       },
       select: {
         id: true,

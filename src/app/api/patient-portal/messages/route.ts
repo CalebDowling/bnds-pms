@@ -1,17 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getPatientFromRequest } from "@/lib/patient-auth";
+import { getSupabaseSession } from "@/lib/supabase-auth";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify patient from token
-    const patient = await getPatientFromRequest(request);
+    // Verify patient from Supabase Auth token
+    const authContext = await getSupabaseSession(request);
 
-    if (!patient) {
+    if (!authContext) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Find patient record by email
+    const patient = await prisma.patient.findFirst({
+      where: {
+        email: authContext.email,
+        status: "active",
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    if (!patient) {
+      return NextResponse.json(
+        { error: "Patient record not found" },
+        { status: 404 }
       );
     }
 
@@ -35,10 +55,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         message: message,
         metadata: {
           messageType: "patient_message",
-          patientId: patient.patientId,
+          patientId: patient.id,
           patientName: `${patient.firstName} ${patient.lastName}`,
           senderType: "patient",
-          threadId: `patient_${patient.patientId}_${Date.now()}`,
+          threadId: `patient_${patient.id}_${Date.now()}`,
         },
       },
     });
@@ -65,13 +85,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify patient from token
-    const patient = await getPatientFromRequest(request);
+    // Verify patient from Supabase Auth token
+    const authContext = await getSupabaseSession(request);
 
-    if (!patient) {
+    if (!authContext) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Find patient record by email
+    const patient = await prisma.patient.findFirst({
+      where: {
+        email: authContext.email,
+        status: "active",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!patient) {
+      return NextResponse.json(
+        { error: "Patient record not found" },
+        { status: 404 }
       );
     }
 
@@ -81,7 +119,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where: {
         metadata: {
           path: ["patientId"],
-          equals: patient.patientId,
+          equals: patient.id,
         },
       },
       select: {
