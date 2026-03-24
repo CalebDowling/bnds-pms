@@ -12,6 +12,7 @@ import ToastProvider from "@/components/providers/ToastProvider";
 import ShadowModeBanner from "@/components/dashboard/ShadowModeBanner";
 import CommandPalette from "@/components/ui/CommandPalette";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
+import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import { PermissionsMap } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +71,7 @@ export default async function DashboardLayout({
               <div aria-live="polite" aria-atomic="true">
                 <ToastContainer />
               </div>
+              <MobileBottomNav />
             </div>
           </SessionTimeoutProvider>
         </KeyboardShortcutsProvider>

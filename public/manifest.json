@@ -1,0 +1,25 @@
+{
+  "name": "BNDS Pharmacy Management System",
+  "short_name": "BNDS PMS",
+  "description": "Boudreaux's New Drug Store - Pharmacy Management System",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#40721D",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/logo.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "productivity", "business"]
+}

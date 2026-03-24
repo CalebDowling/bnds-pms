@@ -569,3 +569,261 @@ textarea::selection {
   margin: 0 4px;
   user-select: none;
 }
+
+/* ══════════════════════════════════════════════
+   ROUND 2: Mobile Bottom Navigation
+   ══════════════════════════════════════════════ */
+
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+  padding: 6px 0 env(safe-area-inset-bottom, 8px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="dark"] .mobile-bottom-nav {
+  background: rgba(19, 21, 28, 0.95);
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 640px) {
+  .mobile-bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+
+  /* Add bottom padding to main content so it's not hidden behind bottom nav */
+  main#main-content {
+    padding-bottom: 72px !important;
+  }
+}
+
+.mobile-bottom-nav a,
+.mobile-bottom-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 12px;
+  border: none;
+  background: none;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: color var(--duration-fast) var(--ease-out);
+  min-width: 56px;
+  cursor: pointer;
+}
+
+.mobile-bottom-nav a.active,
+.mobile-bottom-nav button.active {
+  color: var(--color-primary);
+}
+
+.mobile-bottom-nav svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.75;
+}
+
+/* ══════════════════════════════════════════════
+   ROUND 2: Dark Mode Deep Refinements
+   ══════════════════════════════════════════════ */
+
+[data-theme="dark"] {
+  --color-primary: #5A9A2F;
+  --color-primary-light: #7AB55C;
+  --color-primary-dark: #40721D;
+  --color-success: #34d399;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-bg: #0a0b0f;
+  --color-surface: #13151c;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-green-tint: rgba(64, 114, 29, 0.1);
+  --green-700: #5A9A2F;
+  --green-600: #4cb868;
+  --green-500: #6dd58c;
+  --green-100: rgba(64, 114, 29, 0.15);
+  --green-50: rgba(64, 114, 29, 0.08);
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .card-hover:hover {
+  border-color: rgba(90, 154, 47, 0.3);
+  box-shadow: 0 4px 12px rgba(90, 154, 47, 0.15);
+}
+
+[data-theme="dark"] .search-animated:focus-within {
+  border-color: #5A9A2F;
+  box-shadow: 0 0 0 3px rgba(90, 154, 47, 0.15);
+}
+
+[data-theme="dark"] ::selection {
+  background-color: rgba(90, 154, 47, 0.4);
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Dark mode status badges */
+[data-theme="dark"] .bg-green-50 { background: rgba(16, 185, 129, 0.1) !important; }
+[data-theme="dark"] .bg-red-50 { background: rgba(239, 68, 68, 0.1) !important; }
+[data-theme="dark"] .bg-yellow-50 { background: rgba(245, 158, 11, 0.1) !important; }
+[data-theme="dark"] .bg-blue-50 { background: rgba(59, 130, 246, 0.1) !important; }
+[data-theme="dark"] .bg-purple-50 { background: rgba(139, 92, 246, 0.1) !important; }
+[data-theme="dark"] .bg-orange-100 { background: rgba(249, 115, 22, 0.1) !important; }
+[data-theme="dark"] .bg-purple-100 { background: rgba(139, 92, 246, 0.1) !important; }
+[data-theme="dark"] .bg-blue-100 { background: rgba(59, 130, 246, 0.1) !important; }
+[data-theme="dark"] .bg-amber-50 { background: rgba(245, 158, 11, 0.1) !important; }
+
+/* ══════════════════════════════════════════════
+   ROUND 2: Print Stylesheet
+   ══════════════════════════════════════════════ */
+
+@media print {
+  /* Hide non-print elements */
+  .navbar-glass,
+  .mobile-bottom-nav,
+  .skip-to-main,
+  .command-palette-backdrop,
+  nav[aria-label="Breadcrumb"],
+  button,
+  .mobile-scroll-x,
+  [role="status"] {
+    display: none !important;
+  }
+
+  /* Reset backgrounds */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+
+  main#main-content {
+    padding: 0 !important;
+  }
+
+  /* Clean up cards for print */
+  .card-gradient-border,
+  .card-hover {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    transform: none !important;
+    break-inside: avoid;
+  }
+
+  .card-gradient-border::before {
+    display: none;
+  }
+
+  /* Table formatting */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 4px 8px !important;
+    font-size: 10pt;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  /* Force color for status badges */
+  .bg-green-50, .bg-red-50, .bg-yellow-50, .bg-blue-50 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1cm;
+    size: landscape;
+  }
+
+  /* Show URLs for links */
+  a[href^="/"]::after {
+    content: none;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   ROUND 2: Sparkline Inline Styles
+   ══════════════════════════════════════════════ */
+
+.sparkline-container {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 24px;
+}
+
+.sparkline-bar {
+  width: 3px;
+  border-radius: 1px 1px 0 0;
+  background: var(--color-primary);
+  opacity: 0.6;
+  transition: opacity var(--duration-fast);
+}
+
+.sparkline-bar:last-child {
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════════════
+   ROUND 2: Drag-and-Drop Styles
+   ══════════════════════════════════════════════ */
+
+.drag-handle {
+  cursor: grab;
+  opacity: 0.4;
+  transition: opacity var(--duration-fast);
+}
+
+.drag-handle:hover {
+  opacity: 0.8;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+}
+
+.drag-over {
+  border: 2px dashed var(--color-primary) !important;
+  background: var(--green-50) !important;
+}
