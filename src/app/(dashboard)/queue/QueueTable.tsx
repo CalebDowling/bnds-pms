@@ -30,7 +30,7 @@ const COLUMNS: { key: ColKey; label: string }[] = [
   { key: "status", label: "Status" },
 ];
 
-const COL_COUNT = COLUMNS.length + 2; // +1 checkbox, +1 actions column
+const COL_COUNT = COLUMNS.length + 1; // +1 for checkbox column
 
 // ─── Bulk action definitions ────────────────────
 const BULK_ACTIONS = [
@@ -41,14 +41,6 @@ const BULK_ACTIONS = [
   { key: "assign", label: "Assign", icon: UserPlus, bg: "#f59e0b", hover: "#d97706" },
 ] as const;
 
-// Row-level actions (always visible on each row)
-const ROW_ACTIONS = [
-  { key: "print", label: "Print", icon: Printer, bg: "#40721D" },
-  { key: "scan", label: "Scan", icon: ScanLine, bg: "#0d9488" },
-  { key: "edit", label: "Edit", icon: Pencil, bg: "#2563eb" },
-  { key: "verify", label: "Verify", icon: CheckCircle, bg: "#10b981" },
-  { key: "assign", label: "Assign", icon: UserPlus, bg: "#f59e0b" },
-] as const;
 
 // ─── Sort arrow icon ────────────────────────────
 function SortIcon({ dir }: { dir: SortDir }) {
@@ -316,9 +308,6 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
     alert(`${action} action on ${count} fill(s):\n${ids.join(", ")}`);
   }
 
-  function handleRowAction(action: string, fill: QueueFill) {
-    alert(`${action}: Rx ${fill.rxId} — ${fill.patientName}\n(Fill ID: ${fill.fillId})`);
-  }
 
   // Filter then sort
   const processed = useMemo(() => {
@@ -394,10 +383,6 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                   title={allSelected ? "Deselect all" : "Select all"}
                 />
               </th>
-              {/* Actions column header — left side */}
-              <th className="text-center px-2 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider border-l border-gray-200 whitespace-nowrap">
-                Actions
-              </th>
               {COLUMNS.map((col, i) => (
                 <th
                   key={col.key}
@@ -458,26 +443,6 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                           className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-4 h-4 cursor-pointer"
                         />
                       </td>
-                      {/* Inline row actions — always visible, left side */}
-                      <td className="px-2 py-1.5 border-l border-gray-200" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-1">
-                          {ROW_ACTIONS.map((action) => {
-                            const Icon = action.icon;
-                            return (
-                              <button
-                                key={action.key}
-                                onClick={() => handleRowAction(action.label, fill)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-white transition-all hover:scale-110 hover:shadow-sm active:scale-95"
-                                style={{ backgroundColor: action.bg }}
-                                title={action.label}
-                              >
-                                <Icon size={12} />
-                                <span className="hidden xl:inline">{action.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </td>
                       {/* RX — monospace, bold, green accent */}
                       <td className="px-3 py-2.5">
                         <span className="text-sm font-mono font-bold text-[#40721D]">{fill.rxId}</span>
@@ -537,54 +502,33 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
         </table>
       </div>
 
-      {/* ─── Sticky Bulk Action Bar ─────────────────── */}
-      {someSelected && (
-        <div
-          className="sticky bottom-0 left-0 right-0 z-40 border-t border-gray-200"
-          style={{
-            background: "rgba(255, 255, 255, 0.85)",
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
-            animation: "float-in 0.2s ease forwards",
-          }}
-        >
-          <div className="flex items-center justify-between px-4 py-3">
-            {/* Left: selection count */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-bold text-gray-900">
-                {selectedRows.size} selected
-              </span>
+      {/* ─── Always-Visible Action Bar (bottom of table) ─── */}
+      <div className="border-t border-gray-200 bg-gray-50 px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          {BULK_ACTIONS.map((action) => {
+            const Icon = action.icon;
+            return (
               <button
-                onClick={deselectAll}
-                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                key={action.key}
+                onClick={() => handleBulkAction(action.label)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:scale-105 hover:shadow-md active:scale-95"
+                style={{ backgroundColor: action.bg }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = action.hover; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = action.bg; }}
               >
-                <X size={12} />
-                Deselect
+                <Icon size={15} />
+                {action.label}
               </button>
-            </div>
-
-            {/* Right: action buttons */}
-            <div className="flex items-center gap-2">
-              {BULK_ACTIONS.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <button
-                    key={action.key}
-                    onClick={() => handleBulkAction(action.label)}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all hover:scale-105 hover:shadow-md active:scale-95"
-                    style={{ backgroundColor: action.bg }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = action.hover; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = action.bg; }}
-                  >
-                    <Icon size={15} />
-                    {action.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+            );
+          })}
+          {someSelected && (
+            <span className="ml-auto text-xs text-gray-500">
+              {selectedRows.size} selected
+              <button onClick={deselectAll} className="ml-2 text-[#40721D] hover:underline">clear</button>
+            </span>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
