@@ -647,17 +647,18 @@ export async function fetchCustomQueueCounts(): Promise<Record<string, number>> 
 
 // ─── Custom queue fills by tag name ──────────────────
 // Custom queues are based on fill tags, not DRX statuses.
-// To list fills for a custom queue, we need to:
-// 1. Find the fill tag ID by name (paginate /fill-tags)
-// 2. Query /prescription-fills with the tag filter param
-
-const TAG_FILTER_PARAMS_LIST = ["prescription_fill_tag_id", "fill_tag_id", "tag_id", "tag"];
+// The DRX /prescription-fills endpoint does NOT support filtering by tag.
+// Strategy:
+// 1. Find the tag by name in /fill-tags (paginate to find it)
+// 2. Get the fill IDs from the tag's prescription_fills array
+// 3. Fetch individual fills via /prescription-fill/{id} with concurrency
 
 /**
- * Find a fill tag ID by name from the DRX /fill-tags endpoint.
+ * Find a fill tag by name from the DRX /fill-tags endpoint.
+ * Returns the tag's fill IDs (prescription_fill_id values).
  * Paginates through all tags to find a case-insensitive match.
  */
-async function findFillTagId(tagName: string): Promise<number | null> {
+async function findFillTag(tagName: string): Promise<{ id: number; fillIds: number[] } | null> {
   const targetLower = tagName.toLowerCase().trim();
   let offset = 0;
   const PAGE_LIMIT = 100;
@@ -671,8 +672,11 @@ async function findFillTagId(tagName: string): Promise<number | null> {
 
     for (const tag of tags) {
       if ((tag.name || "").toLowerCase().trim() === targetLower) {
-        console.log(`[DRX] Found fill tag "${tagName}" → id=${tag.id}`);
-        return tag.id;
+        const fillIds = Array.isArray(tag.prescription_fills)
+          ? tag.prescription_fills.map((f) => f.prescription_fill_id).filter(Boolean)
+          : [];
+        console.log(`[DRX] Found fill tag "${tagName}" → id=${tag.id}, ${fillIds.length} fill IDs`);
+        return { id: tag.id, fillIds };
       }
     }
 
@@ -693,6 +697,7 @@ export function isCustomQueue(drxName: string): boolean {
 
 /**
  * Fetch fills for a custom queue (tag-based) from the external API.
+ * Gets fill IDs from the tag, then fetches each fill by ID.
  * Returns the total count and a page of fill records.
  */
 export async function fetchFillsByTagName(
@@ -700,41 +705,35 @@ export async function fetchFillsByTagName(
   limit: number,
   offset: number
 ): Promise<{ total: number; fills: Record<string, unknown>[] }> {
-  const tagId = await findFillTagId(tagName);
-  if (!tagId) return { total: 0, fills: [] };
+  const tag = await findFillTag(tagName);
+  if (!tag || tag.fillIds.length === 0) return { total: 0, fills: [] };
 
-  // Try each tag filter param to find one that works
-  for (const paramName of TAG_FILTER_PARAMS_LIST) {
-    try {
-      const raw = await drxFetch<Record<string, unknown>>("/prescription-fills", {
-        [paramName]: tagId,
-        limit,
-        offset,
-      });
-      if (raw && typeof raw.total === "number" && raw.total < 10000) {
-        // Extract fills array from response
-        let fills: Record<string, unknown>[] = [];
-        if (Array.isArray(raw.fills)) {
-          fills = raw.fills as Record<string, unknown>[];
-        } else {
-          // Find first array in response
-          for (const value of Object.values(raw)) {
-            if (Array.isArray(value)) {
-              fills = value as Record<string, unknown>[];
-              break;
-            }
-          }
-        }
-        console.log(`[DRX] Tag "${tagName}" fills via ${paramName}: total=${raw.total}, page=${fills.length}`);
-        return { total: raw.total, fills };
+  const total = tag.fillIds.length;
+
+  // Paginate: take the slice of fill IDs for this page
+  const pageIds = tag.fillIds.slice(offset, offset + limit);
+  if (pageIds.length === 0) return { total, fills: [] };
+
+  // Fetch individual fills by ID with concurrency (5 at a time)
+  const CONCURRENCY = 5;
+  const fills: Record<string, unknown>[] = [];
+
+  for (let i = 0; i < pageIds.length; i += CONCURRENCY) {
+    const batch = pageIds.slice(i, i + CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map((fillId) =>
+        drxFetch<Record<string, unknown>>(`/prescription-fill/${fillId}`)
+      )
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value) {
+        fills.push(result.value);
       }
-    } catch {
-      // Try next param
     }
   }
 
-  console.log(`[DRX] No working tag filter for "${tagName}"`);
-  return { total: 0, fills: [] };
+  console.log(`[DRX] Tag "${tagName}": total=${total}, fetched ${fills.length}/${pageIds.length} fills (offset=${offset})`);
+  return { total, fills };
 }
 
 export async function fetchAllQueueCounts(): Promise<Record<string, number>> {
