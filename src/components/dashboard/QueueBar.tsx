@@ -14,7 +14,7 @@ interface QueueItem {
 
 // Queue items match DRX queue bar — same options, same order
 const defaultQueueItems: QueueItem[] = [
-  { label: "Intake", status: "intake", count: 0, tooltip: "View Intake Queue", href: "/intake" },
+  { label: "Intake", status: "intake", count: 0, tooltip: "View Intake Queue" },
   { label: "Sync", status: "sync", count: 0, tooltip: "View Sync Queue" },
   { label: "Reject", status: "reject", count: 0, tooltip: "View Rejected Claims" },
   { label: "Print", status: "print", count: 0, tooltip: "View Print Queue" },
@@ -22,7 +22,7 @@ const defaultQueueItems: QueueItem[] = [
   { label: "Verify", status: "verify", count: 0, tooltip: "View Verification Queue" },
   { label: "OOS", status: "oos", count: 0, tooltip: "View Out of Stock" },
   { label: "Waiting Bin", status: "waiting_bin", count: 0, tooltip: "View Waiting Bin" },
-  { label: "Renewals", status: "renewals", count: 0, tooltip: "View Renewals", href: "/refills" },
+  { label: "Renewals", status: "renewals", count: 0, tooltip: "View Renewals" },
   { label: "Todo", status: "todo", count: 0, tooltip: "View Todo Queue" },
   { label: "price check", status: "price_check", count: 0, tooltip: "View Price Check Queue" },
   { label: "prepay", status: "prepay", count: 0, tooltip: "View Prepay Queue" },
@@ -72,7 +72,7 @@ export default function QueueBar() {
               {i > 0 && <div className="h-[1px] w-8 bg-gray-300 absolute -left-6" />}
               <div className="relative group">
                 <Link
-                  href={item.href || `/prescriptions?status=${item.status}`}
+                  href={item.href || `/queue?status=${item.status}`}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[20px] text-xs font-semibold cursor-pointer transition-all whitespace-nowrap no-underline"
                 >
                   <span
