@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getQueueFills, QUEUE_LABELS } from "./actions";
+import { getQueueFills } from "./actions";
+import { QUEUE_LABELS } from "./constants";
 import Pagination from "@/components/ui/Pagination";
 import { Suspense } from "react";
 
