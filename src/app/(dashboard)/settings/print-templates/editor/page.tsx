@@ -25,6 +25,22 @@ interface TemplateField {
   textAlign: "left" | "center" | "right";
   value: string; // for text: literal text, for variable: variable key
   rotation: number;
+  // DRX-specific fields preserved for accurate rendering
+  fontName?: string;
+  exampleText?: string;
+  labelGroup?: string;
+  forceUpperCase?: boolean;
+  maxTextLength?: number;
+  paragraphWidth?: number;
+  joinMultipleWith?: string;
+  formatting?: string;
+  ifElementData?: string;
+  ifDisplay?: string;
+  truthyOverride?: string;
+  falseyOverride?: string;
+  color?: string;
+  fillColor?: string;
+  textColor?: string;
 }
 
 interface TemplateData {
@@ -131,26 +147,58 @@ export default function TemplateEditorPage() {
         if (data?.template) {
           const stored = data.template;
           // Convert DRX elements to editor fields
-          const fields: TemplateField[] = (stored.elements || []).map((el: any, i: number) => ({
-            id: `el_${el.id || i}`,
-            type: el.displayBarcodeCode128 || el.displayBarcodeQr ? "barcode"
-              : el.displayBase64Jpeg || el.base64Image ? "image"
-              : "variable",
-            label: el.labelGroup?.name
-              ? `(${el.labelGroup.name}) ${el.elementData || "Element"}`
-              : el.elementData || `Element ${i + 1}`,
-            x: (el.xPosition || 0) * DPI,
-            y: (el.yPosition || 0) * DPI,
-            width: (el.width || 1) * DPI,
-            height: (el.height || 0.2) * DPI,
-            fontSize: el.fontSize || 10,
-            fontWeight: el.fontStyle?.includes("Bold") ? "bold" as const : "normal" as const,
-            fontStyle: el.fontStyle?.includes("Italic") ? "italic" as const : "normal" as const,
-            textDecoration: "none" as const,
-            textAlign: (el.textAlign || "left") as "left" | "center" | "right",
-            value: el.elementData || el.exampleText || "",
-            rotation: el.rotationAngle || 0,
-          }));
+          // DRX positions are in inches; multiply by DPI to get pixels
+          const fields: TemplateField[] = (stored.elements || []).map((el: any, i: number) => {
+            const xInches = el.xPosition || 0;
+            const yInches = el.yPosition || 0;
+            // DRX often has null width/height for auto-sized text
+            // Estimate based on font size and example text length
+            const estChars = (el.exampleText || el.elementData || "").length || 10;
+            const fontPt = el.fontSize || 10;
+            const estWidthInches = el.width || Math.min(Math.max(estChars * fontPt * 0.007, 0.5), stored.pageWidth - xInches);
+            const estHeightInches = el.height || (fontPt * 0.018);
+            // Parse font style from DRX format (e.g., "bold", "bold italic", "normal")
+            const style = (el.fontStyle || "").toLowerCase();
+            const isBold = style.includes("bold");
+            const isItalic = style.includes("italic");
+
+            return {
+              id: `el_${el.id || i}`,
+              type: el.displayBarcodeCode128 || el.displayBarcodeQr ? "barcode" as const
+                : el.displayBase64Jpeg || el.base64Image ? "image" as const
+                : "variable" as const,
+              label: el.labelGroup?.name
+                ? `(${el.labelGroup.name}) ${el.elementData || "Element"}`
+                : el.elementData || `Element ${i + 1}`,
+              x: xInches * DPI,
+              y: yInches * DPI,
+              width: estWidthInches * DPI,
+              height: estHeightInches * DPI,
+              fontSize: fontPt,
+              fontWeight: isBold ? "bold" as const : "normal" as const,
+              fontStyle: isItalic ? "italic" as const : "normal" as const,
+              textDecoration: "none" as const,
+              textAlign: (el.textAlign || "left") as "left" | "center" | "right",
+              value: el.elementData || "",
+              rotation: el.rotationAngle || 0,
+              // Preserve DRX-specific data
+              fontName: el.fontName,
+              exampleText: el.exampleText,
+              labelGroup: el.labelGroup?.name,
+              forceUpperCase: el.forceUpperCase,
+              maxTextLength: el.maxTextLength,
+              paragraphWidth: el.paragraphWidth,
+              joinMultipleWith: el.joinMultipleWith,
+              formatting: el.formatting,
+              ifElementData: el.ifElementData,
+              ifDisplay: el.ifDisplay,
+              truthyOverride: el.truthyOverride,
+              falseyOverride: el.falseyOverride,
+              color: el.color,
+              fillColor: el.fillColor,
+              textColor: el.textColor,
+            };
+          });
 
           setTemplate({
             id: stored.id || templateId,
@@ -276,6 +324,16 @@ export default function TemplateEditorPage() {
     const isSelected = selectedFieldId === field.id;
     const isBarcode = field.type === "barcode" || field.value.includes("barcode") || field.value.includes("qr_code");
     const isLine = field.type === "line";
+    const isImage = field.type === "image";
+    const hasRotation = field.rotation && field.rotation !== 0;
+
+    // Display text: prefer example text for DRX variables, fall back to label
+    const displayText = field.exampleText
+      || (field.value.startsWith("{{") ? field.label : field.value)
+      || field.label;
+
+    // Apply uppercase if DRX says so
+    const finalText = field.forceUpperCase ? displayText.toUpperCase() : displayText;
 
     return (
       <div
@@ -294,13 +352,19 @@ export default function TemplateEditorPage() {
           textAlign: field.textAlign as any,
           lineHeight: 1.2,
           overflow: "hidden",
-          background: isLine ? "#000" : isBarcode ? "#f3f4f6" : "transparent",
+          background: isLine ? "#000" : isBarcode ? "#f3f4f6" : field.fillColor || "transparent",
+          color: field.textColor || (field.value.startsWith("{{") ? "#40721D" : "#000"),
           borderRadius: isBarcode ? 2 : 0,
           display: "flex",
           alignItems: isBarcode ? "center" : "flex-start",
           justifyContent: field.textAlign === "center" ? "center" : field.textAlign === "right" ? "flex-end" : "flex-start",
           padding: isBarcode ? `0 ${4 * zoom}px` : 0,
+          fontFamily: field.fontName || "helvetica, sans-serif",
+          transform: hasRotation ? `rotate(${field.rotation}deg)` : undefined,
+          transformOrigin: hasRotation ? "top left" : undefined,
+          whiteSpace: "nowrap",
         }}
+        title={`${field.labelGroup ? `[${field.labelGroup}] ` : ""}${field.value}${field.exampleText ? ` → "${field.exampleText}"` : ""}`}
       >
         {isBarcode ? (
           <div className="flex flex-col items-center justify-center w-full" style={{ fontSize: 8 * zoom }}>
@@ -311,9 +375,13 @@ export default function TemplateEditorPage() {
             </div>
             <span className="text-gray-500 mt-0.5" style={{ fontSize: 7 * zoom }}>{field.label}</span>
           </div>
+        ) : isImage ? (
+          <div className="flex items-center justify-center w-full h-full bg-gray-100 border border-gray-300 text-gray-400" style={{ fontSize: 8 * zoom }}>
+            IMG
+          </div>
         ) : isLine ? null : (
-          <span className="truncate w-full block" style={{ color: field.value.startsWith("{{") ? "#40721D" : "#000" }}>
-            {field.value.startsWith("{{") ? field.label : field.value || field.label}
+          <span className="w-full block" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            {finalText}
           </span>
         )}
       </div>
@@ -626,13 +694,20 @@ export default function TemplateEditorPage() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-4">Click a field on the canvas to edit its properties. Drag fields to reposition.</p>
-                <div className="text-xs text-gray-400">
-                  <p className="font-semibold mb-1">Fields on canvas: {template.fields.length}</p>
+                <div className="text-xs text-gray-400 max-h-[400px] overflow-y-auto">
+                  <p className="font-semibold mb-1 sticky top-0 bg-white py-1">Fields on canvas: {template.fields.length}</p>
                   {template.fields.map((f) => (
-                    <div key={f.id} className="flex items-center gap-1.5 py-0.5 cursor-pointer hover:text-gray-600"
+                    <div key={f.id}
+                      className={`flex items-center gap-1.5 py-1 px-1 cursor-pointer rounded transition-colors ${selectedFieldId === f.id ? "bg-[#40721D]/10 text-[#40721D]" : "hover:bg-gray-100 hover:text-gray-600"}`}
                       onClick={() => setSelectedFieldId(f.id)}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />
-                      <span className="truncate">{f.label}</span>
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${selectedFieldId === f.id ? "bg-[#40721D]" : "bg-gray-300"}`} />
+                      <div className="truncate flex-1 min-w-0">
+                        <span className="truncate block">{f.labelGroup ? `[${f.labelGroup}] ` : ""}{f.value || f.label}</span>
+                        {f.exampleText && (
+                          <span className="truncate block text-[9px] text-gray-400">{f.exampleText}</span>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-gray-300 flex-shrink-0">{f.fontSize}pt</span>
                     </div>
                   ))}
                 </div>
