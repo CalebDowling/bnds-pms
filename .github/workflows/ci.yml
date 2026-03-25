@@ -112,3 +112,36 @@ jobs:
 
       - name: Check for Schema Drift
         run: npx prisma generate --no-engine
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Dependency Audit
+        run: npm audit --audit-level=high || true
+
+      - name: Check for Known Vulnerabilities
+        run: npx audit-ci --high
+
+      - name: CodeQL Analysis
+        if: github.event_name == 'push'
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: CodeQL Autobuild
+        if: github.event_name == 'push'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: CodeQL Results
+        if: github.event_name == 'push'
+        uses: github/codeql-action/analyze@v3

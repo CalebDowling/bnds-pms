@@ -1200,3 +1200,4 @@ textarea::selection {
   transform: translateY(-4px);
   transition: opacity 0.15s var(--ease-in-out), transform 0.15s var(--ease-in-out);
 }
+

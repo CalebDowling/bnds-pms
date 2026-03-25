@@ -100,11 +100,35 @@ jobs:
 
       # Configure for your hosting platform (same options as staging)
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Run Prisma Migrations
-        run: echo "TODO - Run prisma migrate deploy against production DB"
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
+        run: npx prisma migrate deploy
 
       - name: Health Check
-        run: echo "TODO - Configure PRODUCTION_URL in repo variables"
+        run: |
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_URL }}/api/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS, retrying in 15s..."
+            sleep 15
+          done
+          echo "::error::Health check failed after 5 attempts"
+          exit 1
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')

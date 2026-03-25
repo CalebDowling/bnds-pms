@@ -95,15 +95,31 @@ jobs:
       #       docker compose up -d
       # ------------------------------------------------
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Run Prisma Migrations
-        run: echo "TODO - Run prisma migrate deploy against staging DB"
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.STAGING_DIRECT_URL }}
+        run: npx prisma migrate deploy
 
       - name: Health Check
         run: |
-          echo "TODO - Configure STAGING_URL in repo variables"
-          # for i in {1..30}; do
-          #   STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.STAGING_APP_URL }}/api/health || true)
-          #   if [ "$STATUS" = "200" ]; then echo "Staging is healthy"; exit 0; fi
-          #   sleep 2
-          # done
-          # echo "Health check failed"; exit 1
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.STAGING_APP_URL }}/api/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Staging is healthy"
+              exit 0
+            fi
+            echo "Attempt $i: status $STATUS, retrying in 10s..."
+            sleep 10
+          done
+          echo "::warning::Health check did not pass — verify staging manually"
