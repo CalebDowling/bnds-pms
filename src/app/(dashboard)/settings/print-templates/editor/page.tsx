@@ -147,17 +147,19 @@ export default function TemplateEditorPage() {
         if (data?.template) {
           const stored = data.template;
           // Convert DRX elements to editor fields
-          // DRX uses inches for positions. For -90° rotated elements on a portrait label:
-          // DRX x = vertical position from left edge of label (0 = left, pageWidth = right)
-          // DRX y = horizontal position along the label length (0 = top)
-          // In the editor we render the label as portrait, so we need to map:
-          //   editor x = drx y (horizontal position along length)
-          //   editor y = drx x (vertical position, but measured from left)
-          // For -90° rotation, text flows rightward from the (x,y) anchor point
-          const pageW = stored.pageWidth || 4;
-          const pageH = stored.pageHeight || 8;
+          // DRX pharmacy labels are often 4"W x 8"H but printed sideways with -90° rotation
+          // Detect if this is a rotated label by checking element rotations
+          const rawPageW = stored.pageWidth || 4;
+          const rawPageH = stored.pageHeight || 8;
+          const elements = stored.elements || [];
+          const rotatedCount = elements.filter((e: any) => Math.abs(e.rotationAngle || 0) === 90 || (e.rotationAngle || 0) === 270).length;
+          const isRotatedLabel = rotatedCount > elements.length * 0.5;
 
-          const fields: TemplateField[] = (stored.elements || []).map((el: any, i: number) => {
+          // For rotated labels, swap canvas to landscape (8" wide x 4" tall)
+          const canvasW = isRotatedLabel ? rawPageH : rawPageW;
+          const canvasH = isRotatedLabel ? rawPageW : rawPageH;
+
+          const fields: TemplateField[] = elements.map((el: any, i: number) => {
             const drxX = el.xPosition || 0;
             const drxY = el.yPosition || 0;
             const rot = el.rotationAngle || 0;
@@ -165,39 +167,42 @@ export default function TemplateEditorPage() {
             const estChars = (el.exampleText || el.elementData || "").length || 10;
 
             let editorX: number, editorY: number, editorW: number, editorH: number;
-            const lineH = fontPt * 1.3; // line height in pixels
+            const lineH = fontPt * 1.3;
 
-            if (rot === -90 || rot === 270) {
-              // Rotated -90°: DRX x = vertical row, DRX y = horizontal start
-              // Text flows rightward from anchor, so width = remaining page length
-              const remainingH = pageH - drxY;
-              const textLenInches = el.paragraphWidth || Math.min(estChars * fontPt * 0.006, remainingH);
+            if (isRotatedLabel && (rot === -90 || rot === 270)) {
+              // Most common case: rotated label with -90° elements
+              // DRX x (0-4) maps to editor Y (vertical row), DRX y (0-8) maps to editor X
+              const remainingX = rawPageH - drxY;
+              const textLenInches = el.paragraphWidth || Math.min(estChars * fontPt * 0.006, remainingX);
               editorX = drxY * DPI;
-              editorY = (pageW - drxX) * DPI;
-              // Clamp width so it doesn't exceed the canvas
-              editorW = Math.min(textLenInches, remainingH) * DPI;
+              editorY = (rawPageW - drxX) * DPI;
+              editorW = Math.min(textLenInches, remainingX) * DPI;
               editorH = lineH;
-            } else if (rot === 90) {
-              const remainingH = drxY; // text flows leftward
-              const textLenInches = el.paragraphWidth || Math.min(estChars * fontPt * 0.006, remainingH);
-              editorX = (pageH - drxY) * DPI;
+            } else if (isRotatedLabel && rot === 90) {
+              editorX = (rawPageH - drxY) * DPI;
               editorY = drxX * DPI;
-              editorW = Math.min(textLenInches, pageH) * DPI;
+              editorW = (el.paragraphWidth || Math.min(estChars * fontPt * 0.006, drxY)) * DPI;
               editorH = lineH;
+            } else if (isRotatedLabel) {
+              // Non-rotated element on a rotated label — swap axes
+              editorX = drxY * DPI;
+              editorY = (rawPageW - drxX) * DPI;
+              editorW = (el.width || estChars * fontPt * 0.006) * DPI;
+              editorH = (el.height || fontPt * 0.016) * DPI;
             } else {
-              // No rotation — direct mapping
-              const remainingW = pageW - drxX;
+              // Normal non-rotated label
               editorX = drxX * DPI;
               editorY = drxY * DPI;
-              editorW = Math.min(el.width || estChars * fontPt * 0.006, remainingW) * DPI;
+              editorW = (el.width || Math.min(estChars * fontPt * 0.006, rawPageW - drxX)) * DPI;
               editorH = (el.height || fontPt * 0.016) * DPI;
             }
 
-            // Final clamp: ensure nothing goes past canvas edge
-            const maxX = pageW * DPI;
-            const maxY = pageH * DPI;
-            if (editorX + editorW > maxX) editorW = Math.max(20, maxX - editorX);
+            // Final clamp to canvas bounds
+            const maxX = canvasW * DPI;
+            const maxY = canvasH * DPI;
+            if (editorX < 0) editorX = 0;
             if (editorY < 0) editorY = 0;
+            if (editorX + editorW > maxX) editorW = Math.max(20, maxX - editorX);
             if (editorY + editorH > maxY) editorH = Math.max(10, maxY - editorY);
 
             const style = (el.fontStyle || "").toLowerCase();
@@ -245,8 +250,8 @@ export default function TemplateEditorPage() {
           setTemplate({
             id: stored.id || templateId,
             name: stored.name || `Template ${templateId}`,
-            width: stored.pageWidth || 4,
-            height: stored.pageHeight || 8,
+            width: canvasW,
+            height: canvasH,
             type: stored.type || "Rx Label",
             fields,
           });
