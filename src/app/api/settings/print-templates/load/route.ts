@@ -6,8 +6,13 @@ export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const storeId = (user as any)?.storeId;
-  if (!storeId) return NextResponse.json({ error: "No store assigned" }, { status: 400 });
+  // Try user's storeId first, fall back to first store in DB
+  let storeId = (user as any)?.storeId;
+  if (!storeId) {
+    const store = await prisma.store.findFirst();
+    storeId = store?.id;
+  }
+  if (!storeId) return NextResponse.json({ template: null });
 
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing template id" }, { status: 400 });
