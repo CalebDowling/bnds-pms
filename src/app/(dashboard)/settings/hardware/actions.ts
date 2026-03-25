@@ -4,6 +4,16 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 
+export interface ScaleConfig {
+  id: string;
+  model: "Ohaus Scout" | "Ohaus Explorer" | "Ohaus Adventurer" | "Other";
+  ipAddress: string;
+  port: number;
+  unit: "g" | "mg" | "oz" | "lb";
+  name: string;
+  enabled: boolean;
+}
+
 export interface HardwareConfig {
   labelPrinter: {
     name: string;
@@ -21,6 +31,7 @@ export interface HardwareConfig {
     type: "Serial" | "Network" | "USB";
     name?: string;
   };
+  scales: ScaleConfig[];
 }
 
 const DEFAULT_CONFIG: HardwareConfig = {
@@ -28,6 +39,7 @@ const DEFAULT_CONFIG: HardwareConfig = {
   receiptPrinter: { name: "", paperWidth: "3" },
   barcodeScanner: { type: "USB", name: "" },
   cashDrawer: { type: "Serial", name: "" },
+  scales: [],
 };
 
 // ═══════════════════════════════════════════════

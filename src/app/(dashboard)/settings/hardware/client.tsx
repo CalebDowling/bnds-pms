@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ScaleConfig } from "./actions";
 
 interface HardwareConfig {
   labelPrinter: {
@@ -19,6 +20,7 @@ interface HardwareConfig {
     type: "Serial" | "Network" | "USB";
     name?: string;
   };
+  scales: ScaleConfig[];
 }
 
 interface HardwareClientProps {
@@ -26,10 +28,16 @@ interface HardwareClientProps {
 }
 
 export default function HardwareClient({ initialConfig }: HardwareClientProps) {
-  const [config, setConfig] = useState<HardwareConfig>(initialConfig);
+  const [config, setConfig] = useState<HardwareConfig>({
+    ...initialConfig,
+    scales: initialConfig.scales || [],
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [expandedScale, setExpandedScale] = useState<string | null>(null);
+  const [testingScale, setTestingScale] = useState<string | null>(null);
+  const [scaleTestResult, setScaleTestResult] = useState<Record<string, { success: boolean; message: string }>>({});
 
   const handleSave = async () => {
     setError("");
@@ -142,6 +150,59 @@ export default function HardwareClient({ initialConfig }: HardwareClientProps) {
       setSuccess(`Detected ${devices.length} devices`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Device detection failed");
+    }
+  };
+
+  const handleAddScale = () => {
+    const newScale: ScaleConfig = {
+      id: crypto.randomUUID(),
+      model: "Ohaus Scout",
+      ipAddress: "",
+      port: 9100,
+      unit: "g",
+      name: `Scale ${config.scales.length + 1}`,
+      enabled: true,
+    };
+    setConfig({ ...config, scales: [...config.scales, newScale] });
+    setExpandedScale(newScale.id);
+  };
+
+  const handleRemoveScale = (id: string) => {
+    setConfig({ ...config, scales: config.scales.filter((s) => s.id !== id) });
+    if (expandedScale === id) setExpandedScale(null);
+  };
+
+  const handleUpdateScale = (id: string, updates: Partial<ScaleConfig>) => {
+    setConfig({
+      ...config,
+      scales: config.scales.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+    });
+  };
+
+  const handleTestScale = async (scale: ScaleConfig) => {
+    if (!scale.ipAddress) {
+      setScaleTestResult({ ...scaleTestResult, [scale.id]: { success: false, message: "IP address required" } });
+      return;
+    }
+    setTestingScale(scale.id);
+    setScaleTestResult({ ...scaleTestResult, [scale.id]: { success: false, message: "" } });
+
+    try {
+      const res = await fetch("/api/hardware/test-scale", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ipAddress: scale.ipAddress, port: scale.port }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setScaleTestResult({ ...scaleTestResult, [scale.id]: { success: true, message: `Connected! Weight: ${data.weight} ${data.unit}` } });
+      } else {
+        setScaleTestResult({ ...scaleTestResult, [scale.id]: { success: false, message: data.error || "Connection failed" } });
+      }
+    } catch {
+      setScaleTestResult({ ...scaleTestResult, [scale.id]: { success: false, message: "Network error" } });
+    } finally {
+      setTestingScale(null);
     }
   };
 
@@ -412,6 +473,165 @@ export default function HardwareClient({ initialConfig }: HardwareClientProps) {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Ohaus Scales */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden mt-4">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-semibold text-gray-900">Ohaus Scales</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Connect compounding scales via IP network</p>
+            </div>
+            <button
+              onClick={handleAddScale}
+              className="px-3 py-1.5 bg-[#40721D] text-white rounded text-sm font-medium hover:bg-[#2D5114]"
+            >
+              + Add Scale
+            </button>
+          </div>
+
+          {config.scales.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-sm border border-dashed border-gray-200 rounded-lg">
+              No scales configured. Click &quot;Add Scale&quot; to connect an Ohaus scale.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {config.scales.map((scale) => {
+                const isExpanded = expandedScale === scale.id;
+                const testResult = scaleTestResult[scale.id];
+                const isTesting = testingScale === scale.id;
+
+                return (
+                  <div key={scale.id} className="border border-gray-200 rounded-lg">
+                    {/* Scale Row Header */}
+                    <div
+                      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50"
+                      onClick={() => setExpandedScale(isExpanded ? null : scale.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">&#9878;</span>
+                        <div>
+                          <span className="font-medium text-gray-900 text-sm">{scale.name || "Unnamed Scale"}</span>
+                          <span className="text-xs text-gray-400 ml-2">{scale.model}</span>
+                        </div>
+                        {scale.ipAddress && (
+                          <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded">
+                            {scale.ipAddress}:{scale.port}
+                          </span>
+                        )}
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                          scale.enabled ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-500"
+                        }`}>
+                          {scale.enabled ? "Enabled" : "Disabled"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleTestScale(scale)}
+                          disabled={isTesting || !scale.ipAddress}
+                          className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {isTesting ? "Testing..." : "Test Connection"}
+                        </button>
+                        <button
+                          onClick={() => handleRemoveScale(scale.id)}
+                          className="px-2 py-1 text-red-500 hover:bg-red-50 rounded text-sm"
+                          title="Remove scale"
+                        >
+                          &#10005;
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Test Result */}
+                    {testResult && testResult.message && (
+                      <div className={`mx-4 mb-2 px-3 py-2 rounded text-xs ${
+                        testResult.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                      }`}>
+                        {testResult.message}
+                      </div>
+                    )}
+
+                    {/* Expanded Edit Form */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Scale Name</label>
+                            <input
+                              type="text"
+                              value={scale.name}
+                              onChange={(e) => handleUpdateScale(scale.id, { name: e.target.value })}
+                              placeholder="e.g., Compounding Station 1"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                            <select
+                              value={scale.model}
+                              onChange={(e) => handleUpdateScale(scale.id, { model: e.target.value as ScaleConfig["model"] })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                              <option value="Ohaus Scout">Ohaus Scout</option>
+                              <option value="Ohaus Explorer">Ohaus Explorer</option>
+                              <option value="Ohaus Adventurer">Ohaus Adventurer</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Weight Unit</label>
+                            <select
+                              value={scale.unit}
+                              onChange={(e) => handleUpdateScale(scale.id, { unit: e.target.value as ScaleConfig["unit"] })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                              <option value="g">Grams (g)</option>
+                              <option value="mg">Milligrams (mg)</option>
+                              <option value="oz">Ounces (oz)</option>
+                              <option value="lb">Pounds (lb)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">IP Address</label>
+                            <input
+                              type="text"
+                              value={scale.ipAddress}
+                              onChange={(e) => handleUpdateScale(scale.id, { ipAddress: e.target.value })}
+                              placeholder="192.168.1.50"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                            <input
+                              type="number"
+                              value={scale.port}
+                              onChange={(e) => handleUpdateScale(scale.id, { port: parseInt(e.target.value) || 9100 })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono"
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={scale.enabled}
+                                onChange={(e) => handleUpdateScale(scale.id, { enabled: e.target.checked })}
+                                className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-4 h-4"
+                              />
+                              <span className="text-sm font-medium text-gray-700">Enabled</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
