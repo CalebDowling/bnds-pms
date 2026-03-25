@@ -165,27 +165,40 @@ export default function TemplateEditorPage() {
             const estChars = (el.exampleText || el.elementData || "").length || 10;
 
             let editorX: number, editorY: number, editorW: number, editorH: number;
+            const lineH = fontPt * 1.3; // line height in pixels
 
             if (rot === -90 || rot === 270) {
-              // Rotated -90°: DRX x becomes vertical row, DRX y becomes horizontal start
-              // Text flows horizontally (rightward) from anchor
-              const textLenInches = el.paragraphWidth || Math.min(estChars * fontPt * 0.007, pageH - drxY);
+              // Rotated -90°: DRX x = vertical row, DRX y = horizontal start
+              // Text flows rightward from anchor, so width = remaining page length
+              const remainingH = pageH - drxY;
+              const textLenInches = el.paragraphWidth || Math.min(estChars * fontPt * 0.006, remainingH);
               editorX = drxY * DPI;
-              editorY = (pageW - drxX) * DPI; // flip vertical axis
-              editorW = textLenInches * DPI;
-              editorH = (fontPt * 1.4); // line height in pixels
+              editorY = (pageW - drxX) * DPI;
+              // Clamp width so it doesn't exceed the canvas
+              editorW = Math.min(textLenInches, remainingH) * DPI;
+              editorH = lineH;
             } else if (rot === 90) {
+              const remainingH = drxY; // text flows leftward
+              const textLenInches = el.paragraphWidth || Math.min(estChars * fontPt * 0.006, remainingH);
               editorX = (pageH - drxY) * DPI;
               editorY = drxX * DPI;
-              editorW = (el.paragraphWidth || estChars * fontPt * 0.007) * DPI;
-              editorH = (fontPt * 1.4);
+              editorW = Math.min(textLenInches, pageH) * DPI;
+              editorH = lineH;
             } else {
               // No rotation — direct mapping
+              const remainingW = pageW - drxX;
               editorX = drxX * DPI;
               editorY = drxY * DPI;
-              editorW = (el.width || Math.min(estChars * fontPt * 0.007, pageW - drxX)) * DPI;
-              editorH = (el.height || fontPt * 0.018) * DPI;
+              editorW = Math.min(el.width || estChars * fontPt * 0.006, remainingW) * DPI;
+              editorH = (el.height || fontPt * 0.016) * DPI;
             }
+
+            // Final clamp: ensure nothing goes past canvas edge
+            const maxX = pageW * DPI;
+            const maxY = pageH * DPI;
+            if (editorX + editorW > maxX) editorW = Math.max(20, maxX - editorX);
+            if (editorY < 0) editorY = 0;
+            if (editorY + editorH > maxY) editorH = Math.max(10, maxY - editorY);
 
             const style = (el.fontStyle || "").toLowerCase();
             const isBold = style.includes("bold");
