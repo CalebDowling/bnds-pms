@@ -389,11 +389,12 @@ export default function PrintTemplatesPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Size</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase w-20">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400 text-sm">No templates match your filters</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400 text-sm">No templates match your filters</td></tr>
               ) : (
                 filtered.map((t) => {
                   const Icon = TYPE_ICONS[t.type] || FileText;
@@ -419,6 +420,12 @@ export default function PrintTemplatesPage() {
                         ) : (
                           <span className="text-xs text-gray-400">Available</span>
                         )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link href={`/settings/print-templates/editor?id=${t.id}`}
+                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-[#40721D] bg-[#40721D]/5 rounded hover:bg-[#40721D]/10 transition-colors">
+                          Edit
+                        </Link>
                       </td>
                     </tr>
                   );
