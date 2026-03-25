@@ -20,6 +20,34 @@ export default function ReportsExportButton({
   const [isExporting, setIsExporting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const handleExportPDF = async () => {
+    try {
+      setIsExporting(true);
+      let endpoint = `/api/reports/pdf?tab=${tab}`;
+      if (tab === "fills" && date) endpoint += `&date=${date}`;
+      if (tab === "batches" && startDate && endDate) {
+        endpoint += `&startDate=${startDate}&endDate=${endDate}`;
+      }
+      const response = await fetch(endpoint);
+      if (!response.ok) throw new Error(`PDF export failed: ${response.statusText}`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `report-${tab}-${date || startDate || new Date().toISOString().split("T")[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setIsOpen(false);
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      alert(error instanceof Error ? error.message : "Failed to export PDF.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleExportCSV = async () => {
     try {
       setIsExporting(true);
@@ -155,15 +183,27 @@ export default function ReportsExportButton({
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 shadow-lg z-10 overflow-hidden">
           <button
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Export PDF</p>
+              <p className="text-xs text-gray-500">Formatted report</p>
+            </div>
+          </button>
+
+          <div className="border-t border-gray-100" />
+
+          <button
             onClick={handleExportCSV}
             disabled={isExporting}
             className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            <svg
-              className="w-4 h-4 text-gray-600"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             </svg>
             <div>
@@ -179,11 +219,7 @@ export default function ReportsExportButton({
             disabled={isExporting}
             className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            <svg
-              className="w-4 h-4 text-green-600"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             </svg>
             <div>

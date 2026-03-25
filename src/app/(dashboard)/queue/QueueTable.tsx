@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, Fragment } from "react";
-import { Printer, ScanLine, Pencil, CheckCircle, UserPlus, X } from "lucide-react";
+import { Printer, ScanLine, Pencil, CheckCircle, UserPlus, X, MessageSquare } from "lucide-react";
 import type { QueueFill } from "./constants";
 
 function formatDate(dateStr: string | null): string {
@@ -39,6 +39,7 @@ const BULK_ACTIONS = [
   { key: "edit", label: "Edit", icon: Pencil, bg: "#2563eb", hover: "#1d4ed8" },
   { key: "verify", label: "Verify", icon: CheckCircle, bg: "#10b981", hover: "#059669" },
   { key: "assign", label: "Assign", icon: UserPlus, bg: "#f59e0b", hover: "#d97706" },
+  { key: "notify", label: "Notify", icon: MessageSquare, bg: "#8b5cf6", hover: "#7c3aed" },
 ] as const;
 
 
@@ -302,9 +303,47 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
     setSelectedRows(new Set());
   }
 
-  function handleBulkAction(action: string) {
-    const count = selectedRows.size;
+  const [notifyingRows, setNotifyingRows] = useState<Set<string>>(new Set());
+
+  async function handleBulkAction(action: string) {
     const ids = Array.from(selectedRows);
+
+    if (action === "Notify") {
+      const targetFills = processed.filter((f) => ids.includes(f.fillId) && f.phone);
+      if (targetFills.length === 0) {
+        alert("No selected fills have a phone number.");
+        return;
+      }
+      const confirmed = confirm(`Send pickup SMS to ${targetFills.length} patient(s)?`);
+      if (!confirmed) return;
+
+      setNotifyingRows(new Set(targetFills.map((f) => f.fillId)));
+      let sent = 0;
+      let failed = 0;
+      for (const fill of targetFills) {
+        try {
+          const res = await fetch("/api/notifications/sms-pickup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fillId: fill.fillId,
+              phone: fill.phone,
+              patientName: fill.patientName,
+              rxNumber: fill.rxId,
+            }),
+          });
+          if (res.ok) sent++;
+          else failed++;
+        } catch {
+          failed++;
+        }
+      }
+      setNotifyingRows(new Set());
+      alert(`Pickup SMS sent: ${sent} success, ${failed} failed`);
+      return;
+    }
+
+    const count = selectedRows.size;
     alert(`${action} action on ${count} fill(s):\n${ids.join(", ")}`);
   }
 
@@ -424,14 +463,14 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                   <Fragment key={fill.fillId}>
                     <tr
                       onClick={() => setExpandedRow(isExpanded ? null : fill.fillId)}
-                      className={`border-b border-gray-200 hover:bg-[#40721D]/5 transition-colors cursor-pointer ${
+                      className={`border-b border-gray-200 transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-[#40721D]/[0.08]"
+                          ? "bg-[#40721D]/[0.12] hover:bg-[#40721D]/[0.18]"
                           : isExpanded
-                          ? "bg-[#40721D]/5"
+                          ? "bg-[#40721D]/[0.08] hover:bg-[#40721D]/[0.12]"
                           : rowIdx % 2 === 0
-                          ? "bg-white"
-                          : "bg-gray-50/60"
+                          ? "bg-white hover:bg-[#40721D]/[0.08] hover:shadow-[inset_3px_0_0_#40721D]"
+                          : "bg-gray-50/60 hover:bg-[#40721D]/[0.08] hover:shadow-[inset_3px_0_0_#40721D]"
                       }`}
                     >
                       {/* Row checkbox */}

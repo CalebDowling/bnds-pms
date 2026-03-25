@@ -140,6 +140,55 @@ export async function GET(request: NextRequest) {
       });
       y += 14;
     }
+  } else if (tab === "batches") {
+    const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const end = endDate || new Date().toISOString().split("T")[0];
+    doc.fontSize(14).font("Helvetica-Bold").text(`Batch Log — ${start} to ${end}`);
+    doc.moveDown(0.5);
+
+    const batches = await prisma.batch.findMany({
+      where: {
+        createdAt: { gte: new Date(start), lte: new Date(end + "T23:59:59Z") },
+      },
+      include: {
+        formulaVersion: { include: { formula: { select: { name: true, formulaCode: true } } } },
+        compounder: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const cols = ["Batch #", "Formula", "Qty", "BUD", "Compounder", "Status"];
+    const colWidths = [80, 200, 60, 80, 120, 80];
+    let y = doc.y;
+
+    doc.fontSize(8).font("Helvetica-Bold");
+    cols.forEach((col, i) => {
+      const x = 40 + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+      doc.text(col, x, y, { width: colWidths[i] });
+    });
+    doc.moveTo(40, y + 12).lineTo(720, y + 12).stroke("#ccc");
+    y = y + 16;
+
+    doc.font("Helvetica").fontSize(8);
+    for (const batch of batches) {
+      if (y > 560) { doc.addPage(); y = 40; }
+      const row = [
+        batch.batchNumber,
+        `${batch.formulaVersion.formula.name} (${batch.formulaVersion.formula.formulaCode})`,
+        `${Number(batch.quantityPrepared)} ${batch.unit}`,
+        batch.budDate ? new Date(batch.budDate).toLocaleDateString("en-US") : "—",
+        `${batch.compounder.firstName} ${batch.compounder.lastName}`,
+        batch.status,
+      ];
+      row.forEach((cell, i) => {
+        const x = 40 + colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+        doc.text(cell, x, y, { width: colWidths[i] });
+      });
+      y += 14;
+    }
+
+    doc.moveDown(1);
+    doc.fontSize(9).font("Helvetica").text(`Total batches: ${batches.length}`, 40);
   }
 
   // Footer
