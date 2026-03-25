@@ -235,7 +235,7 @@ export default function HardwareClient({ initialConfig }: HardwareClientProps) {
       )}
 
       {/* Label Printer */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -295,7 +295,7 @@ export default function HardwareClient({ initialConfig }: HardwareClientProps) {
       </div>
 
       {/* Receipt Printer */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-4">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -356,7 +356,7 @@ export default function HardwareClient({ initialConfig }: HardwareClientProps) {
       </div>
 
       {/* Barcode Scanner */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-4">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -416,7 +416,7 @@ export default function HardwareClient({ initialConfig }: HardwareClientProps) {
       </div>
 
       {/* Cash Drawer */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-4">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -477,7 +477,7 @@ export default function HardwareClient({ initialConfig }: HardwareClientProps) {
       </div>
 
       {/* Ohaus Scales */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden mt-4">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-4">
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
