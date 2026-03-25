@@ -159,42 +159,57 @@ export default function TemplateEditorPage() {
           const canvasW = isRotatedLabel ? rawPageH : rawPageW;
           const canvasH = isRotatedLabel ? rawPageW : rawPageH;
 
+          // Estimate text width in inches based on font size and character count
+          function estTextWidth(chars: number, fontSize: number, pw?: number): number {
+            if (pw) return pw;
+            // Approximate: each character width ≈ fontSize * 0.6 / 72 inches
+            const charWidth = fontSize * 0.6 / 72;
+            return Math.max(chars * charWidth, 0.3);
+          }
+
           const fields: TemplateField[] = elements.map((el: any, i: number) => {
             const drxX = el.xPosition || 0;
             const drxY = el.yPosition || 0;
             const rot = el.rotationAngle || 0;
             const fontPt = el.fontSize || 10;
-            const estChars = (el.exampleText || el.elementData || "").length || 10;
+            const text = el.exampleText || el.elementData || "";
+            const estChars = text.length || 5;
 
             let editorX: number, editorY: number, editorW: number, editorH: number;
-            const lineH = fontPt * 1.3;
+            const lineH = fontPt * 1.4;
 
-            if (isRotatedLabel && (rot === -90 || rot === 270)) {
-              // Most common case: rotated label with -90° elements
-              // DRX x (0-4) maps to editor Y (vertical row), DRX y (0-8) maps to editor X
+            // Handle near-90° rotations (like -70°) same as -90° for positioning
+            const isNeg90 = rot === -90 || rot === 270;
+            const isNearNeg90 = rot <= -45 && rot > -90; // e.g., -70°
+            const isPos90 = rot === 90;
+
+            if (isRotatedLabel && (isNeg90 || isNearNeg90)) {
               const remainingX = rawPageH - drxY;
-              const textLenInches = el.paragraphWidth || Math.min(estChars * fontPt * 0.006, remainingX);
+              const textW = estTextWidth(estChars, fontPt, el.paragraphWidth);
               editorX = drxY * DPI;
               editorY = (rawPageW - drxX) * DPI;
-              editorW = Math.min(textLenInches, remainingX) * DPI;
+              editorW = Math.min(textW, remainingX) * DPI;
               editorH = lineH;
-            } else if (isRotatedLabel && rot === 90) {
+            } else if (isRotatedLabel && isPos90) {
+              const textW = estTextWidth(estChars, fontPt, el.paragraphWidth);
               editorX = (rawPageH - drxY) * DPI;
               editorY = drxX * DPI;
-              editorW = (el.paragraphWidth || Math.min(estChars * fontPt * 0.006, drxY)) * DPI;
+              editorW = Math.min(textW, drxY) * DPI;
               editorH = lineH;
             } else if (isRotatedLabel) {
-              // Non-rotated element on a rotated label — swap axes
+              // Non-standard rotation on rotated label — still swap axes
+              const textW = estTextWidth(estChars, fontPt, el.paragraphWidth || el.width);
               editorX = drxY * DPI;
               editorY = (rawPageW - drxX) * DPI;
-              editorW = (el.width || estChars * fontPt * 0.006) * DPI;
-              editorH = (el.height || fontPt * 0.016) * DPI;
+              editorW = textW * DPI;
+              editorH = (el.height || fontPt * 0.02) * DPI;
             } else {
               // Normal non-rotated label
+              const textW = estTextWidth(estChars, fontPt, el.paragraphWidth || el.width);
               editorX = drxX * DPI;
               editorY = drxY * DPI;
-              editorW = (el.width || Math.min(estChars * fontPt * 0.006, rawPageW - drxX)) * DPI;
-              editorH = (el.height || fontPt * 0.016) * DPI;
+              editorW = Math.min(textW, rawPageW - drxX) * DPI;
+              editorH = (el.height || fontPt * 0.02) * DPI;
             }
 
             // Final clamp to canvas bounds
