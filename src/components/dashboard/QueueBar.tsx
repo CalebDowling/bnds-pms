@@ -49,50 +49,38 @@ export default function QueueBar() {
   return (
     <div className="bg-[var(--card-bg)] px-6 py-3 border-b border-[var(--border)] flex items-center gap-4 overflow-x-auto relative card-gradient-border mobile-scroll-x" style={{ "--card-accent": "#40721d" } as React.CSSProperties}>
       <style>{`
-        @keyframes subtle-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(64, 114, 29, 0.4); }
-          50% { box-shadow: 0 0 0 3px rgba(64, 114, 29, 0.1); }
+        .queue-bar-label,
+        .queue-bar-count {
+          color: #000000 !important;
         }
-        @keyframes warning-glow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-          50% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1); }
+        [data-theme="dark"] .queue-bar-label,
+        [data-theme="dark"] .queue-bar-count {
+          color: #ffffff !important;
+        }
+        .queue-bar-header {
+          color: #000000 !important;
+        }
+        [data-theme="dark"] .queue-bar-header {
+          color: #ffffff !important;
         }
       `}</style>
-      <div className="text-[11px] font-bold uppercase tracking-wide text-black dark:text-white mr-2 whitespace-nowrap">
+      <div className="queue-bar-header text-[11px] font-bold uppercase tracking-wide mr-2 whitespace-nowrap">
         Queues
       </div>
       <div className="flex items-center gap-4">
         {queueItems.map((item, i) => {
-          const isActive = item.count > 0;
-          const isOOS = item.label === "OOS" && item.count > 0;
-          const isIntake = item.label === "Intake" && item.count > 0;
-
           return (
             <div key={item.status} className="flex items-center gap-2 relative">
-              {i > 0 && <div className="h-[1px] w-8 bg-black/30 dark:bg-white/30 absolute -left-6" />}
+              {i > 0 && <div className="h-[1px] w-8 absolute -left-6" style={{ background: "rgba(0,0,0,0.3)" }} />}
               <div className="relative group">
                 <Link
                   href={item.href || `/queue?status=${item.status}`}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[20px] text-xs font-semibold cursor-pointer transition-all whitespace-nowrap no-underline"
                 >
-                  <span
-                    className={`inline-flex items-center justify-center min-w-[24px] h-[24px] rounded-full text-[11px] font-mono tabular-nums font-bold px-1.5 transition-all ${
-                      isOOS
-                        ? "text-[#ef4444] animate-[warning-glow_2s_ease-out_infinite]"
-                        : isIntake
-                        ? "text-[#40721d] animate-[subtle-pulse_2s_ease-out_infinite]"
-                        : "text-black dark:text-white"
-                    }`}
-                  >
+                  <span className="queue-bar-count inline-flex items-center justify-center min-w-[24px] h-[24px] rounded-full text-[11px] font-mono tabular-nums font-bold px-1.5 transition-all">
                     {item.count}
                   </span>
-                  <span className={`text-xs font-semibold tracking-wide ${
-                    isOOS
-                      ? "text-[#ef4444]"
-                      : isIntake
-                      ? "text-[#40721d]"
-                      : "text-black dark:text-white"
-                  }`}>
+                  <span className="queue-bar-label text-xs font-semibold tracking-wide">
                     {item.label}
                   </span>
                 </Link>
