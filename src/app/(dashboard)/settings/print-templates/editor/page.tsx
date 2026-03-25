@@ -111,6 +111,7 @@ export default function TemplateEditorPage() {
   const templateId = Number(searchParams.get("id")) || 1;
 
   const [template, setTemplate] = useState<TemplateData>(getDefaultTemplate(templateId));
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1.5);
   const [isDragging, setIsDragging] = useState(false);
@@ -120,6 +121,50 @@ export default function TemplateEditorPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Load stored template data from database
+  useEffect(() => {
+    if (!templateId) { setIsLoading(false); return; }
+    fetch(`/api/settings/print-templates/load?id=${templateId}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.template) {
+          const stored = data.template;
+          // Convert DRX elements to editor fields
+          const fields: TemplateField[] = (stored.elements || []).map((el: any, i: number) => ({
+            id: `el_${el.id || i}`,
+            type: el.displayBarcodeCode128 || el.displayBarcodeQr ? "barcode"
+              : el.displayBase64Jpeg || el.base64Image ? "image"
+              : "variable",
+            label: el.labelGroup?.name
+              ? `(${el.labelGroup.name}) ${el.elementData || "Element"}`
+              : el.elementData || `Element ${i + 1}`,
+            x: (el.xPosition || 0) * DPI,
+            y: (el.yPosition || 0) * DPI,
+            width: (el.width || 1) * DPI,
+            height: (el.height || 0.2) * DPI,
+            fontSize: el.fontSize || 10,
+            fontWeight: el.fontStyle?.includes("Bold") ? "bold" as const : "normal" as const,
+            fontStyle: el.fontStyle?.includes("Italic") ? "italic" as const : "normal" as const,
+            textDecoration: "none" as const,
+            textAlign: (el.textAlign || "left") as "left" | "center" | "right",
+            value: el.elementData || el.exampleText || "",
+            rotation: el.rotationAngle || 0,
+          }));
+
+          setTemplate({
+            id: stored.id || templateId,
+            name: stored.name || `Template ${templateId}`,
+            width: stored.pageWidth || 4,
+            height: stored.pageHeight || 8,
+            type: stored.type || "Rx Label",
+            fields,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, [templateId]);
 
   const selectedField = template.fields.find((f) => f.id === selectedFieldId) || null;
 
@@ -271,6 +316,17 @@ export default function TemplateEditorPage() {
             {field.value.startsWith("{{") ? field.label : field.value || field.label}
           </span>
         )}
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-180px)]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#40721D] mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Loading template...</p>
+        </div>
       </div>
     );
   }
