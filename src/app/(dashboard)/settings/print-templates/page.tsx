@@ -11,105 +11,107 @@ interface PrintTemplate {
   size: string;
   type: "Rx Label" | "Batch" | "Register Receipt" | "Pull Cash" | "Daily Summary" | "Packing List" | "Package" | "MAR" | "SUB TEMPLATE";
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const ALL_TEMPLATES: PrintTemplate[] = [
   // Rx Labels
-  { id: 95, name: "Boudreaux CMPD-CA COPY", size: '4" X 8"', type: "Rx Label", isActive: false },
-  { id: 94, name: "Boudreaux CMPD spacing updates", size: '4" X 8"', type: "Rx Label", isActive: true },
-  { id: 93, name: "Boudreaux CMPD COPY-NY COPY", size: '4" X 8"', type: "Rx Label", isActive: false },
-  { id: 91, name: "New Label Template 1ce9f", size: '4" X 6"', type: "Package", isActive: false },
-  { id: 90, name: "New Label Template 6991a", size: '4" X 6"', type: "Rx Label", isActive: false },
-  { id: 89, name: "New Label Template e9d8d", size: '4" X 6"', type: "Rx Label", isActive: false },
-  { id: 88, name: "New Label Template 638b2", size: '4" X 6"', type: "Rx Label", isActive: false },
-  { id: 86, name: "Boudreaux CMPD-CA", size: '4" X 8"', type: "Rx Label", isActive: false },
-  { id: 32, name: "Boudreaux CMPD COPY-NY", size: '4" X 8"', type: "Rx Label", isActive: false },
-  { id: 31, name: "Boudreaux CMPD-NY", size: '4" X 8"', type: "Rx Label", isActive: false },
-  { id: 30, name: "Boudreaux CMPD V2", size: '4" X 8"', type: "Rx Label", isActive: true },
-  { id: 3, name: "Boudreaux REG", size: '4" X 8"', type: "Rx Label", isActive: false },
-  { id: 2, name: "Boudreaux v2", size: '4" X 8"', type: "Rx Label", isActive: false },
-  { id: 1, name: "Boudreaux CMPD", size: '4" X 8"', type: "Rx Label", isActive: false },
+  { id: 95, name: "Boudreaux CMPD-CA COPY", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "3/12/2026", updatedAt: "3/12/2026" },
+  { id: 94, name: "Boudreaux CMPD spacing updates", size: '4" X 8"', type: "Rx Label", isActive: true, createdAt: "3/5/2026", updatedAt: "3/24/2026" },
+  { id: 93, name: "Boudreaux CMPD COPY-NY COPY", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "2/26/2026", updatedAt: "3/12/2026" },
+  { id: 91, name: "New Label Template 1ce9f", size: '4" X 6"', type: "Package", isActive: false, createdAt: "2/2/2026", updatedAt: "2/2/2026" },
+  { id: 90, name: "New Label Template 6991a", size: '4" X 6"', type: "Rx Label", isActive: false, createdAt: "12/8/2025", updatedAt: "12/8/2025" },
+  { id: 89, name: "New Label Template e9d8d", size: '4" X 6"', type: "Rx Label", isActive: false, createdAt: "12/8/2025", updatedAt: "12/8/2025" },
+  { id: 88, name: "New Label Template 638b2", size: '4" X 6"', type: "Rx Label", isActive: false, createdAt: "12/8/2025", updatedAt: "12/8/2025" },
+  { id: 86, name: "Boudreaux CMPD-CA", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "8/15/2025", updatedAt: "3/12/2026" },
+  { id: 32, name: "Boudreaux CMPD COPY-NY", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "9/26/2024", updatedAt: "2/26/2026" },
+  { id: 31, name: "Boudreaux CMPD-NY", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "9/26/2024", updatedAt: "9/26/2024" },
+  { id: 30, name: "Boudreaux CMPD V2", size: '4" X 8"', type: "Rx Label", isActive: true, createdAt: "8/27/2024", updatedAt: "3/24/2026" },
+  { id: 3, name: "Boudreaux REG", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "5/6/2023", updatedAt: "12/11/2023" },
+  { id: 2, name: "Boudreaux v2", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "4/11/2022", updatedAt: "12/11/2023" },
+  { id: 1, name: "Boudreaux CMPD", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "4/11/2022", updatedAt: "2/25/2026" },
 
   // Batch Templates
-  { id: 29, name: "COMPOUND BATCH v3", size: '2" X 2.5"', type: "Batch", isActive: true },
-  { id: 27, name: "COMPOUND BATCH v2", size: '6.25" X 2.5"', type: "Batch", isActive: false },
-  { id: 16, name: "Compound BATCH", size: '3.13" X 1"', type: "Batch", isActive: false },
+  { id: 29, name: "COMPOUND BATCH v3", size: '2" X 2.5"', type: "Batch", isActive: true, createdAt: "5/15/2024", updatedAt: "5/15/2024" },
+  { id: 27, name: "COMPOUND BATCH v2", size: '6.25" X 2.5"', type: "Batch", isActive: false, createdAt: "5/3/2024", updatedAt: "5/15/2024" },
+  { id: 16, name: "Compound BATCH", size: '3.13" X 1"', type: "Batch", isActive: false, createdAt: "11/30/2023", updatedAt: "3/4/2024" },
 
   // Register Receipt
-  { id: 23, name: "POS MAIN 80 MM", size: '3.15" X 18"', type: "Register Receipt", isActive: false },
-  { id: 22, name: "POS MAIN 72 MM", size: '2.83" X 16"', type: "Register Receipt", isActive: true },
-  { id: 13, name: "POS MAIN 80 MM (legacy)", size: '3.15" X 18"', type: "Register Receipt", isActive: false },
-  { id: 12, name: "POS MAIN 72 MM (legacy)", size: '2.83" X 16"', type: "Register Receipt", isActive: false },
+  { id: 23, name: "POS MAIN 80 MM", size: '3.15" X 18"', type: "Register Receipt", isActive: false, createdAt: "12/5/2023", updatedAt: "12/8/2023" },
+  { id: 22, name: "POS MAIN 72 MM", size: '2.83" X 16"', type: "Register Receipt", isActive: true, createdAt: "12/5/2023", updatedAt: "12/8/2023" },
+  { id: 13, name: "POS MAIN 80 MM (legacy)", size: '3.15" X 18"', type: "Register Receipt", isActive: false, createdAt: "12/5/2023", updatedAt: "12/8/2023" },
+  { id: 12, name: "POS MAIN 72 MM (legacy)", size: '2.83" X 16"', type: "Register Receipt", isActive: false, createdAt: "12/5/2023", updatedAt: "12/19/2023" },
 
   // Pull Cash
-  { id: 15, name: "PULL CASH 80 MM", size: '3.15" X 6"', type: "Pull Cash", isActive: false },
-  { id: 14, name: "PULL CASH 72 MM", size: '2.83" X 6"', type: "Pull Cash", isActive: true },
-  { id: 5, name: "PULL CASH 80 MM (legacy)", size: '3.15" X 6"', type: "Pull Cash", isActive: false },
-  { id: 4, name: "PULL CASH 72 MM (legacy)", size: '2.83" X 6"', type: "Pull Cash", isActive: false },
+  { id: 15, name: "PULL CASH 80 MM", size: '3.15" X 6"', type: "Pull Cash", isActive: false, createdAt: "12/6/2023", updatedAt: "12/6/2023" },
+  { id: 14, name: "PULL CASH 72 MM", size: '2.83" X 6"', type: "Pull Cash", isActive: true, createdAt: "12/6/2023", updatedAt: "12/6/2023" },
+  { id: 5, name: "PULL CASH 80 MM (legacy)", size: '3.15" X 6"', type: "Pull Cash", isActive: false, createdAt: "12/6/2023", updatedAt: "12/6/2023" },
+  { id: 4, name: "PULL CASH 72 MM (legacy)", size: '2.83" X 6"', type: "Pull Cash", isActive: false, createdAt: "12/6/2023", updatedAt: "12/6/2023" },
 
   // Daily Summary
-  { id: 8, name: "SUMMARY 80 MM", size: '3.15" X 7"', type: "Daily Summary", isActive: false },
-  { id: 7, name: "SUMMARY 72 MM", size: '2.83" X 7"', type: "Daily Summary", isActive: true },
+  { id: 8, name: "SUMMARY 80 MM", size: '3.15" X 7"', type: "Daily Summary", isActive: false, createdAt: "12/8/2023", updatedAt: "12/8/2023" },
+  { id: 7, name: "SUMMARY 72 MM", size: '2.83" X 7"', type: "Daily Summary", isActive: true, createdAt: "12/6/2023", updatedAt: "12/8/2023" },
 
   // Packing List
-  { id: 11, name: "Packing List 8.5x11", size: '8.5" X 11"', type: "Packing List", isActive: true },
-  { id: 20, name: "Packing List Receipt 80 MM", size: '3.15" X 12"', type: "Packing List", isActive: false },
-  { id: 19, name: "Packing List Receipt 72 MM", size: '2.83" X 12"', type: "Packing List", isActive: false },
-  { id: 10, name: "Packing List Receipt 80 MM (legacy)", size: '3.15" X 12"', type: "Packing List", isActive: false },
-  { id: 9, name: "Packing List Receipt 72 MM (legacy)", size: '2.83" X 12"', type: "Packing List", isActive: false },
+  { id: 11, name: "Packing List 8.5x11", size: '8.5" X 11"', type: "Packing List", isActive: true, createdAt: "11/30/2023", updatedAt: "11/30/2023" },
+  { id: 20, name: "Packing List Receipt 80 MM", size: '3.15" X 12"', type: "Packing List", isActive: false, createdAt: "12/6/2023", updatedAt: "12/6/2023" },
+  { id: 19, name: "Packing List Receipt 72 MM", size: '2.83" X 12"', type: "Packing List", isActive: false, createdAt: "12/6/2023", updatedAt: "12/6/2023" },
+  { id: 10, name: "Packing List Receipt 80 MM (legacy)", size: '3.15" X 12"', type: "Packing List", isActive: false, createdAt: "12/6/2023", updatedAt: "12/6/2023" },
+  { id: 9, name: "Packing List Receipt 72 MM (legacy)", size: '2.83" X 12"', type: "Packing List", isActive: false, createdAt: "12/6/2023", updatedAt: "12/6/2023" },
 
   // MAR Templates
-  { id: 84, name: "Dispill-Letter", size: '8.5" X 11"', type: "MAR", isActive: false },
-  { id: 76, name: "Worksheet-Example", size: '8.5" X 11"', type: "MAR", isActive: false },
-  { id: 72, name: "Omnicell-Example Condensed-N-ONLY", size: '9.5" X 16"', type: "MAR", isActive: false },
-  { id: 71, name: "Omnicell-Example Condensed-M-ONLY", size: '9.5" X 16"', type: "MAR", isActive: false },
-  { id: 70, name: "Omnicell-Example Condensed-M-E", size: '9.5" X 16"', type: "MAR", isActive: false },
-  { id: 69, name: "Omnicell-Example Condensed M-B", size: '9.5" X 16"', type: "MAR", isActive: false },
-  { id: 68, name: "Omnicell-Example Condensed-E-ONLY", size: '9.5" X 16"', type: "MAR", isActive: false },
-  { id: 67, name: "Omnicell-Example Condensed-B-ONLY", size: '9.5" X 16"', type: "MAR", isActive: false },
-  { id: 66, name: "Omnicell-Example", size: '9.5" X 16"', type: "MAR", isActive: false },
-  { id: 40, name: "Mar Example-Physician Order", size: '8.5" X 11"', type: "MAR", isActive: false },
-  { id: 39, name: "Mar Example-Phoenix", size: '8.5" X 11"', type: "MAR", isActive: false },
+  { id: 84, name: "Dispill-Letter", size: '8.5" X 11"', type: "MAR", isActive: false, createdAt: "7/14/2025", updatedAt: "7/14/2025" },
+  { id: 76, name: "Worksheet-Example", size: '8.5" X 11"', type: "MAR", isActive: false, createdAt: "7/9/2025", updatedAt: "7/9/2025" },
+  { id: 72, name: "Omnicell-Example Condensed-N-ONLY", size: '9.5" X 16"', type: "MAR", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 71, name: "Omnicell-Example Condensed-M-ONLY", size: '9.5" X 16"', type: "MAR", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 70, name: "Omnicell-Example Condensed-M-E", size: '9.5" X 16"', type: "MAR", isActive: false, createdAt: "7/9/2025", updatedAt: "7/10/2025" },
+  { id: 69, name: "Omnicell-Example Condensed M-B", size: '9.5" X 16"', type: "MAR", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 68, name: "Omnicell-Example Condensed-E-ONLY", size: '9.5" X 16"', type: "MAR", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 67, name: "Omnicell-Example Condensed-B-ONLY", size: '9.5" X 16"', type: "MAR", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 66, name: "Omnicell-Example", size: '9.5" X 16"', type: "MAR", isActive: false, createdAt: "7/7/2025", updatedAt: "7/7/2025" },
+  { id: 40, name: "Mar Example-Physician Order", size: '8.5" X 11"', type: "MAR", isActive: false, createdAt: "6/13/2025", updatedAt: "7/11/2025" },
+  { id: 39, name: "Mar Example-Phoenix", size: '8.5" X 11"', type: "MAR", isActive: false, createdAt: "6/30/2025", updatedAt: "7/11/2025" },
 
-  // Sub Templates (Dispill, Omnicell, Worksheets, etc.)
-  { id: 85, name: "Dispill-Sync-Items", size: '4.1" X 0.35"', type: "SUB TEMPLATE", isActive: false },
-  { id: 83, name: "Dispill-Days", size: '8.5" X 1"', type: "SUB TEMPLATE", isActive: false },
-  { id: 82, name: "Dispill-DayItemsNoon", size: '2" X 0.12"', type: "SUB TEMPLATE", isActive: false },
-  { id: 81, name: "Dispill-DayItemsMorning", size: '2" X 0.12"', type: "SUB TEMPLATE", isActive: false },
-  { id: 80, name: "Dispill-DayItemsEvening", size: '2" X 0.12"', type: "SUB TEMPLATE", isActive: false },
-  { id: 79, name: "Dispill-DayItemsBedtime", size: '2" X 0.12"', type: "SUB TEMPLATE", isActive: false },
-  { id: 78, name: "Worksheet-SyncItems", size: '4.1" X 0.35"', type: "SUB TEMPLATE", isActive: false },
-  { id: 77, name: "Worksheet-MarComments", size: '8" X 1"', type: "SUB TEMPLATE", isActive: false },
-  { id: 75, name: "Sync Items-Physician Order", size: '8" X 1"', type: "SUB TEMPLATE", isActive: false },
-  { id: 74, name: "Sync Items-Phoenix", size: '8" X 1"', type: "SUB TEMPLATE", isActive: false },
-  { id: 73, name: "Omnicell-Sync Items", size: '0.65" X 4"', type: "SUB TEMPLATE", isActive: false },
-  { id: 65, name: "Omnicell-Days-N4", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 64, name: "Omnicell-Days-N3", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 63, name: "Omnicell-Days-N2", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 62, name: "Omnicell-Days-N1", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 61, name: "Omnicell-Days-M4", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 60, name: "Omnicell-Days-M3", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 59, name: "Omnicell-Days-M2", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 58, name: "Omnicell-Days-M1", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 57, name: "Omnicell-Days-E4", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 56, name: "Omnicell-Days-E3", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 55, name: "Omnicell-Days-E2", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 54, name: "Omnicell-Days-E1", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 53, name: "Omnicell-Days CondensedTop-M-B", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 52, name: "Omnicell-Days CondensedTop", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 51, name: "Omnicell-Days CondensedBottom-M-B", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 50, name: "Omnicell-Days CondensedBottom", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 49, name: "Omnicell-Days-B4", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 48, name: "Omnicell-Days-B3", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 47, name: "Omnicell-Days-B2", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 46, name: "Omnicell-Days-B1", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 45, name: "Omnicell-Days", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false },
-  { id: 44, name: "Omnicell-DayItemsNoon", size: '0.12" X 2"', type: "SUB TEMPLATE", isActive: false },
-  { id: 43, name: "Omnicell-DayItemsMorning", size: '0.12" X 2"', type: "SUB TEMPLATE", isActive: false },
-  { id: 42, name: "Omnicell-DayItemsEvening", size: '0.12" X 2"', type: "SUB TEMPLATE", isActive: false },
-  { id: 41, name: "Omnicell-DayItemsBedtime", size: '0.12" X 2"', type: "SUB TEMPLATE", isActive: false },
-  { id: 38, name: "Administration Times-Physician Order", size: '1" X 0.18"', type: "SUB TEMPLATE", isActive: false },
-  { id: 37, name: "Administration Times-Phoenix", size: '1" X 0.18"', type: "SUB TEMPLATE", isActive: false },
+  // Sub Templates
+  { id: 85, name: "Dispill-Sync-Items", size: '4.1" X 0.35"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/14/2025", updatedAt: "7/14/2025" },
+  { id: 83, name: "Dispill-Days", size: '8.5" X 1"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/14/2025", updatedAt: "7/14/2025" },
+  { id: 82, name: "Dispill-DayItemsNoon", size: '2" X 0.12"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/14/2025", updatedAt: "7/14/2025" },
+  { id: 81, name: "Dispill-DayItemsMorning", size: '2" X 0.12"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/14/2025", updatedAt: "7/14/2025" },
+  { id: 80, name: "Dispill-DayItemsEvening", size: '2" X 0.12"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/14/2025", updatedAt: "7/14/2025" },
+  { id: 79, name: "Dispill-DayItemsBedtime", size: '2" X 0.12"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/14/2025", updatedAt: "7/14/2025" },
+  { id: 78, name: "Worksheet-SyncItems", size: '4.1" X 0.35"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/9/2025", updatedAt: "7/9/2025" },
+  { id: 77, name: "Worksheet-MarComments", size: '8" X 1"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/9/2025", updatedAt: "7/9/2025" },
+  { id: 75, name: "Sync Items-Physician Order", size: '8" X 1"', type: "SUB TEMPLATE", isActive: false, createdAt: "6/13/2025", updatedAt: "6/30/2025" },
+  { id: 74, name: "Sync Items-Phoenix", size: '8" X 1"', type: "SUB TEMPLATE", isActive: false, createdAt: "6/30/2025", updatedAt: "7/11/2025" },
+  { id: 73, name: "Omnicell-Sync Items", size: '0.65" X 4"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/5/2025", updatedAt: "7/17/2025" },
+  { id: 65, name: "Omnicell-Days-N4", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 64, name: "Omnicell-Days-N3", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 63, name: "Omnicell-Days-N2", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 62, name: "Omnicell-Days-N1", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 61, name: "Omnicell-Days-M4", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 60, name: "Omnicell-Days-M3", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 59, name: "Omnicell-Days-M2", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 58, name: "Omnicell-Days-M1", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 57, name: "Omnicell-Days-E4", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 56, name: "Omnicell-Days-E3", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 55, name: "Omnicell-Days-E2", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 54, name: "Omnicell-Days-E1", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 53, name: "Omnicell-Days CondensedTop-M-B", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 52, name: "Omnicell-Days CondensedTop", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/9/2025", updatedAt: "7/10/2025" },
+  { id: 51, name: "Omnicell-Days CondensedBottom-M-B", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 50, name: "Omnicell-Days CondensedBottom", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/9/2025", updatedAt: "7/10/2025" },
+  { id: 49, name: "Omnicell-Days-B4", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 48, name: "Omnicell-Days-B3", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 47, name: "Omnicell-Days-B2", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 46, name: "Omnicell-Days-B1", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/10/2025", updatedAt: "7/10/2025" },
+  { id: 45, name: "Omnicell-Days", size: '1.4" X 8"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/6/2025", updatedAt: "7/8/2025" },
+  { id: 44, name: "Omnicell-DayItemsNoon", size: '0.12" X 2"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/8/2025", updatedAt: "7/8/2025" },
+  { id: 43, name: "Omnicell-DayItemsMorning", size: '0.12" X 2"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/8/2025", updatedAt: "7/8/2025" },
+  { id: 42, name: "Omnicell-DayItemsEvening", size: '0.12" X 2"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/8/2025", updatedAt: "7/8/2025" },
+  { id: 41, name: "Omnicell-DayItemsBedtime", size: '0.12" X 2"', type: "SUB TEMPLATE", isActive: false, createdAt: "7/8/2025", updatedAt: "7/8/2025" },
+  { id: 38, name: "Administration Times-Physician Order", size: '1" X 0.18"', type: "SUB TEMPLATE", isActive: false, createdAt: "6/16/2025", updatedAt: "7/1/2025" },
+  { id: 37, name: "Administration Times-Phoenix", size: '1" X 0.18"', type: "SUB TEMPLATE", isActive: false, createdAt: "6/30/2025", updatedAt: "7/12/2025" },
 ];
 
 // ─── Active assignments (from DRX Print Templates config) ───
@@ -226,7 +228,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {getTemplatesForType("Rx Label").map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -239,7 +241,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {getTemplatesForType("Rx Label").map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -252,7 +254,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {getTemplatesForType("Register Receipt").map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -265,7 +267,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {getTemplatesForType("Pull Cash").map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -278,7 +280,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {getTemplatesForType("Daily Summary").map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -291,7 +293,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {getTemplatesForType("Packing List").map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -304,7 +306,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {getTemplatesForType("Batch").map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -317,7 +319,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {getTemplatesForType("Rx Label").map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -330,7 +332,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {ALL_TEMPLATES.map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -343,7 +345,7 @@ export default function PrintTemplatesPage() {
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#40721D]/20 focus:border-[#40721D] outline-none">
               <option value="">— None —</option>
               {ALL_TEMPLATES.map((t) => (
-                <option key={t.id} value={t.id}>(ID {t.id}) {t.name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
@@ -384,12 +386,12 @@ export default function PrintTemplatesPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase w-16">ID</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase w-20"></th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Size</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Last Modified</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase w-20">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -401,7 +403,12 @@ export default function PrintTemplatesPage() {
                   const isAssigned = Object.values(assignments).includes(t.id);
                   return (
                     <tr key={t.id} className={`hover:bg-gray-50 transition-colors ${isAssigned ? "bg-[#40721D]/[0.04]" : ""}`}>
-                      <td className="px-6 py-3 text-sm font-mono text-gray-500">{t.id}</td>
+                      <td className="px-4 py-3">
+                        <Link href={`/settings/print-templates/editor?id=${t.id}`}
+                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-[#40721D] bg-[#40721D]/5 rounded hover:bg-[#40721D]/10 transition-colors">
+                          Edit
+                        </Link>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
                           <Icon size={15} className="text-gray-400 flex-shrink-0" />
@@ -414,18 +421,13 @@ export default function PrintTemplatesPage() {
                           {t.type}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{t.updatedAt}</td>
                       <td className="px-4 py-3">
                         {isAssigned ? (
                           <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-800">Active</span>
                         ) : (
                           <span className="text-xs text-gray-400">Available</span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Link href={`/settings/print-templates/editor?id=${t.id}`}
-                          className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-[#40721D] bg-[#40721D]/5 rounded hover:bg-[#40721D]/10 transition-colors">
-                          Edit
-                        </Link>
                       </td>
                     </tr>
                   );
