@@ -126,6 +126,18 @@ function SettingsPageContent() {
           </div>
         </div>
 
+        {/* Print Templates */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Print Templates</h2>
+          <p className="text-sm text-gray-500 mb-4">Configure Rx labels, receipts, batch labels, and reports</p>
+          <Link
+            href="/settings/print-templates"
+            className="inline-flex items-center px-4 py-2 rounded-lg bg-[#40721D] text-white text-sm font-medium hover:bg-[#2D5114] transition-colors"
+          >
+            Manage Templates →
+          </Link>
+        </div>
+
         {/* Integrations */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Integrations</h2>
