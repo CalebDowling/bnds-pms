@@ -46,26 +46,28 @@ const DEFAULT_CONFIG: HardwareConfig = {
 // HARDWARE CONFIG
 // ═══════════════════════════════════════════════
 
-export async function getHardwareConfig() {
-  const user = await getCurrentUser();
-  const storeId = (user as any)?.storeId;
-  if (!storeId) throw new Error("Unauthorized");
-
-  const setting = await prisma.storeSetting.findUnique({
-    where: {
-      storeId_settingKey: {
-        storeId,
-        settingKey: "hardware_config",
-      },
-    },
-  });
-
-  if (!setting) {
-    return DEFAULT_CONFIG;
-  }
-
+export async function getHardwareConfig(): Promise<HardwareConfig> {
   try {
-    return JSON.parse(setting.settingValue) as HardwareConfig;
+    const user = await getCurrentUser();
+    const storeId = (user as any)?.storeId;
+    if (!storeId) return DEFAULT_CONFIG;
+
+    const setting = await prisma.storeSetting.findUnique({
+      where: {
+        storeId_settingKey: {
+          storeId,
+          settingKey: "hardware_config",
+        },
+      },
+    });
+
+    if (!setting) {
+      return DEFAULT_CONFIG;
+    }
+
+    const parsed = JSON.parse(setting.settingValue);
+    // Merge with defaults to ensure new fields (like scales) exist
+    return { ...DEFAULT_CONFIG, ...parsed, scales: parsed.scales || [] };
   } catch {
     return DEFAULT_CONFIG;
   }
@@ -74,7 +76,7 @@ export async function getHardwareConfig() {
 export async function saveHardwareConfig(config: HardwareConfig) {
   const user = await getCurrentUser();
   const storeId = (user as any)?.storeId;
-  if (!storeId) throw new Error("Unauthorized");
+  if (!storeId) return { error: "No store assigned to user" };
 
   await prisma.storeSetting.upsert({
     where: {
