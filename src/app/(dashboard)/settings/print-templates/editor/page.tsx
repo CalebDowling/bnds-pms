@@ -147,17 +147,46 @@ export default function TemplateEditorPage() {
         if (data?.template) {
           const stored = data.template;
           // Convert DRX elements to editor fields
-          // DRX positions are in inches; multiply by DPI to get pixels
+          // DRX uses inches for positions. For -90° rotated elements on a portrait label:
+          // DRX x = vertical position from left edge of label (0 = left, pageWidth = right)
+          // DRX y = horizontal position along the label length (0 = top)
+          // In the editor we render the label as portrait, so we need to map:
+          //   editor x = drx y (horizontal position along length)
+          //   editor y = drx x (vertical position, but measured from left)
+          // For -90° rotation, text flows rightward from the (x,y) anchor point
+          const pageW = stored.pageWidth || 4;
+          const pageH = stored.pageHeight || 8;
+
           const fields: TemplateField[] = (stored.elements || []).map((el: any, i: number) => {
-            const xInches = el.xPosition || 0;
-            const yInches = el.yPosition || 0;
-            // DRX often has null width/height for auto-sized text
-            // Estimate based on font size and example text length
-            const estChars = (el.exampleText || el.elementData || "").length || 10;
+            const drxX = el.xPosition || 0;
+            const drxY = el.yPosition || 0;
+            const rot = el.rotationAngle || 0;
             const fontPt = el.fontSize || 10;
-            const estWidthInches = el.width || Math.min(Math.max(estChars * fontPt * 0.007, 0.5), stored.pageWidth - xInches);
-            const estHeightInches = el.height || (fontPt * 0.018);
-            // Parse font style from DRX format (e.g., "bold", "bold italic", "normal")
+            const estChars = (el.exampleText || el.elementData || "").length || 10;
+
+            let editorX: number, editorY: number, editorW: number, editorH: number;
+
+            if (rot === -90 || rot === 270) {
+              // Rotated -90°: DRX x becomes vertical row, DRX y becomes horizontal start
+              // Text flows horizontally (rightward) from anchor
+              const textLenInches = el.paragraphWidth || Math.min(estChars * fontPt * 0.007, pageH - drxY);
+              editorX = drxY * DPI;
+              editorY = (pageW - drxX) * DPI; // flip vertical axis
+              editorW = textLenInches * DPI;
+              editorH = (fontPt * 1.4); // line height in pixels
+            } else if (rot === 90) {
+              editorX = (pageH - drxY) * DPI;
+              editorY = drxX * DPI;
+              editorW = (el.paragraphWidth || estChars * fontPt * 0.007) * DPI;
+              editorH = (fontPt * 1.4);
+            } else {
+              // No rotation — direct mapping
+              editorX = drxX * DPI;
+              editorY = drxY * DPI;
+              editorW = (el.width || Math.min(estChars * fontPt * 0.007, pageW - drxX)) * DPI;
+              editorH = (el.height || fontPt * 0.018) * DPI;
+            }
+
             const style = (el.fontStyle || "").toLowerCase();
             const isBold = style.includes("bold");
             const isItalic = style.includes("italic");
@@ -170,17 +199,17 @@ export default function TemplateEditorPage() {
               label: el.labelGroup?.name
                 ? `(${el.labelGroup.name}) ${el.elementData || "Element"}`
                 : el.elementData || `Element ${i + 1}`,
-              x: xInches * DPI,
-              y: yInches * DPI,
-              width: estWidthInches * DPI,
-              height: estHeightInches * DPI,
+              x: editorX,
+              y: editorY,
+              width: editorW,
+              height: editorH,
               fontSize: fontPt,
               fontWeight: isBold ? "bold" as const : "normal" as const,
               fontStyle: isItalic ? "italic" as const : "normal" as const,
               textDecoration: "none" as const,
               textAlign: (el.textAlign || "left") as "left" | "center" | "right",
               value: el.elementData || "",
-              rotation: el.rotationAngle || 0,
+              rotation: 0, // We've already transformed the coordinates, no CSS rotation needed
               // Preserve DRX-specific data
               fontName: el.fontName,
               exampleText: el.exampleText,
