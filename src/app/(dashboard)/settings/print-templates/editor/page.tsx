@@ -147,111 +147,150 @@ export default function TemplateEditorPage() {
         if (data?.template) {
           const stored = data.template;
           // Convert DRX elements to editor fields
-          // DRX pharmacy labels are often 4"W x 8"H but printed sideways with -90° rotation
-          // Detect if this is a rotated label by checking element rotations
           const rawPageW = stored.pageWidth || 4;
           const rawPageH = stored.pageHeight || 8;
           const elements = stored.elements || [];
-          const rotatedCount = elements.filter((e: any) => Math.abs(e.rotationAngle || 0) === 90 || (e.rotationAngle || 0) === 270).length;
-          const isRotatedLabel = rotatedCount > elements.length * 0.5;
+          const rotatedCount = elements.filter((e: any) => Math.abs(e.rotationAngle || 0) >= 45).length;
+          const isRotatedLabel = rotatedCount > elements.length * 0.4;
 
-          // For rotated labels, swap canvas to landscape (8" wide x 4" tall)
-          const canvasW = isRotatedLabel ? rawPageH : rawPageW;
-          const canvasH = isRotatedLabel ? rawPageW : rawPageH;
+          // Keep canvas at original DRX dimensions (4"×8" portrait for Rx labels)
+          const canvasW = rawPageW;
+          const canvasH = rawPageH;
 
-          // Estimate text width in inches based on font size and character count
-          function estTextWidth(chars: number, fontSize: number, pw?: number): number {
-            if (pw) return pw;
-            const charWidth = fontSize * 0.55 / 72;
-            return Math.max(chars * charWidth, 0.25);
-          }
-
-          // Direct 1:1 inch-to-pixel mapping — no artificial scaling
-          // For rotated labels (-90°): drxY → editorX, (pageW - drxX) → editorY
-          // This preserves exact DRX positioning
-          const fields: TemplateField[] = elements.map((el: any, i: number) => {
-            const drxX = el.xPosition || 0;
-            const drxY = el.yPosition || 0;
-            const rot = el.rotationAngle || 0;
-            const fontPt = el.fontSize || 8;
-            const text = el.exampleText || el.elementData || "";
-            const estChars = text.length || 5;
-
-            let editorX: number, editorY: number, editorW: number, editorH: number;
-            const lineH = fontPt * 1.4;
-
-            const isNeg90 = rot === -90 || rot === 270;
-            const isNearNeg90 = rot < -45 && rot > -90;
-            const isPos90 = rot === 90;
-            const isBarcode128 = el.displayBarcodeCode128;
-            const isQRCode = el.displayBarcodeQr;
-
-            if (isRotatedLabel && isBarcode128) {
-              // Barcodes: DRX height is the barcode length (along label), width is bar thickness
-              const barcodeLen = el.height || 2; // in inches, along the label
-              const barcodeThick = 0.5; // barcode visual thickness in inches
-              if (isNeg90) {
-                editorX = drxY * DPI;
-                editorY = (rawPageW - drxX) * DPI;
-                editorW = barcodeLen * DPI;
-                editorH = barcodeThick * DPI;
-              } else if (isPos90) {
-                editorX = (rawPageH - drxY - barcodeLen) * DPI;
-                editorY = drxX * DPI;
-                editorW = barcodeLen * DPI;
-                editorH = barcodeThick * DPI;
-              } else {
-                // Non-rotated barcode
-                editorX = drxY * DPI;
-                editorY = (rawPageW - drxX - barcodeThick) * DPI;
-                editorW = barcodeLen * DPI;
-                editorH = barcodeThick * DPI;
-              }
-            } else if (isRotatedLabel && isQRCode) {
-              // QR codes have explicit w/h in inches
-              const qrSize = el.width || el.height || 0.8;
-              editorX = drxY * DPI;
-              editorY = (rawPageW - drxX - qrSize) * DPI;
-              editorW = qrSize * DPI;
-              editorH = qrSize * DPI;
-            } else if (isRotatedLabel && (isNeg90 || isNearNeg90)) {
-              const textW = estTextWidth(estChars, fontPt, el.paragraphWidth);
-              editorX = drxY * DPI;
-              editorY = (rawPageW - drxX) * DPI;
-              editorW = Math.min(textW, rawPageH - drxY) * DPI;
-              editorH = lineH;
-            } else if (isRotatedLabel && isPos90) {
-              const textW = estTextWidth(estChars, fontPt, el.paragraphWidth);
-              editorX = (rawPageH - drxY - textW) * DPI;
-              editorY = drxX * DPI;
-              editorW = textW * DPI;
-              editorH = lineH;
-            } else if (isRotatedLabel) {
-              const textW = estTextWidth(estChars, fontPt, el.paragraphWidth || el.width);
-              editorX = drxY * DPI;
-              editorY = (rawPageW - drxX) * DPI;
-              editorW = textW * DPI;
-              editorH = (el.height || fontPt * 0.018) * DPI;
-            } else {
-              const textW = estTextWidth(estChars, fontPt, el.paragraphWidth || el.width);
-              editorX = drxX * DPI;
-              editorY = drxY * DPI;
-              editorW = Math.min(textW, rawPageW - drxX) * DPI;
-              editorH = (el.height || fontPt * 0.018) * DPI;
+          // Zone-based layout: each label group maps to a specific Y zone on the canvas
+          // This produces a clean, non-overlapping layout matching how DRX prints the label
+          function layoutElements(els: any[]): TemplateField[] {
+            if (!isRotatedLabel) {
+              // Non-rotated label: use DRX coordinates directly
+              return els.map((el: any, i: number) => {
+                const fontPt = el.fontSize || 8;
+                const text = el.exampleText || el.elementData || "";
+                const pw = el.paragraphWidth || el.width;
+                const charW = fontPt * 0.55 / 72;
+                const w = pw ? pw * DPI : Math.max(text.length * charW * DPI, 24);
+                return makeField(el, i, (el.xPosition || 0) * DPI, (el.yPosition || 0) * DPI, w, fontPt * 1.3);
+              });
             }
 
-            // Clamp to canvas bounds
-            const maxXPx = canvasW * DPI;
-            const maxYPx = canvasH * DPI;
-            if (editorX < 0) editorX = 0;
-            if (editorY < 0) editorY = 0;
-            if (editorX + editorW > maxXPx) editorW = Math.max(20, maxXPx - editorX);
-            if (editorY + editorH > maxYPx) editorH = Math.max(10, maxYPx - editorY);
+            // Rotated label: group elements, then lay out each group in its own zone
+            const groups: Record<string, any[]> = {};
+            els.forEach((el: any) => {
+              const g = el.labelGroup?.name || "UNGROUPED";
+              if (!groups[g]) groups[g] = [];
+              groups[g].push(el);
+            });
 
-            const style = (el.fontStyle || "").toLowerCase();
-            const isBold = style.includes("bold");
-            const isItalic = style.includes("italic");
+            // Sort elements within each group by DRX X (row position), then by DRX Y (horizontal)
+            Object.values(groups).forEach(g => g.sort((a: any, b: any) =>
+              (b.xPosition || 0) - (a.xPosition || 0) || (a.yPosition || 0) - (b.yPosition || 0)
+            ));
 
+            // Define zones on a 4"×8" portrait canvas (384px wide × 768px tall)
+            // Layout matches how DRX prints: MAIN LABEL top, AUX middle, BOTTOM LABEL below, then right-side groups
+            const zoneStartY: Record<string, number> = {
+              "MAIN LABEL": 0,
+              "UNGROUPED": 0,
+              "AUX": 160,
+              "BOTTOM LABEL": 250,
+              "Signature": 480,
+              "Signature2": 480,
+              "Patient Notes": 430,
+              "Backtag": 560,
+            };
+
+            const zoneStartX: Record<string, number> = {
+              "MAIN LABEL": 0,
+              "UNGROUPED": 0,
+              "AUX": 0,
+              "BOTTOM LABEL": 0,
+              "Signature": 0,
+              "Signature2": 190,
+              "Patient Notes": 0,
+              "Backtag": 0,
+            };
+
+            const zoneMaxX: Record<string, number> = {
+              "MAIN LABEL": 384,
+              "UNGROUPED": 384,
+              "AUX": 384,
+              "BOTTOM LABEL": 384,
+              "Signature": 190,
+              "Signature2": 384,
+              "Patient Notes": 384,
+              "Backtag": 384,
+            };
+
+            const result: TemplateField[] = [];
+            const groupOrder = ["MAIN LABEL", "UNGROUPED", "AUX", "BOTTOM LABEL", "Patient Notes", "Signature", "Signature2", "Backtag"];
+
+            for (const groupName of groupOrder) {
+              const groupEls = groups[groupName];
+              if (!groupEls) continue;
+
+              const baseY = zoneStartY[groupName] ?? 0;
+              const baseX = zoneStartX[groupName] ?? 0;
+              const maxX = zoneMaxX[groupName] ?? canvasW * DPI;
+
+              // Track rows: group elements by their DRX X position (rounded to 0.1")
+              let currentRow = -1;
+              let rowY = baseY;
+              let rowX = baseX;
+              let lastDrxX = -999;
+              let maxRowH = 0;
+
+              for (const el of groupEls) {
+                const drxX = el.xPosition || 0;
+                const drxY = el.yPosition || 0;
+                const fontPt = el.fontSize || 8;
+                const text = el.exampleText || el.elementData || "";
+                const isBarcode = el.displayBarcodeCode128;
+                const isQR = el.displayBarcodeQr;
+
+                // Determine if this is a new row (different DRX X position)
+                const xDiff = Math.abs(drxX - lastDrxX);
+                if (xDiff > 0.08) {
+                  // New row
+                  if (currentRow >= 0) rowY += maxRowH + 2;
+                  currentRow++;
+                  rowX = baseX;
+                  maxRowH = 0;
+                  lastDrxX = drxX;
+                }
+
+                let w: number, h: number;
+
+                if (isBarcode) {
+                  w = Math.min((el.height || 3) * DPI * 0.5, maxX - rowX);
+                  h = 35;
+                } else if (isQR) {
+                  w = (el.width || 0.8) * DPI;
+                  h = w;
+                } else {
+                  const pw = el.paragraphWidth;
+                  const charW = fontPt * 0.55 / 72;
+                  w = pw ? Math.min(pw * DPI, maxX - rowX) : Math.min(Math.max(text.length * charW * DPI, 20), maxX - rowX);
+                  h = fontPt * 1.3;
+                  if (pw && text.length > 30) h = fontPt * 2.5; // multi-line
+                }
+
+                // Ensure elements don't exceed zone width
+                if (rowX + w > maxX) {
+                  w = Math.max(20, maxX - rowX);
+                }
+
+                maxRowH = Math.max(maxRowH, h);
+                result.push(makeField(el, result.length, rowX, rowY, w, h));
+
+                rowX += w + 4; // 4px gap between elements in same row
+              }
+            }
+
+            return result;
+          }
+
+          function makeField(el: any, i: number, x: number, y: number, w: number, h: number): TemplateField {
+            const fontPt = el.fontSize || 8;
+            const styleStr = (el.fontStyle || "").toLowerCase();
             return {
               id: `el_${el.id || i}`,
               type: el.displayBarcodeCode128 || el.displayBarcodeQr ? "barcode" as const
@@ -260,18 +299,14 @@ export default function TemplateEditorPage() {
               label: el.labelGroup?.name
                 ? `(${el.labelGroup.name}) ${el.elementData || "Element"}`
                 : el.elementData || `Element ${i + 1}`,
-              x: editorX,
-              y: editorY,
-              width: editorW,
-              height: editorH,
+              x, y, width: w, height: h,
               fontSize: fontPt,
-              fontWeight: isBold ? "bold" as const : "normal" as const,
-              fontStyle: isItalic ? "italic" as const : "normal" as const,
+              fontWeight: styleStr.includes("bold") ? "bold" as const : "normal" as const,
+              fontStyle: styleStr.includes("italic") ? "italic" as const : "normal" as const,
               textDecoration: "none" as const,
               textAlign: (el.textAlign || "left") as "left" | "center" | "right",
               value: el.elementData || "",
-              rotation: 0, // We've already transformed the coordinates, no CSS rotation needed
-              // Preserve DRX-specific data
+              rotation: 0,
               fontName: el.fontName,
               exampleText: el.exampleText,
               labelGroup: el.labelGroup?.name,
@@ -288,7 +323,9 @@ export default function TemplateEditorPage() {
               fillColor: el.fillColor,
               textColor: el.textColor,
             };
-          });
+          }
+
+          const fields = layoutElements(elements);
 
           setTemplate({
             id: stored.id || templateId,
