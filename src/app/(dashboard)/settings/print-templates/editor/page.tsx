@@ -385,6 +385,7 @@ export default function TemplateEditorPage() {
   function renderField(field: TemplateField) {
     const isSelected = selectedFieldId === field.id;
     const isBarcode = field.type === "barcode" || field.value.includes("barcode") || field.value.includes("qr_code");
+    const isQR = field.value.includes("qr") || field.value.includes("patient_education");
     const isLine = field.type === "line";
     const isImage = field.type === "image";
     const hasRotation = field.rotation && field.rotation !== 0;
@@ -397,6 +398,9 @@ export default function TemplateEditorPage() {
     // Apply uppercase if DRX says so
     const finalText = field.forceUpperCase ? displayText.toUpperCase() : displayText;
 
+    // Determine if text should wrap (multiline) based on having paragraphWidth or long text
+    const shouldWrap = field.paragraphWidth || finalText.length > 30;
+
     return (
       <div
         key={field.id}
@@ -406,46 +410,96 @@ export default function TemplateEditorPage() {
           left: field.x * zoom,
           top: field.y * zoom,
           width: field.width * zoom,
-          height: isLine ? Math.max(1, 1 * zoom) : field.height * zoom,
+          height: isLine ? Math.max(1, 1 * zoom) : shouldWrap ? "auto" : field.height * zoom,
+          minHeight: isLine ? undefined : field.height * zoom,
           fontSize: field.fontSize * zoom,
           fontWeight: field.fontWeight,
           fontStyle: field.fontStyle,
           textDecoration: field.textDecoration,
           textAlign: field.textAlign as any,
           lineHeight: 1.2,
-          overflow: "hidden",
-          background: isLine ? "#000" : isBarcode ? "#f3f4f6" : field.fillColor || "transparent",
-          color: field.textColor || (field.value.startsWith("{{") ? "#40721D" : "#000"),
-          borderRadius: isBarcode ? 2 : 0,
-          display: "flex",
-          alignItems: isBarcode ? "center" : "flex-start",
-          justifyContent: field.textAlign === "center" ? "center" : field.textAlign === "right" ? "flex-end" : "flex-start",
-          padding: isBarcode ? `0 ${4 * zoom}px` : 0,
-          fontFamily: field.fontName || "helvetica, sans-serif",
+          overflow: "visible",
+          background: isLine ? "#000" : isBarcode ? "#fff" : field.fillColor || "transparent",
+          color: field.textColor || "#000",
+          borderRadius: 0,
+          padding: isBarcode ? `${2 * zoom}px` : 0,
+          fontFamily: field.fontName ? `${field.fontName}, sans-serif` : "helvetica, arial, sans-serif",
           transform: hasRotation ? `rotate(${field.rotation}deg)` : undefined,
           transformOrigin: hasRotation ? "top left" : undefined,
-          whiteSpace: "nowrap",
+          whiteSpace: shouldWrap ? "normal" : "nowrap",
+          wordBreak: shouldWrap ? "break-word" as const : undefined,
+          zIndex: isBarcode ? 5 : field.fontSize > 20 ? 10 : 1,
         }}
         title={`${field.labelGroup ? `[${field.labelGroup}] ` : ""}${field.value}${field.exampleText ? ` → "${field.exampleText}"` : ""}`}
       >
-        {isBarcode ? (
-          <div className="flex flex-col items-center justify-center w-full" style={{ fontSize: 8 * zoom }}>
-            <div className="flex gap-px" style={{ height: field.height * zoom * 0.6 }}>
-              {Array.from({ length: 30 }).map((_, i) => (
-                <div key={i} style={{ width: Math.max(1, zoom), background: i % 3 === 0 ? "#000" : i % 2 === 0 ? "#000" : "#fff", height: "100%" }} />
-              ))}
-            </div>
-            <span className="text-gray-500 mt-0.5" style={{ fontSize: 7 * zoom }}>{field.label}</span>
-          </div>
+        {isBarcode && !isQR ? (
+          <BarcodeRenderer value={displayText} width={field.width * zoom} height={field.height * zoom} />
+        ) : isQR ? (
+          <QRRenderer value={displayText} size={Math.min(field.width, field.height) * zoom} />
         ) : isImage ? (
-          <div className="flex items-center justify-center w-full h-full bg-gray-100 border border-gray-300 text-gray-400" style={{ fontSize: 8 * zoom }}>
-            IMG
+          <div className="flex items-center justify-center w-full h-full bg-gray-50 border border-dashed border-gray-300 text-gray-400" style={{ fontSize: 8 * zoom }}>
+            [Image]
           </div>
         ) : isLine ? null : (
-          <span className="w-full block" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+          <span className="block" style={{ width: "100%" }}>
             {finalText}
           </span>
         )}
+      </div>
+    );
+  }
+
+  // ─── Barcode Renderer (Code128) ────────────────
+  function BarcodeRenderer({ value, width, height }: { value: string; width: number; height: number }) {
+    const svgRef = useRef<SVGSVGElement>(null);
+    useEffect(() => {
+      if (svgRef.current && typeof window !== "undefined") {
+        import("jsbarcode").then((JsBarcode) => {
+          try {
+            JsBarcode.default(svgRef.current, value || "123456", {
+              format: "CODE128",
+              width: Math.max(1, width / 120),
+              height: height * 0.7,
+              displayValue: true,
+              fontSize: Math.min(12, height * 0.15),
+              margin: 2,
+              textMargin: 1,
+              background: "#ffffff",
+              lineColor: "#000000",
+            });
+          } catch {
+            // Fallback for invalid barcode values
+            if (svgRef.current) {
+              svgRef.current.innerHTML = `<text x="50%" y="50%" text-anchor="middle" font-size="10" fill="#999">Barcode</text>`;
+            }
+          }
+        });
+      }
+    }, [value, width, height]);
+    return <svg ref={svgRef} style={{ width: "100%", height: "100%" }} />;
+  }
+
+  // ─── QR Code Renderer (simple placeholder) ─────
+  function QRRenderer({ value, size }: { value: string; size: number }) {
+    return (
+      <div style={{ width: size, height: size, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1px solid #ccc", background: "#fff" }}>
+        <svg viewBox="0 0 100 100" width={size * 0.8} height={size * 0.8}>
+          {/* Simple QR-like pattern */}
+          <rect x="5" y="5" width="25" height="25" fill="#000" />
+          <rect x="10" y="10" width="15" height="15" fill="#fff" />
+          <rect x="13" y="13" width="9" height="9" fill="#000" />
+          <rect x="70" y="5" width="25" height="25" fill="#000" />
+          <rect x="75" y="10" width="15" height="15" fill="#fff" />
+          <rect x="78" y="13" width="9" height="9" fill="#000" />
+          <rect x="5" y="70" width="25" height="25" fill="#000" />
+          <rect x="10" y="75" width="15" height="15" fill="#fff" />
+          <rect x="13" y="78" width="9" height="9" fill="#000" />
+          {/* Data area */}
+          {Array.from({ length: 15 }).map((_, i) => (
+            <rect key={i} x={35 + (i % 5) * 8} y={35 + Math.floor(i / 5) * 8} width="6" height="6" fill={i % 3 === 0 ? "#000" : "#fff"} />
+          ))}
+        </svg>
+        <span style={{ fontSize: 7, color: "#999", marginTop: 2 }}>{value.substring(0, 15)}</span>
       </div>
     );
   }
