@@ -58,14 +58,16 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error generating compound label:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : "";
+    console.error("Error generating compound label:", errMsg, errStack);
 
-    if (error instanceof Error && error.message.includes("not found")) {
+    if (errMsg.includes("not found")) {
       return NextResponse.json({ error: "Fill not found" }, { status: 404 });
     }
 
     return NextResponse.json(
-      { error: "Failed to generate compound label" },
+      { error: `Failed to generate compound label: ${errMsg}` },
       { status: 500 }
     );
   }
@@ -113,9 +115,11 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error generating compound label (POST):", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : "";
+    console.error("Error generating compound label (POST):", errMsg, errStack);
     return NextResponse.json(
-      { error: "Failed to generate compound label" },
+      { error: `Failed to generate compound label: ${errMsg}` },
       { status: 500 }
     );
   }
