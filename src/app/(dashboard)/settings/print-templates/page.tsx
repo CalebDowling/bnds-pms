@@ -408,7 +408,7 @@ export default function PrintTemplatesPage() {
                       <td className="px-4 py-3">
                         <Link href={t.id === 999 ? "/settings/print-templates/compound-preview" : `/settings/print-templates/editor?id=${t.id}`}
                           className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-[#40721D] bg-[#40721D]/5 rounded hover:bg-[#40721D]/10 transition-colors">
-                          {t.id === 999 ? "Preview" : "Edit"}
+                          Edit
                         </Link>
                       </td>
                       <td className="px-4 py-3">

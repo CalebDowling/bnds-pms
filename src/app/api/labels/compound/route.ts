@@ -72,6 +72,56 @@ export async function GET(request: NextRequest) {
 }
 
 /**
+ * POST /api/labels/compound
+ *   Generate a compound label PDF from custom editor data
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+
+    // Map the POST body to CompoundLabelData, using defaults for missing fields
+    const defaults = createSampleLabelData();
+    const labelData: CompoundLabelData = {
+      ...defaults,
+      ...body,
+      // Ensure numeric fields
+      fillNumber: typeof body.fillNumber === "number" ? body.fillNumber : parseInt(body.fillNumber) || defaults.fillNumber,
+      refillsLeft: typeof body.refillsLeft === "number" ? body.refillsLeft : parseInt(body.refillsLeft) || defaults.refillsLeft,
+      // Ensure arrays
+      auxLabels: Array.isArray(body.auxLabels) ? body.auxLabels : defaults.auxLabels,
+      fillTags: Array.isArray(body.fillTags) ? body.fillTags : defaults.fillTags,
+      // Ensure booleans
+      noClaimWarning: typeof body.noClaimWarning === "boolean" ? body.noClaimWarning : defaults.noClaimWarning,
+      holdWarning: typeof body.holdWarning === "boolean" ? body.holdWarning : defaults.holdWarning,
+    };
+
+    const pdfBuffer = await generateCompoundLabelPDF(labelData);
+
+    return new NextResponse(pdfBuffer as unknown as BodyInit, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "inline",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    });
+  } catch (error) {
+    console.error("Error generating compound label (POST):", error);
+    return NextResponse.json(
+      { error: "Failed to generate compound label" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * Build CompoundLabelData from a real PrescriptionFill record
  */
 async function buildCompoundLabelData(fillId: string): Promise<CompoundLabelData> {
