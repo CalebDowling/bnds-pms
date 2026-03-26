@@ -19,9 +19,13 @@ import bwipjs from "bwip-js";
  *   Signature2     – second signature section (y: 4.6–)
  */
 
-// Page dimensions in points (4" x 8")
-const PAGE_WIDTH = 4 * 72;   // 288pt
-const PAGE_HEIGHT = 8 * 72;  // 576pt
+// Logical page dimensions in points (portrait 4" x 8" — used by all drawing fns)
+const PAGE_WIDTH = 4 * 72;   // 288pt  (logical portrait width)
+const PAGE_HEIGHT = 8 * 72;  // 576pt  (logical portrait height)
+
+// Actual PDF page: landscape 8" x 4" so label is readable without tilting
+const PDF_PAGE_WIDTH = PAGE_HEIGHT;  // 576pt (landscape width)
+const PDF_PAGE_HEIGHT = PAGE_WIDTH;  // 288pt (landscape height)
 
 // Conversion: inches to points
 const IN = 72;
@@ -606,6 +610,11 @@ export async function drawCompoundLabel(
   doc: InstanceType<typeof PDFDocument>,
   data: CompoundLabelData
 ): Promise<void> {
+  // Global transform: rotate portrait coordinates 90° CW onto landscape page.
+  // Maps logical portrait (x, y) → landscape (y, PAGE_WIDTH - x).
+  // This makes all -90° rotated text become horizontal (readable).
+  doc.transform(0, -1, 1, 0, 0, PAGE_WIDTH);
+
   // Draw all label groups in order (back to front)
   await drawBottomLabel(doc, data);
   drawBacktag(doc, data);
@@ -625,7 +634,7 @@ export async function generateCompoundLabelPDF(
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
-      size: [PAGE_WIDTH, PAGE_HEIGHT],
+      size: [PDF_PAGE_WIDTH, PDF_PAGE_HEIGHT],
       margin: 0,
     });
 

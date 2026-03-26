@@ -311,7 +311,7 @@ export default function CompoundLabelEditorPage() {
             </Link>
             <h1 className="text-lg font-bold text-[var(--text-primary)]">New Test Label</h1>
             <span className="text-xs bg-[var(--green-50)] text-[var(--green-700)] px-2 py-0.5 rounded-full font-medium">
-              4&quot; x 8&quot; Compound
+              8&quot; x 4&quot; Compound
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -428,13 +428,13 @@ export default function CompoundLabelEditorPage() {
               <div className="bg-white rounded-lg border border-[var(--border)] overflow-hidden h-full flex flex-col">
                 <div className="bg-gray-50 px-4 py-2 border-b border-[var(--border)] flex items-center justify-between flex-shrink-0">
                   <span className="text-xs font-medium text-[var(--text-muted)]">Label Preview</span>
-                  <span className="text-xs text-[var(--text-muted)]">4&quot; x 8&quot; (288pt x 576pt)</span>
+                  <span className="text-xs text-[var(--text-muted)]">8&quot; x 4&quot; landscape (576pt x 288pt)</span>
                 </div>
                 <div className="flex-1 flex justify-center items-start p-4 bg-gray-100 overflow-auto">
                   <iframe
                     src={pdfUrl}
                     className="bg-white shadow-lg"
-                    style={{ width: "384px", height: "768px", border: "none" }}
+                    style={{ width: "768px", height: "384px", border: "none" }}
                     title="Compound Label Preview"
                   />
                 </div>
@@ -453,3 +453,4 @@ export default function CompoundLabelEditorPage() {
     </div>
   );
 }
+                                                                                                                                                        
