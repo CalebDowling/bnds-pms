@@ -162,25 +162,13 @@ export default function TemplateEditorPage() {
           // Estimate text width in inches based on font size and character count
           function estTextWidth(chars: number, fontSize: number, pw?: number): number {
             if (pw) return pw;
-            // Approximate: each character width ≈ fontSize * 0.6 / 72 inches
-            const charWidth = fontSize * 0.6 / 72;
-            return Math.max(chars * charWidth, 0.3);
+            const charWidth = fontSize * 0.55 / 72;
+            return Math.max(chars * charWidth, 0.25);
           }
 
-          // For rotated labels, we need to scale the Y axis to fit all elements
-          // DRX X positions range from ~0.1 to ~3.9 on a 4" label
-          // In our editor, Y = (4 - drxX) * DPI, giving 10px to 374px range
-          // But text elements need more vertical space in horizontal layout
-          // Scale factor stretches Y to use the full canvas height
-          const drxXValues = elements
-            .filter((e: any) => (e.rotationAngle || 0) !== 0)
-            .map((e: any) => e.xPosition || 0);
-          const minDrxX = Math.min(...drxXValues, 0);
-          const maxDrxX = Math.max(...drxXValues, rawPageW);
-          const drxXRange = maxDrxX - minDrxX || 1;
-          // Scale to use full canvas height with padding
-          const yScaleFactor = isRotatedLabel ? (canvasH * DPI * 0.95) / (drxXRange * DPI) : 1;
-
+          // Direct 1:1 inch-to-pixel mapping — no artificial scaling
+          // For rotated labels (-90°): drxY → editorX, (pageW - drxX) → editorY
+          // This preserves exact DRX positioning
           const fields: TemplateField[] = elements.map((el: any, i: number) => {
             const drxX = el.xPosition || 0;
             const drxY = el.yPosition || 0;
@@ -190,43 +178,69 @@ export default function TemplateEditorPage() {
             const estChars = text.length || 5;
 
             let editorX: number, editorY: number, editorW: number, editorH: number;
-            const lineH = fontPt * 1.3;
+            const lineH = fontPt * 1.4;
 
-            // Handle near-90° rotations (like -70°) same as -90° for positioning
             const isNeg90 = rot === -90 || rot === 270;
-            const isNearNeg90 = rot <= -45 && rot > -90; // e.g., -70°
+            const isNearNeg90 = rot < -45 && rot > -90;
             const isPos90 = rot === 90;
+            const isBarcode128 = el.displayBarcodeCode128;
+            const isQRCode = el.displayBarcodeQr;
 
-            if (isRotatedLabel && (isNeg90 || isNearNeg90)) {
-              const remainingX = rawPageH - drxY;
+            if (isRotatedLabel && isBarcode128) {
+              // Barcodes: DRX height is the barcode length (along label), width is bar thickness
+              const barcodeLen = el.height || 2; // in inches, along the label
+              const barcodeThick = 0.5; // barcode visual thickness in inches
+              if (isNeg90) {
+                editorX = drxY * DPI;
+                editorY = (rawPageW - drxX) * DPI;
+                editorW = barcodeLen * DPI;
+                editorH = barcodeThick * DPI;
+              } else if (isPos90) {
+                editorX = (rawPageH - drxY - barcodeLen) * DPI;
+                editorY = drxX * DPI;
+                editorW = barcodeLen * DPI;
+                editorH = barcodeThick * DPI;
+              } else {
+                // Non-rotated barcode
+                editorX = drxY * DPI;
+                editorY = (rawPageW - drxX - barcodeThick) * DPI;
+                editorW = barcodeLen * DPI;
+                editorH = barcodeThick * DPI;
+              }
+            } else if (isRotatedLabel && isQRCode) {
+              // QR codes have explicit w/h in inches
+              const qrSize = el.width || el.height || 0.8;
+              editorX = drxY * DPI;
+              editorY = (rawPageW - drxX - qrSize) * DPI;
+              editorW = qrSize * DPI;
+              editorH = qrSize * DPI;
+            } else if (isRotatedLabel && (isNeg90 || isNearNeg90)) {
               const textW = estTextWidth(estChars, fontPt, el.paragraphWidth);
               editorX = drxY * DPI;
-              editorY = (maxDrxX - drxX) * DPI * yScaleFactor;
-              editorW = Math.min(textW, remainingX) * DPI;
+              editorY = (rawPageW - drxX) * DPI;
+              editorW = Math.min(textW, rawPageH - drxY) * DPI;
               editorH = lineH;
             } else if (isRotatedLabel && isPos90) {
               const textW = estTextWidth(estChars, fontPt, el.paragraphWidth);
-              editorX = (rawPageH - drxY) * DPI;
-              editorY = (drxX - minDrxX) * DPI * yScaleFactor;
-              editorW = Math.min(textW, drxY) * DPI;
+              editorX = (rawPageH - drxY - textW) * DPI;
+              editorY = drxX * DPI;
+              editorW = textW * DPI;
               editorH = lineH;
             } else if (isRotatedLabel) {
-              // Non-rotated element on a rotated label (e.g., barcodes, static text)
               const textW = estTextWidth(estChars, fontPt, el.paragraphWidth || el.width);
               editorX = drxY * DPI;
-              editorY = (maxDrxX - drxX) * DPI * yScaleFactor;
+              editorY = (rawPageW - drxX) * DPI;
               editorW = textW * DPI;
-              editorH = (el.height || fontPt * 0.02) * DPI;
+              editorH = (el.height || fontPt * 0.018) * DPI;
             } else {
-              // Normal non-rotated label
               const textW = estTextWidth(estChars, fontPt, el.paragraphWidth || el.width);
               editorX = drxX * DPI;
               editorY = drxY * DPI;
               editorW = Math.min(textW, rawPageW - drxX) * DPI;
-              editorH = (el.height || fontPt * 0.02) * DPI;
+              editorH = (el.height || fontPt * 0.018) * DPI;
             }
 
-            // Final clamp to canvas bounds
+            // Clamp to canvas bounds
             const maxXPx = canvasW * DPI;
             const maxYPx = canvasH * DPI;
             if (editorX < 0) editorX = 0;
