@@ -1,6 +1,6 @@
 import PDFDocument from "pdfkit";
-// @ts-expect-error — bwip-js has its own types but TS doesn't resolve them cleanly
-import bwipjs from "bwip-js/lib/bwip-js-node";
+// @ts-expect-error — bwip-js types don't resolve cleanly
+import bwipjs from "bwip-js";
 
 /**
  * DRX-format compound label generator
