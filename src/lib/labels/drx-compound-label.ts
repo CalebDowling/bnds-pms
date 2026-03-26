@@ -1,5 +1,4 @@
 import PDFDocument from "pdfkit";
-// @ts-expect-error — bwip-js types don't resolve cleanly
 import bwipjs from "bwip-js";
 
 /**
@@ -695,39 +694,4 @@ export function createSampleLabelData(): CompoundLabelData {
     doctorAddressLine2: "",
     doctorCity: "Lake Charles",
     doctorState: "LA",
-    doctorZip: "70601",
-    doctorPhone: "337-555-7777",
-    doctorDEA: "BM1234567",
-    doctorNPI: "1234567890",
-
-    pharmacistFirstName: "Emily",
-    pharmacistLastName: "Bychkov",
-
-    primaryInsurance: "WELLCARE MEDICARE PART D",
-
-    batchId: "B-2026-0325",
-    formulaId: "F-1547",
-    batchExpiration: "06/25/2026",
-
-    auxLabels: [
-      "FOR EXTERNAL USE ONLY",
-      "KEEP OUT OF REACH OF CHILDREN",
-      "STORE AT ROOM TEMPERATURE",
-      "DO NOT USE IF ALLERGIC TO ANY INGREDIENT",
-    ],
-    fillTags: ["price check", "compound"],
-    pickupTime: "03/25/2026 2:00 PM",
-    noClaimWarning: false,
-    holdWarning: false,
-
-    completionQuantity: "",
-    partialQuantity: "",
-
-    fillId: "154687",
-    labelVersion: "0",
-    itemId: "71662",
-
-    patientEducationUrl: "https://bndsrx.com/edu/154687",
-    tollFreeNumber: "Toll Free 1-855-305-2110",
-  };
-}
+    doc
