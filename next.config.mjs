@@ -8,6 +8,8 @@ const nextConfig = {
   // Turbopack config (Next.js 16 default bundler) — required when webpack config also present
   turbopack: {},
 
+  serverExternalPackages: ["pdfkit"],
+
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb",
