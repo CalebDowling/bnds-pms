@@ -308,6 +308,21 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
   async function handleBulkAction(action: string) {
     const ids = Array.from(selectedRows);
 
+    if (action === "Print") {
+      // Open compound label PDF for selected fills
+      const targetFills = processed.filter((f) => ids.includes(f.fillId));
+      if (targetFills.length === 0) {
+        // No selection — open preview
+        window.open("/api/labels/compound/preview", "_blank");
+        return;
+      }
+      // Open each fill's label in a new tab
+      for (const fill of targetFills) {
+        window.open(`/api/labels/compound/${fill.fillId}`, "_blank");
+      }
+      return;
+    }
+
     if (action === "Notify") {
       const targetFills = processed.filter((f) => ids.includes(f.fillId) && f.phone);
       if (targetFills.length === 0) {

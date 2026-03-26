@@ -1,4 +1,6 @@
 import PDFDocument from "pdfkit";
+// @ts-expect-error — bwip-js has its own types but TS doesn't resolve them cleanly
+import bwipjs from "bwip-js/lib/bwip-js-node";
 
 /**
  * DRX-format compound label generator
@@ -170,61 +172,73 @@ function drawRotatedText(
 }
 
 /**
- * Draw a Code128 barcode using simple bars
- * PDFKit doesn't have built-in barcodes, so we draw rectangles
+ * Generate a real Code128 barcode PNG buffer using bwip-js
  */
-function drawBarcode128(
+async function generateBarcodePNG(text: string, height: number): Promise<Buffer> {
+  const png = await bwipjs.toBuffer({
+    bcid: "code128",
+    text,
+    scale: 2,
+    height: Math.max(5, Math.min(height, 30)),
+    includetext: true,
+    textxalign: "center",
+    textsize: 8,
+  });
+  return Buffer.from(png);
+}
+
+/**
+ * Generate a QR code PNG buffer
+ */
+async function generateQRPNG(text: string, size: number): Promise<Buffer> {
+  try {
+    const QRCode = await import("qrcode");
+    const png = await QRCode.toBuffer(text, {
+      width: size,
+      margin: 1,
+      errorCorrectionLevel: "M",
+    });
+    return Buffer.from(png);
+  } catch {
+    // Fallback: return empty buffer if QR generation fails
+    return Buffer.alloc(0);
+  }
+}
+
+/**
+ * Draw a real scannable Code128 barcode on the PDF
+ */
+async function drawBarcode128(
   doc: InstanceType<typeof PDFDocument>,
   text: string,
   xIn: number,
   yIn: number,
   heightPt: number,
   rotation: number = -90
-): void {
+): Promise<void> {
   if (!text) return;
 
-  doc.save();
-  const xPt = xIn * IN;
-  const yPt = yIn * IN;
-  doc.translate(xPt, yPt);
-  doc.rotate(rotation);
+  try {
+    const png = await generateBarcodePNG(text, Math.round(heightPt * 0.8));
 
-  // Simple barcode representation using Code 128 pattern
-  // We use a hash-based pattern for visual representation
-  const barWidth = 1;
-  let x = 0;
-
-  for (let i = 0; i < text.length; i++) {
-    const charCode = text.charCodeAt(i);
-    // Generate a deterministic bar pattern from char code
-    const pattern = [
-      (charCode >> 0) & 1, 1, (charCode >> 1) & 1, 0,
-      (charCode >> 2) & 1, 1, (charCode >> 3) & 1, 0,
-      1, (charCode >> 4) & 1, 0, 1,
-    ];
-    for (const bar of pattern) {
-      if (bar) {
-        doc.rect(x, 0, barWidth, heightPt).fill("black");
-      }
-      x += barWidth;
-    }
-    // Gap between characters
-    x += barWidth;
+    doc.save();
+    const xPt = xIn * IN;
+    const yPt = yIn * IN;
+    doc.translate(xPt, yPt);
+    doc.rotate(rotation);
+    doc.image(png, 0, 0, { height: heightPt, fit: [heightPt * 4, heightPt] });
+    doc.restore();
+  } catch {
+    // Fallback: draw text if barcode generation fails
+    drawRotatedText(doc, `[BC] ${text}`, xIn, yIn, { fontSize: 6, rotation });
   }
-
-  // Stop pattern
-  doc.rect(x, 0, barWidth * 2, heightPt).fill("black");
-  x += barWidth * 3;
-  doc.rect(x, 0, barWidth, heightPt).fill("black");
-
-  doc.restore();
 }
 
 // =========================================================================
 // MAIN LABEL DRAWING
 // =========================================================================
 
-function drawBottomLabel(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
+async function drawBottomLabel(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): Promise<void> {
   // Patient name — bold 12pt at (1.1, 0.1)
   drawRotatedText(doc, `${data.patientFirstName} ${data.patientLastName}`, 1.1, 0.1, {
     fontSize: 12, bold: true, upperCase: true,
@@ -315,7 +329,7 @@ function drawBottomLabel(doc: InstanceType<typeof PDFDocument>, data: CompoundLa
   });
 
   // Bottom barcode — 1pt text, h=6 at (0.4, 4.2)
-  drawBarcode128(doc, `b${data.fillId}:${data.labelVersion}`, 0.4, 4.2, 6);
+  await drawBarcode128(doc, `b${data.fillId}:${data.labelVersion}`, 0.4, 4.2, 6);
 }
 
 function drawBacktag(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
@@ -375,7 +389,7 @@ function drawBacktag(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelD
   });
 }
 
-function drawMainLabel(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
+async function drawMainLabel(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): Promise<void> {
   // Patient last, first — 10pt at (3.15, 0.1)
   drawRotatedText(doc, `${data.patientLastName}, ${data.patientFirstName}`, 3.15, 0.1, {
     fontSize: 10,
@@ -445,7 +459,7 @@ function drawMainLabel(doc: InstanceType<typeof PDFDocument>, data: CompoundLabe
   });
 
   // Main barcode — h=6 at (2.0, 2.5), rotation 0 (horizontal)
-  drawBarcode128(doc, `b${data.fillId}:${data.labelVersion}`, 2.0, 2.5, 6, 0);
+  await drawBarcode128(doc, `b${data.fillId}:${data.labelVersion}`, 2.0, 2.5, 6, 0);
 }
 
 function drawAuxSection(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
@@ -474,7 +488,7 @@ function drawAuxSection(doc: InstanceType<typeof PDFDocument>, data: CompoundLab
   }
 }
 
-function drawPatientNotes(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
+async function drawPatientNotes(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): Promise<void> {
   // NO PAID CLAIM warning — bold 30pt at (1.0, 4.4), rotation -70
   if (data.noClaimWarning) {
     drawRotatedText(doc, "NO PAID CLAIM", 1.0, 4.4, {
@@ -511,10 +525,20 @@ function drawPatientNotes(doc: InstanceType<typeof PDFDocument>, data: CompoundL
   }
 
   // Item ID barcode — h=6 at (2.4, 6.5), rotation 90
-  drawBarcode128(doc, `i:${data.itemId}`, 2.4, 6.5, 6, 90);
+  await drawBarcode128(doc, `i:${data.itemId}`, 2.4, 6.5, 6, 90);
 
   // Item ID text — 8pt at (2.6, 7.0)
   drawRotatedText(doc, `i:${data.itemId}`, 2.6, 7.0, { fontSize: 8 });
+
+  // QR code for patient education — at (2.8, 6.2), 1"x1"
+  if (data.patientEducationUrl) {
+    try {
+      const qrPng = await generateQRPNG(data.patientEducationUrl, 200);
+      if (qrPng.length > 0) {
+        doc.image(qrPng, 2.8 * IN, 6.2 * IN, { width: 0.8 * IN, height: 0.8 * IN });
+      }
+    } catch { /* QR generation optional */ }
+  }
 }
 
 function drawSignatureSection(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
@@ -537,7 +561,7 @@ function drawSignatureSection(doc: InstanceType<typeof PDFDocument>, data: Compo
   }
 }
 
-function drawSignature2Section(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
+async function drawSignature2Section(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): Promise<void> {
   // Patient name — bold 8pt at (1.5, 4.6)
   drawRotatedText(doc, `${data.patientFirstName} ${data.patientLastName}`, 1.5, 4.6, {
     fontSize: 8, bold: true,
@@ -553,7 +577,7 @@ function drawSignature2Section(doc: InstanceType<typeof PDFDocument>, data: Comp
   drawRotatedText(doc, `Cell: ${data.patientCellPhone}`, 1.4, 5.8, { fontSize: 7 });
 
   // Signature barcode — h=6 at (1.0, 6.5), rotation 90
-  drawBarcode128(doc, `${data.fillId}:${data.fillNumber}`, 1.0, 6.5, 6, 90);
+  await drawBarcode128(doc, `${data.fillId}:${data.fillNumber}`, 1.0, 6.5, 6, 90);
 
   // NDC — 6pt at (1.2, 7.0)
   drawRotatedText(doc, `NDC: ${data.ndc}`, 1.2, 7.0, { fontSize: 6 });
@@ -579,19 +603,19 @@ function drawTollFree(doc: InstanceType<typeof PDFDocument>, data: CompoundLabel
 /**
  * Draw a complete DRX compound label onto a PDFDocument page
  */
-export function drawCompoundLabel(
+export async function drawCompoundLabel(
   doc: InstanceType<typeof PDFDocument>,
   data: CompoundLabelData
-): void {
+): Promise<void> {
   // Draw all label groups in order (back to front)
-  drawBottomLabel(doc, data);
+  await drawBottomLabel(doc, data);
   drawBacktag(doc, data);
-  drawMainLabel(doc, data);
+  await drawMainLabel(doc, data);
   drawTollFree(doc, data);
   drawAuxSection(doc, data);
-  drawPatientNotes(doc, data);
+  await drawPatientNotes(doc, data);
   drawSignatureSection(doc, data);
-  drawSignature2Section(doc, data);
+  await drawSignature2Section(doc, data);
 }
 
 /**
@@ -625,8 +649,7 @@ export async function generateCompoundLabelPDF(
 
     doc.on("error", reject);
 
-    drawCompoundLabel(doc, data);
-    doc.end();
+    drawCompoundLabel(doc, data).then(() => doc.end()).catch(reject);
   });
 }
 
