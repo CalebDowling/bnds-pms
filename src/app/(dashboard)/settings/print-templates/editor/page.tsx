@@ -168,28 +168,36 @@ export default function TemplateEditorPage() {
             // Position: DRX coordinates directly to pixels
             const x = drxX * DPI;
             const y = drxY * DPI;
+            const isRot90 = rot === -90 || rot === 270 || (rot <= -45 && rot > -90);
+            const canvasWPx = canvasW * DPI;
+            const canvasHPx = canvasH * DPI;
 
-            // Width estimation
+            // Width/height estimation
             let w: number, h: number;
             if (isBarcode) {
-              const barcodeLen = (el.height || 3) * DPI; // DRX "height" is barcode length
-              w = 0.4 * DPI; // barcode visual width
+              const barcodeLen = Math.min((el.height || 3) * DPI, isRot90 ? x : canvasHPx - y);
+              w = 0.35 * DPI;
               h = barcodeLen;
             } else if (isQR) {
-              w = (el.width || 0.8) * DPI;
-              h = w;
+              const qrSize = Math.min((el.width || 0.8) * DPI, 80);
+              w = qrSize;
+              h = qrSize;
             } else {
               const pw = el.paragraphWidth;
-              const charW = fontPt * 0.52 / 72;
+              const charW = fontPt * 0.48 / 72; // tighter char width for screen
+              const maxW = isRot90 ? x : canvasWPx - x; // rotated text extends upward from x
               if (pw) {
-                w = pw * DPI;
-                h = fontPt * 1.2;
-                if (text.length > 35) h = fontPt * 2.5;
+                w = Math.min(pw * DPI, maxW);
+                h = fontPt * 1.15;
+                if (text.length > 35) h = fontPt * 2.2;
               } else {
-                w = Math.max(text.length * charW * DPI, 18);
-                h = fontPt * 1.2;
+                w = Math.min(Math.max(text.length * charW * DPI, 16), maxW);
+                h = fontPt * 1.15;
               }
             }
+            // Ensure nothing goes negative
+            if (w < 10) w = 10;
+            if (h < 5) h = 5;
 
             return {
               id: `el_${el.id || i}`,
@@ -200,7 +208,7 @@ export default function TemplateEditorPage() {
                 ? `(${el.labelGroup.name}) ${el.elementData || "Element"}`
                 : el.elementData || `Element ${i + 1}`,
               x, y, width: w, height: h,
-              fontSize: fontPt,
+              fontSize: Math.max(fontPt * 0.85, 5), // Scale down slightly for screen
               fontWeight: styleStr.includes("bold") ? "bold" as const : "normal" as const,
               fontStyle: styleStr.includes("italic") ? "italic" as const : "normal" as const,
               textDecoration: "none" as const,
