@@ -185,17 +185,20 @@ export default function TemplateEditorPage() {
               (b.xPosition || 0) - (a.xPosition || 0) || (a.yPosition || 0) - (b.yPosition || 0)
             ));
 
-            // Define zones on a 4"×8" portrait canvas (384px wide × 768px tall)
-            // Layout matches how DRX prints: MAIN LABEL top, AUX middle, BOTTOM LABEL below, then right-side groups
+            // Canvas: 4"×8" portrait = 384px wide × 768px tall at 96 DPI
+            // Zones laid out top-to-bottom matching DRX print order
+            const PX_W = canvasW * DPI; // 384
+            const PX_H = canvasH * DPI; // 768
+
             const zoneStartY: Record<string, number> = {
-              "MAIN LABEL": 0,
-              "UNGROUPED": 0,
-              "AUX": 160,
-              "BOTTOM LABEL": 250,
-              "Signature": 480,
-              "Signature2": 480,
-              "Patient Notes": 430,
-              "Backtag": 560,
+              "MAIN LABEL": 0,        // 0-120: drug info, patient, sig, pharmacist
+              "UNGROUPED": 125,       // 125-155: settings name, QR code
+              "AUX": 160,             // 160-230: compound info, aux labels
+              "BOTTOM LABEL": 235,    // 235-395: Rx#, patient details, doctor, insurance, barcode
+              "Signature": 400,       // 400-445: Taylor Gray info
+              "Signature2": 400,      // 400-470: second signature block
+              "Patient Notes": 475,   // 475-530: pickup time, fill tags, notes (watermarks overlay)
+              "Backtag": 540,         // 540-740: backtag with all Rx details
             };
 
             const zoneStartX: Record<string, number> = {
@@ -204,20 +207,20 @@ export default function TemplateEditorPage() {
               "AUX": 0,
               "BOTTOM LABEL": 0,
               "Signature": 0,
-              "Signature2": 190,
+              "Signature2": PX_W / 2,
               "Patient Notes": 0,
               "Backtag": 0,
             };
 
             const zoneMaxX: Record<string, number> = {
-              "MAIN LABEL": 384,
-              "UNGROUPED": 384,
-              "AUX": 384,
-              "BOTTOM LABEL": 384,
-              "Signature": 190,
-              "Signature2": 384,
-              "Patient Notes": 384,
-              "Backtag": 384,
+              "MAIN LABEL": PX_W,
+              "UNGROUPED": PX_W,
+              "AUX": PX_W,
+              "BOTTOM LABEL": PX_W,
+              "Signature": PX_W / 2,
+              "Signature2": PX_W,
+              "Patient Notes": PX_W,
+              "Backtag": PX_W,
             };
 
             const result: TemplateField[] = [];
@@ -245,12 +248,20 @@ export default function TemplateEditorPage() {
                 const text = el.exampleText || el.elementData || "";
                 const isBarcode = el.displayBarcodeCode128;
                 const isQR = el.displayBarcodeQr;
+                const isWatermark = el.elementData === "hold_warning" || el.elementData === "no_paid_claim_warning";
+
+                // Watermarks: overlay at fixed position, don't consume row space
+                if (isWatermark) {
+                  const wmY = el.elementData === "hold_warning" ? 300 : 380;
+                  const wmW = Math.min(fontPt * text.length * 0.6, PX_W);
+                  result.push(makeField(el, result.length, PX_W * 0.15, wmY, wmW, fontPt * 1.3));
+                  continue;
+                }
 
                 // Determine if this is a new row (different DRX X position)
                 const xDiff = Math.abs(drxX - lastDrxX);
                 if (xDiff > 0.08) {
-                  // New row
-                  if (currentRow >= 0) rowY += maxRowH + 2;
+                  if (currentRow >= 0) rowY += maxRowH + 1;
                   currentRow++;
                   rowX = baseX;
                   maxRowH = 0;
@@ -260,28 +271,40 @@ export default function TemplateEditorPage() {
                 let w: number, h: number;
 
                 if (isBarcode) {
-                  w = Math.min((el.height || 3) * DPI * 0.5, maxX - rowX);
-                  h = 35;
+                  // Barcode takes most of the row width
+                  w = Math.min(PX_W * 0.85, maxX - rowX);
+                  h = 30;
+                  // Start barcode on its own line
+                  if (rowX > baseX) {
+                    rowY += maxRowH + 1;
+                    rowX = baseX;
+                    maxRowH = 0;
+                  }
                 } else if (isQR) {
-                  w = (el.width || 0.8) * DPI;
+                  w = Math.min((el.width || 0.7) * DPI, 67);
                   h = w;
                 } else {
                   const pw = el.paragraphWidth;
-                  const charW = fontPt * 0.55 / 72;
-                  w = pw ? Math.min(pw * DPI, maxX - rowX) : Math.min(Math.max(text.length * charW * DPI, 20), maxX - rowX);
-                  h = fontPt * 1.3;
-                  if (pw && text.length > 30) h = fontPt * 2.5; // multi-line
+                  const charW = fontPt * 0.52 / 72;
+                  w = pw ? Math.min(pw * DPI, maxX - rowX) : Math.min(Math.max(text.length * charW * DPI, 18), maxX - rowX);
+                  h = fontPt * 1.2;
+                  if (pw && text.length > 35) h = fontPt * 2.2;
                 }
 
-                // Ensure elements don't exceed zone width
-                if (rowX + w > maxX) {
-                  w = Math.max(20, maxX - rowX);
+                // Wrap to next row if element won't fit
+                if (rowX + w > maxX && rowX > baseX) {
+                  rowY += maxRowH + 1;
+                  rowX = baseX;
+                  maxRowH = 0;
                 }
+
+                // Final width clamp
+                if (rowX + w > maxX) w = Math.max(18, maxX - rowX);
 
                 maxRowH = Math.max(maxRowH, h);
                 result.push(makeField(el, result.length, rowX, rowY, w, h));
 
-                rowX += w + 4; // 4px gap between elements in same row
+                rowX += w + 3; // 3px gap between elements in same row
               }
             }
 
