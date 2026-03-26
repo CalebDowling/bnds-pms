@@ -16,6 +16,8 @@ interface PrintTemplate {
 }
 
 const ALL_TEMPLATES: PrintTemplate[] = [
+  // Test Label
+  { id: 999, name: "Test Label", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "3/25/2026", updatedAt: "3/25/2026" },
   // Rx Labels
   { id: 95, name: "Boudreaux CMPD-CA COPY", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "3/12/2026", updatedAt: "3/12/2026" },
   { id: 94, name: "Boudreaux CMPD spacing updates", size: '4" X 8"', type: "Rx Label", isActive: true, createdAt: "3/5/2026", updatedAt: "3/24/2026" },
