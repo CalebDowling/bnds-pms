@@ -16,8 +16,8 @@ interface PrintTemplate {
 }
 
 const ALL_TEMPLATES: PrintTemplate[] = [
-  // Test Label
-  { id: 999, name: "Test Label", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "3/25/2026", updatedAt: "3/25/2026" },
+  // New Test Label — compound label from DRX template #95
+  { id: 999, name: "New Test Label", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "3/25/2026", updatedAt: "3/25/2026" },
   // Rx Labels
   { id: 95, name: "Boudreaux CMPD-CA COPY", size: '4" X 8"', type: "Rx Label", isActive: false, createdAt: "3/12/2026", updatedAt: "3/12/2026" },
   { id: 94, name: "Boudreaux CMPD spacing updates", size: '4" X 8"', type: "Rx Label", isActive: true, createdAt: "3/5/2026", updatedAt: "3/24/2026" },
@@ -406,9 +406,9 @@ export default function PrintTemplatesPage() {
                   return (
                     <tr key={t.id} className={`hover:bg-gray-50 transition-colors ${isAssigned ? "bg-[#40721D]/[0.04]" : ""}`}>
                       <td className="px-4 py-3">
-                        <Link href={`/settings/print-templates/editor?id=${t.id}`}
+                        <Link href={t.id === 999 ? "/settings/print-templates/compound-preview" : `/settings/print-templates/editor?id=${t.id}`}
                           className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-[#40721D] bg-[#40721D]/5 rounded hover:bg-[#40721D]/10 transition-colors">
-                          Edit
+                          {t.id === 999 ? "Preview" : "Edit"}
                         </Link>
                       </td>
                       <td className="px-4 py-3">
