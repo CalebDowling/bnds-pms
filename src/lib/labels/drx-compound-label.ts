@@ -608,90 +608,64 @@ async function drawSignatureAndNotes(
   // Watermark elements (x:2.3 y:5.0 rot:-70 and x:1.0 y:4.4 rot:-70) are
   // drawn by drawWatermarks, not here.
 
-  // === Backtag (20 elements) — y starts at 4.6 ===
+  // === Backtag (20 elements) — sequential rows instead of DRX coordinates ===
+  // DRX stacks these at 0.1" vertical intervals which is only 7.2pt — not enough
+  // for readable text at 72 DPI. Use sequential Y positioning with 9pt line height.
 
-  // x:0.85 y:4.6 fs:7 BOLD "RX 12454"
-  const btRx = drx(0.85, 4.6, 7);
-  placeText(doc, `RX ${data.rxNumber}`, btRx.x, btRx.y, { fontSize: 7, bold: true });
+  const btX = 4.6 * 72; // DRX y=4.6 → landscape X
+  const btX2 = 5.9 * 72; // second column at DRX y=5.9
+  const btX3 = 7.2 * 72; // third column at DRX y=7.2
+  let btY = 148; // Start below signature section
 
-  // x:0.85 y:5.3 fs:6.5 BOLD "DOB: 12/4/54"
-  const btDob = drx(0.85, 5.3, 6.5);
-  placeText(doc, `DOB: ${data.patientDOB}`, btDob.x, btDob.y, { fontSize: 6.5, bold: true });
+  // Row 1: RX# | DOB
+  placeText(doc, `RX ${data.rxNumber}`, btX, btY, { fontSize: 5, bold: true });
+  placeText(doc, `DOB: ${data.patientDOB}`, btX + 55, btY, { fontSize: 5, bold: true });
+  placeText(doc, `Filled ${data.fillDate}`, btX3, btY, { fontSize: 5, bold: true });
+  btY += 8;
 
-  // x:0.85 y:7.2 fs:6 BOLD "Filled 12/22/2022"
-  const btFill = drx(0.85, 7.2, 6);
-  placeText(doc, `Filled ${data.fillDate}`, btFill.x, btFill.y, { fontSize: 6, bold: true });
+  // Row 2: Patient name | QTY
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, btX, btY, { fontSize: 6, bold: true, upperCase: true });
+  placeText(doc, `QTY: ${data.dispensedQuantity}`, btX3, btY, { fontSize: 5, bold: true });
+  btY += 8;
 
-  // x:0.8 y:6.0 fs:6 "NDC: 00111-0222-99" pw:3.8
-  const btNdc = drx(0.8, 6.0, 6);
-  placeText(doc, `NDC: ${data.ndc}`, btNdc.x, btNdc.y, { fontSize: 6, maxWidth: 3.8 * 72 });
-
-  // x:0.75 y:4.6 fs:8 BOLD patient name
-  const btPat = drx(0.75, 4.6, 8);
-  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, btPat.x, btPat.y, {
-    fontSize: 8, bold: true, upperCase: true,
-  });
-
-  // x:0.75 y:7.2 fs:6 BOLD "QTY: 150"
-  const btQty = drx(0.75, 7.2, 6);
-  placeText(doc, `QTY: ${data.dispensedQuantity}`, btQty.x, btQty.y, { fontSize: 6, bold: true });
-
-  // x:0.65 y:4.6 fs:6 patient address
-  const btAddr = drx(0.65, 4.6, 6);
-  const btAddrFull = [data.patientAddressLine1, data.patientAddressLine2].filter(Boolean).join(" ");
-  placeText(doc, btAddrFull, btAddr.x, btAddr.y, { fontSize: 6, upperCase: true });
-
-  // x:0.65 y:7.2 fs:6 BOLD "Part" (completion or partial — show one)
+  // Row 3: Doctor name | Comp/Partial
+  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, btX, btY, { fontSize: 6, bold: true, upperCase: true });
   if (data.completionQuantity || data.partialQuantity) {
-    const btPart = drx(0.65, 7.2, 6);
-    placeText(doc, data.completionQuantity ? `Comp: ${data.completionQuantity}` : `Part: ${data.partialQuantity}`, btPart.x, btPart.y, {
-      fontSize: 6, bold: true,
-    });
+    placeText(doc, data.completionQuantity ? `Comp` : `Part`, btX3, btY, { fontSize: 5, bold: true });
   }
+  btY += 8;
 
-  // x:0.6 y:5.9 fs:6 item.name pw:3.3
-  const btItem = drx(0.6, 5.9, 6);
-  placeText(doc, data.itemName, btItem.x, btItem.y, { fontSize: 6, maxWidth: 3.3 * 72 });
-
-  // x:0.58 y:4.6 fs:6 "LAKE CHARLES, LA, 12345" (patient city/state/zip)
-  const btCSZ = drx(0.58, 4.6, 6);
-  const btPatCSZ = [data.patientCity, `${data.patientState}, ${data.patientZip}`].filter(Boolean).join(", ");
-  placeText(doc, btPatCSZ, btCSZ.x, btCSZ.y, { fontSize: 6, upperCase: true });
-
-  // x:0.45 y:4.6 fs:8 BOLD "CHARLES XAVIER" (doctor name)
-  const btDr = drx(0.45, 4.6, 8);
-  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, btDr.x, btDr.y, {
-    fontSize: 8, bold: true, upperCase: true,
-  });
-
-  // x:0.45 y:7.2 fs:6 BOLD "INS: $1.00"
-  const btIns = drx(0.45, 7.2, 6);
-  placeText(doc, `INS: $${data.copay}`, btIns.x, btIns.y, { fontSize: 6, bold: true });
-
-  // x:0.38 y:4.6 fs:6 "NPI: 1231415566"
-  const btNpi = drx(0.38, 4.6, 6);
-  placeText(doc, `NPI: ${data.doctorNPI}`, btNpi.x, btNpi.y, { fontSize: 6 });
-
-  // x:0.3 y:4.6 fs:6 "DEA: 12314155"
-  const btDea = drx(0.3, 4.6, 6);
-  placeText(doc, `DEA: ${data.doctorDEA}`, btDea.x, btDea.y, { fontSize: 6 });
-
-  // x:0.3 y:5.9 fs:12 prescription.sig_translated pw:2
-  const btSig = drx(0.3, 5.9, 12);
-  placeText(doc, data.sig, btSig.x, btSig.y, { fontSize: 12, maxWidth: 2 * 72 });
-
-  // x:0.22 y:4.6 fs:6 doctor address pw:3.4
-  const btDrAddr = drx(0.22, 4.6, 6);
+  // Row 4: Patient address | Doctor address
+  const btAddrFull = [data.patientAddressLine1, data.patientAddressLine2].filter(Boolean).join(" ");
+  placeText(doc, btAddrFull, btX, btY, { fontSize: 5, upperCase: true });
   const drAddrFull = [data.doctorAddressLine1, data.doctorCity, `${data.doctorState} ${data.doctorZip}`].filter(Boolean).join(", ");
-  placeText(doc, drAddrFull, btDrAddr.x, btDrAddr.y, { fontSize: 6, maxWidth: 3.4 * 72 });
+  placeText(doc, drAddrFull, btX + 120, btY, { fontSize: 5, maxWidth: 180 });
+  btY += 8;
 
-  // x:0.1 y:4.6 fs:6 "1 Refill(s) left until"
-  const btRef = drx(0.1, 4.6, 6);
-  placeText(doc, `${data.refillsLeft} Refill(s) left until`, btRef.x, btRef.y, { fontSize: 6 });
+  // Row 5: City/State/Zip | DEA | NPI
+  const btPatCSZ = [data.patientCity, `${data.patientState}, ${data.patientZip}`].filter(Boolean).join(", ");
+  placeText(doc, btPatCSZ, btX, btY, { fontSize: 5, upperCase: true });
+  placeText(doc, `DEA: ${data.doctorDEA}`, btX + 100, btY, { fontSize: 5 });
+  placeText(doc, `NPI: ${data.doctorNPI}`, btX + 160, btY, { fontSize: 5 });
+  btY += 8;
 
-  // x:0.1 y:5.3 fs:6 "11/1/2022" (rx expires)
-  const btExp = drx(0.1, 5.3, 6);
-  placeText(doc, data.rxExpires, btExp.x, btExp.y, { fontSize: 6 });
+  // Row 6: Drug name (full)
+  placeText(doc, data.itemName, btX, btY, { fontSize: 5, maxWidth: 250, upperCase: true });
+  btY += 12;
+
+  // Row 7: SIG
+  placeText(doc, data.sig, btX, btY, { fontSize: 5, maxWidth: 200 });
+  btY += 12;
+
+  // Row 8: NDC | QTY | INS
+  placeText(doc, `NDC: ${data.ndc}`, btX, btY, { fontSize: 5 });
+  placeText(doc, `QTY: ${data.dispensedQuantity}`, btX + 80, btY, { fontSize: 5 });
+  placeText(doc, `INS: $${data.copay}`, btX + 130, btY, { fontSize: 5 });
+  placeText(doc, `Filled: ${data.fillDate}`, btX + 180, btY, { fontSize: 5 });
+  btY += 8;
+
+  // Row 9: Refills
+  placeText(doc, `${data.refillsLeft} Refill(s) left until ${data.rxExpires}`, btX, btY, { fontSize: 5 });
 }
 
 // ---------------------------------------------------------------------------
