@@ -451,9 +451,23 @@ async function drawSignatureAndNotes(
     try {
       const qrPng = await generateQRPNG(data.patientEducationUrl, 150);
       if (qrPng.length > 0) {
-        doc.image(qrPng, x + 125, y - 4, { width: 24, height: 24 });
+        doc.image(qrPng, x + 30, y - 4, { width: 24, height: 24 });
       }
     } catch { /* QR optional */ }
+  }
+
+  // Item ID barcode (4th barcode — vertical, next to QR)
+  if (data.itemId) {
+    try {
+      const itemBcPng = await generateBarcodePNG(`i:${data.itemId}`, 6);
+      doc.save();
+      doc.translate(x + 60, y);
+      doc.rotate(90);
+      doc.image(itemBcPng, 0, 0, { height: 14, fit: [50, 14] });
+      doc.restore();
+    } catch {
+      placeText(doc, `i:${data.itemId}`, x + 60, y, { fontSize: 5 });
+    }
   }
 
   // --- Right column: Backtag (x+170 to end) ---

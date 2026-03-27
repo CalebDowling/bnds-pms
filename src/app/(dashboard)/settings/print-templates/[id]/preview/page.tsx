@@ -222,7 +222,12 @@ function buildRxLabelFields(formData: Record<string, string>): LabelField[] {
   fields.push({ id: "sig-barcode", label: "Sig Barcode", value: `${v("fillId", "154687")}:${v("fillNumber", "1")}`, x: sx, y: sy, fontSize: 5, bold: false, isBarcode: true, maxWidth: 120 });
 
   if (v("patientEducationUrl")) {
-    fields.push({ id: "sig-qr", label: "Patient Education QR", value: v("patientEducationUrl"), x: sx + 125, y: sy - 4, fontSize: 5, bold: false, isQrCode: true });
+    fields.push({ id: "sig-qr", label: "Patient Education QR", value: v("patientEducationUrl"), x: sx + 30, y: sy - 4, fontSize: 5, bold: false, isQrCode: true });
+  }
+
+  // Item ID barcode (4th barcode)
+  if (v("itemId")) {
+    fields.push({ id: "item-barcode", label: "Item ID Barcode", value: `i:${v("itemId", "71662")}`, x: sx + 60, y: sy, fontSize: 5, bold: false, isBarcode: true, maxWidth: 50 });
   }
 
   // ── Backtag (right column of section 4) ───────────────────────
