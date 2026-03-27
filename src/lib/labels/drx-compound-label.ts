@@ -19,16 +19,21 @@ import bwipjs from "bwip-js";
  *   Signature2     – second signature section (y: 4.6–)
  */
 
-// Logical page dimensions in points (portrait 4" x 8" — used by all drawing fns)
-const PAGE_WIDTH = 4 * 72;   // 288pt  (logical portrait width)
-const PAGE_HEIGHT = 8 * 72;  // 576pt  (logical portrait height)
-
-// Actual PDF page: landscape 8" x 4" so label is readable without tilting
-const PDF_PAGE_WIDTH = PAGE_HEIGHT;  // 576pt (landscape width)
-const PDF_PAGE_HEIGHT = PAGE_WIDTH;  // 288pt (landscape height)
+// PDF page: landscape 8" x 4" — text is placed normally (no rotation)
+// The Zebra printer receives a landscape PDF and prints it on 4"x8" stock
+const PDF_W = 8 * 72;  // 576pt (landscape width = label height)
+const PDF_H = 4 * 72;  // 288pt (landscape height = label width)
 
 // Conversion: inches to points
 const IN = 72;
+
+// DRX coordinate transform for -90° rotated elements:
+// DRX x_position (0-4") → vertical position on label (0=bottom, 4=top)
+// DRX y_position (0-8") → horizontal position on label (0=left, 8=right)
+// In our landscape PDF: x = drx_y * 72, y = (4 - drx_x) * 72
+function drxToLandscape(drxX: number, drxY: number): [number, number] {
+  return [drxY * IN, (4 - drxX) * IN];
+}
 
 /**
  * Data interface for compound label — maps to DRX element_data fields
@@ -117,28 +122,26 @@ export interface CompoundLabelData {
 }
 
 /**
- * Helper: draw text at absolute position with -90° rotation
- * In DRX, x_position is measured from left edge, y_position from top edge
- * With -90° rotation, text reads bottom-to-top
+ * Place text at DRX coordinates, converting to landscape layout.
+ * For -90° elements (the vast majority): text placed horizontally, no rotation.
+ * For other rotations (0°, 90°, -70°): apply CSS-like rotation via pdfkit transform.
  */
-function drawRotatedText(
+function placeText(
   doc: InstanceType<typeof PDFDocument>,
   text: string,
-  xIn: number,
-  yIn: number,
+  drxX: number,
+  drxY: number,
   options: {
-    font?: string;
     fontSize?: number;
     bold?: boolean;
     upperCase?: boolean;
     maxWidth?: number;      // paragraph_width in inches
-    rotation?: number;
+    rotation?: number;      // DRX rotation_angle (default -90)
   } = {}
 ): void {
   if (!text) return;
 
   const {
-    font = "Helvetica",
     fontSize = 8,
     bold = false,
     upperCase = false,
@@ -147,27 +150,40 @@ function drawRotatedText(
   } = options;
 
   const displayText = upperCase ? text.toUpperCase() : text;
-  const fontName = bold
-    ? (font === "Helvetica" ? "Helvetica-Bold" : "Helvetica-Bold")
-    : (font === "Helvetica" ? "Helvetica" : "Helvetica");
+  const fontName = bold ? "Helvetica-Bold" : "Helvetica";
 
   doc.save();
   doc.font(fontName).fontSize(fontSize);
 
-  // Convert inches to points
-  const xPt = xIn * IN;
-  const yPt = yIn * IN;
-
-  // Translate to position, then rotate
-  doc.translate(xPt, yPt);
-  doc.rotate(rotation);
-
-  if (maxWidth) {
-    doc.text(displayText, 0, 0, {
-      width: maxWidth * IN,
-      lineGap: 1,
-    });
+  if (rotation === -90) {
+    // Standard case: place horizontally in landscape
+    const [x, y] = drxToLandscape(drxX, drxY);
+    // Adjust Y up by font size since drxToLandscape gives bottom of text line
+    const yAdj = y - fontSize * 0.9;
+    if (maxWidth) {
+      doc.text(displayText, x, yAdj, { width: maxWidth * IN, lineGap: 1 });
+    } else {
+      doc.text(displayText, x, yAdj);
+    }
+  } else if (rotation === -70) {
+    // Watermark text (HOLD, NO PAID CLAIM) — slight angle
+    const [x, y] = drxToLandscape(drxX, drxY);
+    doc.translate(x, y);
+    doc.rotate(20); // -70° in DRX = 20° CW tilt in landscape
+    doc.fillOpacity(0.6);
+    doc.text(displayText, 0, 0);
+    doc.fillOpacity(1);
+  } else if (rotation === 90) {
+    // Upside-down text (some barcodes)
+    const [x, y] = drxToLandscape(drxX, drxY);
+    doc.translate(x, y);
+    doc.rotate(180);
+    doc.text(displayText, 0, 0);
   } else {
+    // 0° rotation — text perpendicular to label (vertical in landscape)
+    const xPt = drxX * IN;
+    const yPt = drxY * IN;
+    doc.translate(xPt, yPt);
     doc.text(displayText, 0, 0);
   }
 
@@ -209,31 +225,43 @@ async function generateQRPNG(text: string, size: number): Promise<Buffer> {
 }
 
 /**
- * Draw a real scannable Code128 barcode on the PDF
+ * Draw a real scannable Code128 barcode on the PDF in landscape coordinates
  */
 async function drawBarcode128(
   doc: InstanceType<typeof PDFDocument>,
   text: string,
-  xIn: number,
-  yIn: number,
-  heightPt: number,
-  rotation: number = -90
+  drxX: number,
+  drxY: number,
+  heightIn: number = 0.4,
+  drxRotation: number = -90
 ): Promise<void> {
   if (!text) return;
 
   try {
-    const png = await generateBarcodePNG(text, Math.round(heightPt * 0.8));
+    const barcodeH = Math.max(15, Math.min(heightIn * IN, 35));
+    const png = await generateBarcodePNG(text, Math.round(barcodeH * 0.8));
 
     doc.save();
-    const xPt = xIn * IN;
-    const yPt = yIn * IN;
-    doc.translate(xPt, yPt);
-    doc.rotate(rotation);
-    doc.image(png, 0, 0, { height: heightPt, fit: [heightPt * 4, heightPt] });
+    if (drxRotation === -90) {
+      // Place horizontally in landscape
+      const [x, y] = drxToLandscape(drxX, drxY);
+      doc.image(png, x, y - barcodeH, { height: barcodeH, fit: [barcodeH * 5, barcodeH] });
+    } else if (drxRotation === 90) {
+      // Rotated barcode
+      const [x, y] = drxToLandscape(drxX, drxY);
+      doc.translate(x, y);
+      doc.rotate(180);
+      doc.image(png, 0, 0, { height: barcodeH, fit: [barcodeH * 5, barcodeH] });
+    } else {
+      // 0° rotation — vertical barcode in landscape
+      const [x, y] = drxToLandscape(drxX, drxY);
+      doc.translate(x, y);
+      doc.rotate(-90);
+      doc.image(png, 0, 0, { height: barcodeH, fit: [barcodeH * 5, barcodeH] });
+    }
     doc.restore();
   } catch {
-    // Fallback: draw text if barcode generation fails
-    drawRotatedText(doc, `[BC] ${text}`, xIn, yIn, { fontSize: 6, rotation });
+    placeText(doc, `[BC] ${text}`, drxX, drxY, { fontSize: 6, rotation: drxRotation });
   }
 }
 
@@ -243,302 +271,303 @@ async function drawBarcode128(
 
 async function drawBottomLabel(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): Promise<void> {
   // Patient name — bold 12pt at (1.1, 0.1)
-  drawRotatedText(doc, `${data.patientFirstName} ${data.patientLastName}`, 1.1, 0.1, {
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, 1.1, 0.1, {
     fontSize: 12, bold: true, upperCase: true,
   });
 
   // RX# — bold 11pt at (1.3, 0.1)
-  drawRotatedText(doc, `RX# ${data.rxNumber}`, 1.3, 0.1, {
+  placeText(doc, `RX# ${data.rxNumber}`, 1.3, 0.1, {
     fontSize: 11, bold: true,
   });
 
   // City, State, Zip — 8pt at (0.76, 0.1)
   const cityStateZip = [data.patientCity, data.patientState, data.patientZip].filter(Boolean).join(", ");
-  drawRotatedText(doc, cityStateZip, 0.76, 0.1, {
+  placeText(doc, cityStateZip, 0.76, 0.1, {
     fontSize: 8, upperCase: true,
   });
 
   // DOB — bold 8pt at (0.96, 0.1)
-  drawRotatedText(doc, `DOB: ${data.patientDOB}`, 0.96, 0.1, {
+  placeText(doc, `DOB: ${data.patientDOB}`, 0.96, 0.1, {
     fontSize: 8, bold: true, upperCase: true,
   });
 
   // Delivery method — bold 12pt at (0.35, 0.1)
-  drawRotatedText(doc, data.patientDeliveryMethod, 0.35, 0.1, {
+  placeText(doc, data.patientDeliveryMethod, 0.35, 0.1, {
     fontSize: 12, bold: true, upperCase: true,
   });
 
   // Phone — 8pt at (0.66, 0.1)
-  drawRotatedText(doc, data.patientPhone, 0.66, 0.1, {
+  placeText(doc, data.patientPhone, 0.66, 0.1, {
     fontSize: 8, upperCase: true,
   });
 
   // Item name (drug) — bold 10pt at (0.2, 0.1), paragraph_width 4.3
-  drawRotatedText(doc, data.itemName, 0.2, 0.1, {
+  placeText(doc, data.itemName, 0.2, 0.1, {
     fontSize: 10, bold: true, upperCase: true, maxWidth: 4.3,
   });
 
   // Address — 8pt at (0.86, 0.1)
   const addressFull = [data.patientAddressLine1, data.patientAddressLine2].filter(Boolean).join(" ");
-  drawRotatedText(doc, addressFull, 0.86, 0.1, {
+  placeText(doc, addressFull, 0.86, 0.1, {
     fontSize: 8, upperCase: true,
   });
 
   // Cell phone — 8pt at (0.66, 1.2)
-  drawRotatedText(doc, data.patientCellPhone, 0.66, 1.2, {
+  placeText(doc, data.patientCellPhone, 0.66, 1.2, {
     fontSize: 8, upperCase: true,
   });
 
   // Fill date — 10pt at (1.3, 1.2)
-  drawRotatedText(doc, `Filled: ${data.fillDate}`, 1.3, 1.2, {
+  placeText(doc, `Filled: ${data.fillDate}`, 1.3, 1.2, {
     fontSize: 10,
   });
 
   // Insurance — bold 8pt at (0.66, 2.2)
-  drawRotatedText(doc, data.primaryInsurance, 0.66, 2.2, {
+  placeText(doc, data.primaryInsurance, 0.66, 2.2, {
     fontSize: 8, bold: true, upperCase: true,
   });
 
   // Doctor city/state/zip — 8pt at (1.1, 2.4)
   const drCityStateZip = [data.doctorCity, `${data.doctorState} ${data.doctorZip}`].filter(Boolean).join(", ");
-  drawRotatedText(doc, drCityStateZip, 1.1, 2.4, {
+  placeText(doc, drCityStateZip, 1.1, 2.4, {
     fontSize: 8, upperCase: true,
   });
 
   // Doctor address — 8pt at (1.2, 2.4)
-  drawRotatedText(doc, data.doctorAddressLine1, 1.2, 2.4, { fontSize: 8 });
+  placeText(doc, data.doctorAddressLine1, 1.2, 2.4, { fontSize: 8 });
 
   // Doctor phone — 8pt at (1.0, 2.4)
-  drawRotatedText(doc, data.doctorPhone, 1.0, 2.4, { fontSize: 8 });
+  placeText(doc, data.doctorPhone, 1.0, 2.4, { fontSize: 8 });
 
   // Doctor name — 9pt at (1.3, 2.4)
-  drawRotatedText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, 1.3, 2.4, {
+  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, 1.3, 2.4, {
     fontSize: 9, upperCase: true,
   });
 
   // Quantity — bold 8pt at (0.1, 3.0)
-  drawRotatedText(doc, `Qty: ${data.dispensedQuantity} ${data.qtyType}`, 0.1, 3.0, {
+  placeText(doc, `Qty: ${data.dispensedQuantity} ${data.qtyType}`, 0.1, 3.0, {
     fontSize: 8, bold: true, upperCase: true,
   });
 
   // Price — bold 10pt at (0.3, 3.0)
-  drawRotatedText(doc, `Price: $${data.copay}`, 0.3, 3.0, {
+  placeText(doc, `Price: $${data.copay}`, 0.3, 3.0, {
     fontSize: 10, bold: true,
   });
 
   // Fill number — bold 8pt at (0.1, 3.6)
-  drawRotatedText(doc, `Fill#: ${data.fillNumber}`, 0.1, 3.6, {
+  placeText(doc, `Fill#: ${data.fillNumber}`, 0.1, 3.6, {
     fontSize: 8, bold: true,
   });
 
   // Bottom barcode — 1pt text, h=6 at (0.4, 4.2)
-  await drawBarcode128(doc, `b${data.fillId}:${data.labelVersion}`, 0.4, 4.2, 6);
+  await drawBarcode128(doc, `b${data.fillId}:${data.labelVersion}`, 0.4, 4.2, 0.4);
 }
 
 function drawBacktag(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
   // Manufacturer — 8pt at (2.2, 0.1), paragraph_width 3.8
-  drawRotatedText(doc, `MFG: ${data.manufacturer}`, 2.2, 0.1, {
+  placeText(doc, `MFG: ${data.manufacturer}`, 2.2, 0.1, {
     fontSize: 8, upperCase: true, maxWidth: 3.8,
   });
 
   // Patient city/state/zip — 6pt at (0.58, 4.6)
   const patCSZ = [data.patientCity, data.patientState, data.patientZip].filter(Boolean).join(", ");
-  drawRotatedText(doc, patCSZ, 0.58, 4.6, {
+  placeText(doc, patCSZ, 0.58, 4.6, {
     fontSize: 6, upperCase: true,
   });
 
   // Patient address — 6pt at (0.65, 4.6)
   const patAddr = [data.patientAddressLine1, data.patientAddressLine2].filter(Boolean).join(" ");
-  drawRotatedText(doc, patAddr, 0.65, 4.6, {
+  placeText(doc, patAddr, 0.65, 4.6, {
     fontSize: 6, upperCase: true,
   });
 
   // Doctor full address — 6pt at (0.22, 4.6), paragraph_width 3.4
   const drFullAddr = [data.doctorAddressLine1, data.doctorAddressLine2, data.doctorCity, data.doctorState, data.doctorZip].filter(Boolean).join(" ");
-  drawRotatedText(doc, drFullAddr, 0.22, 4.6, {
+  placeText(doc, drFullAddr, 0.22, 4.6, {
     fontSize: 6, upperCase: true, maxWidth: 3.4,
   });
 
   // Doctor DEA — 6pt at (0.3, 4.6)
-  drawRotatedText(doc, `DEA: ${data.doctorDEA}`, 0.3, 4.6, { fontSize: 6 });
+  placeText(doc, `DEA: ${data.doctorDEA}`, 0.3, 4.6, { fontSize: 6 });
 
   // RX# — bold 7pt at (0.85, 4.6)
-  drawRotatedText(doc, `RX ${data.rxNumber}`, 0.85, 4.6, {
+  placeText(doc, `RX ${data.rxNumber}`, 0.85, 4.6, {
     fontSize: 7, bold: true,
   });
 
   // Patient name — bold 8pt at (0.75, 4.6)
-  drawRotatedText(doc, `${data.patientFirstName} ${data.patientLastName}`, 0.75, 4.6, {
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, 0.75, 4.6, {
     fontSize: 8, bold: true, upperCase: true,
   });
 
   // Doctor name — bold 8pt at (0.45, 4.6)
-  drawRotatedText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, 0.45, 4.6, {
+  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, 0.45, 4.6, {
     fontSize: 8, bold: true, upperCase: true,
   });
 
   // Doctor NPI — 6pt at (0.38, 4.6)
-  drawRotatedText(doc, `NPI: ${data.doctorNPI}`, 0.38, 4.6, { fontSize: 6 });
+  placeText(doc, `NPI: ${data.doctorNPI}`, 0.38, 4.6, { fontSize: 6 });
 
   // Refills left — 6pt at (0.1, 4.6)
-  drawRotatedText(doc, `${data.refillsLeft} Refill(s) left until`, 0.1, 4.6, { fontSize: 6 });
+  placeText(doc, `${data.refillsLeft} Refill(s) left until`, 0.1, 4.6, { fontSize: 6 });
 
   // Rx expires — 6pt at (0.1, 5.3)
-  drawRotatedText(doc, data.rxExpires, 0.1, 5.3, { fontSize: 6 });
+  placeText(doc, data.rxExpires, 0.1, 5.3, { fontSize: 6 });
 
   // DOB — bold 6.5pt at (0.85, 5.3)
-  drawRotatedText(doc, `DOB: ${data.patientDOB}`, 0.85, 5.3, {
+  placeText(doc, `DOB: ${data.patientDOB}`, 0.85, 5.3, {
     fontSize: 6.5, bold: true,
   });
 }
 
 async function drawMainLabel(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): Promise<void> {
   // Patient last, first — 10pt at (3.15, 0.1)
-  drawRotatedText(doc, `${data.patientLastName}, ${data.patientFirstName}`, 3.15, 0.1, {
+  placeText(doc, `${data.patientLastName}, ${data.patientFirstName}`, 3.15, 0.1, {
     fontSize: 10,
   });
 
   // SIG (directions) — 12pt at (2.6, 0.1), paragraph_width 3.4
-  drawRotatedText(doc, data.sig, 2.6, 0.1, {
+  placeText(doc, data.sig, 2.6, 0.1, {
     fontSize: 12, maxWidth: 3.4,
   });
 
   // Item print name (first instance) — 10pt at (2.75, 0.1)
-  drawRotatedText(doc, data.itemPrintName, 2.75, 0.1, { fontSize: 10 });
+  placeText(doc, data.itemPrintName, 2.75, 0.1, { fontSize: 10 });
 
   // RPH first name — 6pt at (2.0, 0.1)
-  drawRotatedText(doc, `RPH: ${data.pharmacistFirstName}`, 2.0, 0.1, {
+  placeText(doc, `RPH: ${data.pharmacistFirstName}`, 2.0, 0.1, {
     fontSize: 6, upperCase: true,
   });
 
   // Item print name (large, overlaid) — 12pt at (2.95, 0.1)
-  drawRotatedText(doc, data.itemPrintName, 2.95, 0.1, { fontSize: 12 });
+  placeText(doc, data.itemPrintName, 2.95, 0.1, { fontSize: 12 });
 
   // Brand name if generic — 12pt at (2.8, 0.1)
   if (data.brandName) {
-    drawRotatedText(doc, data.brandName, 2.8, 0.1, { fontSize: 12 });
+    placeText(doc, data.brandName, 2.8, 0.1, { fontSize: 12 });
   }
 
   // RX# — 8pt at (3.35, 0.1)
-  drawRotatedText(doc, `RX# ${data.rxNumber}`, 3.35, 0.1, { fontSize: 8 });
+  placeText(doc, `RX# ${data.rxNumber}`, 3.35, 0.1, { fontSize: 8 });
 
   // RPH last name — 6pt at (2.0, 0.5)
-  drawRotatedText(doc, data.pharmacistLastName, 2.0, 0.5, {
+  placeText(doc, data.pharmacistLastName, 2.0, 0.5, {
     fontSize: 6, upperCase: true,
   });
 
   // Completion quantity — bold 8pt at (2.0, 0.9)
   if (data.completionQuantity) {
-    drawRotatedText(doc, data.completionQuantity, 2.0, 0.9, {
+    placeText(doc, data.completionQuantity, 2.0, 0.9, {
       fontSize: 8, bold: true,
     });
   }
 
   // Partial quantity — bold 8pt at (2.0, 1.3)
   if (data.partialQuantity) {
-    drawRotatedText(doc, data.partialQuantity, 2.0, 1.3, {
+    placeText(doc, data.partialQuantity, 2.0, 1.3, {
       fontSize: 8, bold: true,
     });
   }
 
   // Formula ID — 6pt at (2.2, 1.35)
   if (data.formulaId) {
-    drawRotatedText(doc, `Formula: ${data.formulaId}`, 2.2, 1.35, { fontSize: 6 });
+    placeText(doc, `Formula: ${data.formulaId}`, 2.2, 1.35, { fontSize: 6 });
   }
 
   // Batch ID — 6pt at (2.1, 1.35)
   if (data.batchId) {
-    drawRotatedText(doc, `Batch: ${data.batchId}`, 2.1, 1.35, { fontSize: 6 });
+    placeText(doc, `Batch: ${data.batchId}`, 2.1, 1.35, { fontSize: 6 });
   }
 
   // Doctor name — 5pt at (3.35, 1.6)
-  drawRotatedText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, 3.35, 1.6, {
+  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, 3.35, 1.6, {
     fontSize: 5,
   });
 
   // Quantity — 6pt at (3.2, 1.8)
-  drawRotatedText(doc, `Quantity: ${data.dispensedQuantity} ${data.qtyType}`, 3.2, 1.8, {
+  placeText(doc, `Quantity: ${data.dispensedQuantity} ${data.qtyType}`, 3.2, 1.8, {
     fontSize: 6,
   });
 
   // Main barcode — h=6 at (2.0, 2.5), rotation 0 (horizontal)
-  await drawBarcode128(doc, `b${data.fillId}:${data.labelVersion}`, 2.0, 2.5, 6, 0);
+  await drawBarcode128(doc, `b${data.fillId}:${data.labelVersion}`, 2.0, 2.5, 0.4, -90);
 }
 
 function drawAuxSection(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
   // Aux labels at staggered x positions
   const auxPositions = [3.9, 3.5, 3.1, 2.7];
   for (let i = 0; i < Math.min(data.auxLabels.length, auxPositions.length); i++) {
-    drawRotatedText(doc, data.auxLabels[i], auxPositions[i], 3.0, {
+    placeText(doc, data.auxLabels[i], auxPositions[i], 3.0, {
       fontSize: 10, maxWidth: 2.0,
     });
   }
 
   // "This medication has been compounded by this pharmacy" — 10pt at (2.7, 3.0)
-  drawRotatedText(doc, "This medication has been compounded by this pharmacy", 2.7, 3.0, {
+  placeText(doc, "This medication has been compounded by this pharmacy", 2.7, 3.0, {
     fontSize: 10, maxWidth: 2.0,
   });
 
   // Batch info
   if (data.batchId) {
-    drawRotatedText(doc, `Batch: ${data.batchId}`, 2.2, 3.0, { fontSize: 6 });
+    placeText(doc, `Batch: ${data.batchId}`, 2.2, 3.0, { fontSize: 6 });
   }
   if (data.batchExpiration) {
-    drawRotatedText(doc, `Use By: ${data.batchExpiration}`, 2.1, 3.0, { fontSize: 6 });
+    placeText(doc, `Use By: ${data.batchExpiration}`, 2.1, 3.0, { fontSize: 6 });
   }
   if (data.formulaId) {
-    drawRotatedText(doc, `FormulaID: ${data.formulaId}`, 2.3, 3.0, { fontSize: 6 });
+    placeText(doc, `FormulaID: ${data.formulaId}`, 2.3, 3.0, { fontSize: 6 });
   }
 }
 
 async function drawPatientNotes(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): Promise<void> {
   // NO PAID CLAIM warning — bold 30pt at (1.0, 4.4), rotation -70
   if (data.noClaimWarning) {
-    drawRotatedText(doc, "NO PAID CLAIM", 1.0, 4.4, {
+    placeText(doc, "NO PAID CLAIM", 1.0, 4.4, {
       fontSize: 30, bold: true, rotation: -70,
     });
   }
 
   // Patient comments — 10pt at (3.8, 4.6), paragraph_width 3.5
   if (data.patientComments) {
-    drawRotatedText(doc, data.patientComments, 3.8, 4.6, {
+    placeText(doc, data.patientComments, 3.8, 4.6, {
       fontSize: 10, maxWidth: 3.5,
     });
   }
 
   // Pickup time — 7pt at (2.95, 4.6)
   if (data.pickupTime) {
-    drawRotatedText(doc, `Promised: ${data.pickupTime}`, 2.95, 4.6, {
+    placeText(doc, `Promised: ${data.pickupTime}`, 2.95, 4.6, {
       fontSize: 7, maxWidth: 3.5,
     });
   }
 
   // Fill tags — 10pt at (3.4, 4.6)
   if (data.fillTags.length > 0) {
-    drawRotatedText(doc, data.fillTags.join(", "), 3.4, 4.6, {
+    placeText(doc, data.fillTags.join(", "), 3.4, 4.6, {
       fontSize: 10, maxWidth: 3.5,
     });
   }
 
   // HOLD warning — bold 40pt at (2.3, 5.0), rotation -70
   if (data.holdWarning) {
-    drawRotatedText(doc, "HOLD", 2.3, 5.0, {
+    placeText(doc, "HOLD", 2.3, 5.0, {
       fontSize: 40, bold: true, rotation: -70,
     });
   }
 
   // Item ID barcode — h=6 at (2.4, 6.5), rotation 90
-  await drawBarcode128(doc, `i:${data.itemId}`, 2.4, 6.5, 6, 90);
+  await drawBarcode128(doc, `i:${data.itemId}`, 2.4, 6.5, 0.4, 90);
 
   // Item ID text — 8pt at (2.6, 7.0)
-  drawRotatedText(doc, `i:${data.itemId}`, 2.6, 7.0, { fontSize: 8 });
+  placeText(doc, `i:${data.itemId}`, 2.6, 7.0, { fontSize: 8 });
 
-  // QR code for patient education — at (2.8, 6.2), 1"x1"
+  // QR code for patient education — DRX (2.8, 6.2), 0.8"x0.8"
   if (data.patientEducationUrl) {
     try {
       const qrPng = await generateQRPNG(data.patientEducationUrl, 200);
       if (qrPng.length > 0) {
-        doc.image(qrPng, 2.8 * IN, 6.2 * IN, { width: 0.8 * IN, height: 0.8 * IN });
+        const [qrX, qrY] = drxToLandscape(2.8, 6.2);
+        doc.image(qrPng, qrX, qrY - 0.8 * IN, { width: 0.8 * IN, height: 0.8 * IN });
       }
     } catch { /* QR generation optional */ }
   }
@@ -546,19 +575,19 @@ async function drawPatientNotes(doc: InstanceType<typeof PDFDocument>, data: Com
 
 function drawSignatureSection(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
   // Signature 1 — patient name bold 8pt at (2.0, 4.6)
-  drawRotatedText(doc, `${data.patientFirstName} ${data.patientLastName}`, 2.0, 4.6, {
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, 2.0, 4.6, {
     fontSize: 8, bold: true,
   });
 
   // Home phone — 7pt at (1.9, 4.6)
-  drawRotatedText(doc, `Home: ${data.patientPhone}`, 1.9, 4.6, { fontSize: 7 });
+  placeText(doc, `Home: ${data.patientPhone}`, 1.9, 4.6, { fontSize: 7 });
 
   // Cell phone — 7pt at (1.9, 5.8)
-  drawRotatedText(doc, `Cell: ${data.patientCellPhone}`, 1.9, 5.8, { fontSize: 7 });
+  placeText(doc, `Cell: ${data.patientCellPhone}`, 1.9, 5.8, { fontSize: 7 });
 
   // BOH — bold 8pt at (1.7, 5.8)
   if (data.boh) {
-    drawRotatedText(doc, `BOH: ${data.boh}`, 1.7, 5.8, {
+    placeText(doc, `BOH: ${data.boh}`, 1.7, 5.8, {
       fontSize: 8, bold: true,
     });
   }
@@ -566,35 +595,35 @@ function drawSignatureSection(doc: InstanceType<typeof PDFDocument>, data: Compo
 
 async function drawSignature2Section(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): Promise<void> {
   // Patient name — bold 8pt at (1.5, 4.6)
-  drawRotatedText(doc, `${data.patientFirstName} ${data.patientLastName}`, 1.5, 4.6, {
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, 1.5, 4.6, {
     fontSize: 8, bold: true,
   });
 
   // Home phone — 7pt at (1.4, 4.6)
-  drawRotatedText(doc, `Home: ${data.patientPhone}`, 1.4, 4.6, { fontSize: 7 });
+  placeText(doc, `Home: ${data.patientPhone}`, 1.4, 4.6, { fontSize: 7 });
 
   // Signature line — 6pt at (1.0, 4.7)
-  drawRotatedText(doc, "Signature: __________________________", 1.0, 4.7, { fontSize: 6 });
+  placeText(doc, "Signature: __________________________", 1.0, 4.7, { fontSize: 6 });
 
   // Cell phone — 7pt at (1.4, 5.8)
-  drawRotatedText(doc, `Cell: ${data.patientCellPhone}`, 1.4, 5.8, { fontSize: 7 });
+  placeText(doc, `Cell: ${data.patientCellPhone}`, 1.4, 5.8, { fontSize: 7 });
 
   // Signature barcode — h=6 at (1.0, 6.5), rotation 90
-  await drawBarcode128(doc, `${data.fillId}:${data.fillNumber}`, 1.0, 6.5, 6, 90);
+  await drawBarcode128(doc, `${data.fillId}:${data.fillNumber}`, 1.0, 6.5, 0.4, 90);
 
   // NDC — 6pt at (1.2, 7.0)
-  drawRotatedText(doc, `NDC: ${data.ndc}`, 1.2, 7.0, { fontSize: 6 });
+  placeText(doc, `NDC: ${data.ndc}`, 1.2, 7.0, { fontSize: 6 });
 
   // Fill date — 7pt at (1.3, 7.0)
-  drawRotatedText(doc, `Filled: ${data.fillDate}`, 1.3, 7.0, { fontSize: 7 });
+  placeText(doc, `Filled: ${data.fillDate}`, 1.3, 7.0, { fontSize: 7 });
 
   // Dispensed qty — 7pt at (1.4, 7.1)
-  drawRotatedText(doc, `Disp Qty: ${data.dispensedQuantity}`, 1.4, 7.1, { fontSize: 7 });
+  placeText(doc, `Disp Qty: ${data.dispensedQuantity}`, 1.4, 7.1, { fontSize: 7 });
 }
 
 function drawTollFree(doc: InstanceType<typeof PDFDocument>, data: CompoundLabelData): void {
   // Toll free number — 10pt at (2.35, 0.1)
-  drawRotatedText(doc, data.tollFreeNumber || "Toll Free 1-855-305-2110", 2.35, 0.1, {
+  placeText(doc, data.tollFreeNumber || "Toll Free 1-855-305-2110", 2.35, 0.1, {
     fontSize: 10,
   });
 }
@@ -610,12 +639,8 @@ export async function drawCompoundLabel(
   doc: InstanceType<typeof PDFDocument>,
   data: CompoundLabelData
 ): Promise<void> {
-  // Global transform: rotate portrait coordinates 90° CW onto landscape page.
-  // Maps logical portrait (x, y) → landscape (y, PAGE_WIDTH - x).
-  // This makes all -90° rotated text become horizontal (readable).
-  doc.transform(0, -1, 1, 0, 0, PAGE_WIDTH);
-
-  // Draw all label groups in order (back to front)
+  // No global transform needed — we place text directly in landscape coordinates
+  // using drxToLandscape() which maps DRX's rotated portrait coords to our landscape page
   await drawBottomLabel(doc, data);
   drawBacktag(doc, data);
   await drawMainLabel(doc, data);
@@ -634,7 +659,7 @@ export async function generateCompoundLabelPDF(
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
-      size: [PDF_PAGE_WIDTH, PDF_PAGE_HEIGHT],
+      size: [PDF_W, PDF_H],
       margin: 0,
     });
 
