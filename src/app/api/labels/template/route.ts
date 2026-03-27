@@ -91,6 +91,17 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Check for saved layout customizations
+  let savedLayout = null;
+  try {
+    const layoutSetting = await prisma.storeSetting.findFirst({
+      where: { settingKey: `print_template_layout_${id}` },
+    });
+    if (layoutSetting) {
+      savedLayout = JSON.parse(layoutSetting.settingValue);
+    }
+  } catch { /* ignore */ }
+
   // If specialized renderer exists, return its field groups and default data
   if (specialized) {
     return NextResponse.json({
@@ -104,7 +115,8 @@ export async function GET(request: NextRequest) {
         elementCount: template.elements.length,
       },
       fieldGroups: specialized.getFieldGroups(),
-      defaultData: specialized.getDefaultData(),
+      defaultData: savedLayout?.fieldValues || specialized.getDefaultData(),
+      savedLayout: savedLayout?.layout || null,
       useSpecializedRenderer: true,
     });
   }

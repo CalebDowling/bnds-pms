@@ -367,6 +367,7 @@ export default function TemplatePreviewPage() {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [originalPositions, setOriginalPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [hasLayoutChanges, setHasLayoutChanges] = useState(false);
+  const [savedLayoutData, setSavedLayoutData] = useState<any[] | null>(null);
 
   // UI state
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -395,6 +396,11 @@ export default function TemplatePreviewPage() {
         }
         const json = await res.json();
         setTemplateMeta(json.template);
+
+        // Store saved layout for applying after fields are built
+        if (json.savedLayout) {
+          setSavedLayoutData(json.savedLayout);
+        }
 
         if (json.fieldGroups && json.useSpecializedRenderer) {
           setFieldGroups(json.fieldGroups);
@@ -429,6 +435,28 @@ export default function TemplatePreviewPage() {
         templateMeta.pageWidth,
         templateMeta.pageHeight,
       );
+    }
+
+    // Apply saved layout positions if available
+    if (savedLayoutData && savedLayoutData.length > 0) {
+      const layoutMap = new Map(savedLayoutData.map((l: any) => [l.id, l]));
+      newFields = newFields.map((f) => {
+        const saved = layoutMap.get(f.id);
+        if (saved) {
+          return {
+            ...f,
+            x: saved.x ?? f.x,
+            y: saved.y ?? f.y,
+            fontSize: saved.fontSize ?? f.fontSize,
+            bold: saved.bold ?? f.bold,
+            maxWidth: saved.maxWidth ?? f.maxWidth,
+            rotation: saved.rotation ?? f.rotation,
+            barcodeWidth: saved.barcodeWidth ?? f.barcodeWidth,
+            barcodeHeight: saved.barcodeHeight ?? f.barcodeHeight,
+          };
+        }
+        return f;
+      });
     }
 
     setCanvasFields(newFields);
@@ -490,25 +518,56 @@ export default function TemplatePreviewPage() {
     setHasLayoutChanges(true);
   }, []);
 
-  const handleSaveLayout = useCallback(() => {
-    // Store positions in localStorage for now
-    const layoutData = canvasFields.map((f) => ({
-      id: f.id,
-      x: f.x,
-      y: f.y,
-      fontSize: f.fontSize,
-      bold: f.bold,
-      maxWidth: f.maxWidth,
-    }));
-    localStorage.setItem(`label-layout-${templateId}`, JSON.stringify(layoutData));
-    setHasLayoutChanges(false);
-    // Update original positions to current
-    const posMap: Record<string, { x: number; y: number }> = {};
-    for (const f of canvasFields) {
-      posMap[f.id] = { x: f.x, y: f.y };
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveLayout = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      // Save layout + field values to database
+      const layoutData = canvasFields.map((f) => ({
+        id: f.id,
+        x: f.x,
+        y: f.y,
+        fontSize: f.fontSize,
+        bold: f.bold,
+        maxWidth: f.maxWidth,
+        rotation: f.rotation,
+        barcodeWidth: f.barcodeWidth,
+        barcodeHeight: f.barcodeHeight,
+      }));
+
+      // Also save to localStorage as backup
+      localStorage.setItem(`label-layout-${templateId}`, JSON.stringify(layoutData));
+
+      // Save to database via API
+      const res = await fetch("/api/settings/print-templates/save-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: templateId,
+          layout: layoutData,
+          fieldValues: formData,
+          savedAt: new Date().toISOString(),
+        }),
+      });
+
+      if (res.ok) {
+        setHasLayoutChanges(false);
+        const posMap: Record<string, { x: number; y: number }> = {};
+        for (const f of canvasFields) {
+          posMap[f.id] = { x: f.x, y: f.y };
+        }
+        setOriginalPositions(posMap);
+      } else {
+        alert("Failed to save layout. Please try again.");
+      }
+    } catch (err) {
+      console.error("Save failed:", err);
+      alert("Failed to save layout. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
-    setOriginalPositions(posMap);
-  }, [canvasFields, templateId]);
+  }, [canvasFields, templateId, formData]);
 
   // Generate PDF preview
   const generatePreview = useCallback(async () => {
@@ -842,7 +901,7 @@ export default function TemplatePreviewPage() {
                 onClick={handleSaveLayout}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-[var(--green-700)] rounded-md hover:bg-[var(--green-800)] transition-colors"
               >
-                <Save className="w-3.5 h-3.5" /> Save Layout
+                <Save className="w-3.5 h-3.5" /> {isSaving ? "Saving..." : "Save Layout"}
               </button>
             )}
             <button
@@ -858,16 +917,12 @@ export default function TemplatePreviewPage() {
             >
               <FileText className="w-3.5 h-3.5" /> {showPdfPreview ? "Show Editor" : "Preview PDF"}
             </button>
-            {pdfUrl && (
-              <>
-                <button onClick={downloadPdf} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] rounded-md hover:bg-gray-50 transition-colors">
-                  <Download className="w-3.5 h-3.5" /> Download
-                </button>
-                <button onClick={printPdf} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] rounded-md hover:bg-gray-50 transition-colors">
-                  <Printer className="w-3.5 h-3.5" /> Print
-                </button>
-              </>
-            )}
+            <button onClick={downloadPdf} disabled={!pdfUrl} className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-md transition-colors ${pdfUrl ? "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border)] hover:bg-gray-50" : "text-gray-300 border-gray-200 cursor-not-allowed"}`}>
+              <Download className="w-3.5 h-3.5" /> Download
+            </button>
+            <button onClick={printPdf} disabled={!pdfUrl} className={`inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${pdfUrl ? "text-white bg-[#40721D] hover:bg-[#2D5114] border border-[#40721D]" : "text-gray-300 bg-gray-100 border-gray-200 cursor-not-allowed"}`}>
+              <Printer className="w-3.5 h-3.5" /> Print Label
+            </button>
           </div>
         </div>
 
