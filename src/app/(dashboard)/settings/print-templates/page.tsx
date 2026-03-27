@@ -406,7 +406,7 @@ export default function PrintTemplatesPage() {
                   return (
                     <tr key={t.id} className={`hover:bg-gray-50 transition-colors ${isAssigned ? "bg-[#40721D]/[0.04]" : ""}`}>
                       <td className="px-4 py-3">
-                        <Link href={t.id === 999 ? "/settings/print-templates/compound-preview" : `/settings/print-templates/${t.id}/preview`}
+                        <Link href={`/settings/print-templates/${t.id}/preview`}
                           className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-[#40721D] bg-[#40721D]/5 rounded hover:bg-[#40721D]/10 transition-colors">
                           Edit
                         </Link>
