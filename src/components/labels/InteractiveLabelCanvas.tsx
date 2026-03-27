@@ -247,15 +247,17 @@ export default function InteractiveLabelCanvas({
           onMouseEnter={() => setHoveredFieldId(field.id)}
           onMouseLeave={() => setHoveredFieldId(null)}
         >
-          <div
-            style={{
-              width: field.maxWidth || 120,
-              height: 20,
-              background: "repeating-linear-gradient(90deg, #000 0px, #000 2px, #fff 2px, #fff 4px)",
-            }}
-          />
-          <div style={{ fontSize: 6, color: "#666", textAlign: "center", marginTop: 1 }}>
-            {field.value || field.label}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 2 }}>
+            <div
+              style={{
+                width: 18,
+                height: field.maxWidth || 80,
+                background: "repeating-linear-gradient(180deg, #000 0px, #000 2px, #fff 2px, #fff 4px)",
+              }}
+            />
+            <div style={{ fontSize: 5, color: "#666", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+              {field.value || field.label}
+            </div>
           </div>
         </div>
       );
