@@ -244,11 +244,15 @@ async function drawMainLabel(
     placeText(doc, batchParts.join(" | "), x, 136, { fontSize: 6 });
   }
 
-  // Row 10: Barcode
+  // Row 10: Barcode (vertical — rotated 90° like DRX)
   try {
     const bcText = `b${data.fillId}:${data.labelVersion}`;
-    const png = await generateBarcodePNG(bcText, 12);
-    doc.image(png, x, 150, { height: 25, fit: [200, 25] });
+    const png = await generateBarcodePNG(bcText, 8);
+    doc.save();
+    doc.translate(x + 20, 150);
+    doc.rotate(90);
+    doc.image(png, 0, 0, { height: 20, fit: [80, 20] });
+    doc.restore();
   } catch {
     placeText(doc, `[BC] b${data.fillId}:${data.labelVersion}`, x, 150, { fontSize: 6 });
   }
@@ -316,11 +320,15 @@ async function drawBottomLabel(
     fontSize: 8, bold: true,
   });
 
-  // Row 9: Barcode
+  // Row 9: Barcode (vertical — rotated 90° like DRX)
   try {
     const bcText = `b${data.fillId}:${data.labelVersion}`;
-    const png = await generateBarcodePNG(bcText, 10);
-    doc.image(png, x, y0 + 100, { height: 20, fit: [180, 20] });
+    const png = await generateBarcodePNG(bcText, 8);
+    doc.save();
+    doc.translate(x + 20, y0 + 100);
+    doc.rotate(90);
+    doc.image(png, 0, 0, { height: 18, fit: [70, 18] });
+    doc.restore();
   } catch {
     placeText(doc, `[BC] b${data.fillId}:${data.labelVersion}`, x, y0 + 100, { fontSize: 6 });
   }
@@ -426,11 +434,15 @@ async function drawSignatureAndNotes(
   placeText(doc, `Disp Qty: ${data.dispensedQuantity} | Filled: ${data.fillDate} | NDC: ${data.ndc}`, x, y, { fontSize: 5 });
   y += 9;
 
-  // Barcode + QR
+  // Barcode (vertical) + QR
   try {
     const bcText = `${data.fillId}:${data.fillNumber}`;
-    const png = await generateBarcodePNG(bcText, 8);
-    doc.image(png, x, y, { height: 16, fit: [120, 16] });
+    const png = await generateBarcodePNG(bcText, 6);
+    doc.save();
+    doc.translate(x + 14, y);
+    doc.rotate(90);
+    doc.image(png, 0, 0, { height: 14, fit: [50, 14] });
+    doc.restore();
   } catch {
     placeText(doc, `[BC] ${data.fillId}:${data.fillNumber}`, x, y, { fontSize: 5 });
   }
