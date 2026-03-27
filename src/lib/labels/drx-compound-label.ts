@@ -244,15 +244,11 @@ async function drawMainLabel(
     placeText(doc, batchParts.join(" | "), x, 136, { fontSize: 6 });
   }
 
-  // Row 10: Barcode (vertical — rotated 90° like DRX)
+  // Row 10: Barcode #1 — MAIN LABEL fill ID (DRX: rotation=null → horizontal)
   try {
     const bcText = `b${data.fillId}:${data.labelVersion}`;
-    const png = await generateBarcodePNG(bcText, 8);
-    doc.save();
-    doc.translate(x + 20, 150);
-    doc.rotate(90);
-    doc.image(png, 0, 0, { height: 20, fit: [80, 20] });
-    doc.restore();
+    const png = await generateBarcodePNG(bcText, 10);
+    doc.image(png, x, 148, { height: 22, fit: [200, 22] });
   } catch {
     placeText(doc, `[BC] b${data.fillId}:${data.labelVersion}`, x, 150, { fontSize: 6 });
   }
@@ -434,19 +430,21 @@ async function drawSignatureAndNotes(
   placeText(doc, `Disp Qty: ${data.dispensedQuantity} | Filled: ${data.fillDate} | NDC: ${data.ndc}`, x, y, { fontSize: 5 });
   y += 9;
 
-  // Barcode (vertical) + QR
-  try {
-    const bcText = `${data.fillId}:${data.fillNumber}`;
-    const png = await generateBarcodePNG(bcText, 6);
-    doc.save();
-    doc.translate(x + 14, y);
-    doc.rotate(90);
-    doc.image(png, 0, 0, { height: 14, fit: [50, 14] });
-    doc.restore();
-  } catch {
-    placeText(doc, `[BC] ${data.fillId}:${data.fillNumber}`, x, y, { fontSize: 5 });
+  // Barcode #3 — Item ID (DRX: Patient Notes group, i:{itemId}, rotation=90, vertical)
+  if (data.itemId) {
+    try {
+      const itemBcPng = await generateBarcodePNG(`i:${data.itemId}`, 6);
+      doc.save();
+      doc.translate(x + 14, y);
+      doc.rotate(90);
+      doc.image(itemBcPng, 0, 0, { height: 14, fit: [50, 14] });
+      doc.restore();
+    } catch {
+      placeText(doc, `i:${data.itemId}`, x, y, { fontSize: 5 });
+    }
   }
 
+  // QR code — Patient Education URL (DRX: UNGROUPED, rotation=null)
   if (data.patientEducationUrl) {
     try {
       const qrPng = await generateQRPNG(data.patientEducationUrl, 150);
@@ -456,18 +454,16 @@ async function drawSignatureAndNotes(
     } catch { /* QR optional */ }
   }
 
-  // Item ID barcode (4th barcode — vertical, next to QR)
-  if (data.itemId) {
-    try {
-      const itemBcPng = await generateBarcodePNG(`i:${data.itemId}`, 6);
-      doc.save();
-      doc.translate(x + 60, y);
-      doc.rotate(90);
-      doc.image(itemBcPng, 0, 0, { height: 14, fit: [50, 14] });
-      doc.restore();
-    } catch {
-      placeText(doc, `i:${data.itemId}`, x + 60, y, { fontSize: 5 });
-    }
+  // Barcode #4 — Signature fill ID (DRX: Signature2 group, id|fill_number, rotation=90, vertical)
+  try {
+    const sigBcPng = await generateBarcodePNG(`b${data.fillId}:${data.fillNumber}`, 6);
+    doc.save();
+    doc.translate(x + 60, y);
+    doc.rotate(90);
+    doc.image(sigBcPng, 0, 0, { height: 14, fit: [50, 14] });
+    doc.restore();
+  } catch {
+    placeText(doc, `[BC] ${data.fillId}:${data.fillNumber}`, x + 60, y, { fontSize: 5 });
   }
 
   // --- Right column: Backtag (x+170 to end) ---

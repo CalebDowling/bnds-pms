@@ -219,16 +219,18 @@ function buildRxLabelFields(formData: Record<string, string>): LabelField[] {
   fields.push({ id: "sig-dispinfo", label: "Disp/Filled/NDC", value: `Disp Qty: ${v("dispensedQuantity", "120")} | Filled: ${v("fillDate", "03/25/2026")} | NDC: ${v("ndc", "5555-4455-01")}`, x: sx, y: sy, fontSize: 5, bold: false });
   sy += 9;
 
-  fields.push({ id: "sig-barcode", label: "Sig Barcode", value: `${v("fillId", "154687")}:${v("fillNumber", "1")}`, x: sx, y: sy, fontSize: 5, bold: false, isBarcode: true, maxWidth: 120 });
+  // Barcode #3 — Item ID (DRX: Patient Notes, i:{itemId}, vertical)
+  if (v("itemId")) {
+    fields.push({ id: "item-barcode", label: "Item ID Barcode (i:itemId)", value: `i:${v("itemId", "71662")}`, x: sx, y: sy, fontSize: 5, bold: false, isBarcode: true, maxWidth: 50 });
+  }
 
+  // QR — Patient Education URL
   if (v("patientEducationUrl")) {
     fields.push({ id: "sig-qr", label: "Patient Education QR", value: v("patientEducationUrl"), x: sx + 30, y: sy - 4, fontSize: 5, bold: false, isQrCode: true });
   }
 
-  // Item ID barcode (4th barcode)
-  if (v("itemId")) {
-    fields.push({ id: "item-barcode", label: "Item ID Barcode", value: `i:${v("itemId", "71662")}`, x: sx + 60, y: sy, fontSize: 5, bold: false, isBarcode: true, maxWidth: 50 });
-  }
+  // Barcode #4 — Signature fill ID (DRX: Signature2, id|fill_number, vertical)
+  fields.push({ id: "sig-barcode", label: "Signature Barcode (fill ID)", value: `b${v("fillId", "154687")}:${v("fillNumber", "1")}`, x: sx + 60, y: sy, fontSize: 5, bold: false, isBarcode: true, maxWidth: 50 });
 
   // ── Backtag (right column of section 4) ───────────────────────
   const btX = sx + 170;
