@@ -96,7 +96,7 @@ function buildRxLabelFields(formData: Record<string, string>): LabelField[] {
     { id: "ml-tollfree", label: "Toll Free", value: v("tollFreeNumber", "Toll Free 1-855-305-2110"), x, y: 100, fontSize: 8, bold: false },
     { id: "ml-mfg", label: "Manufacturer", value: `MFG: ${v("manufacturer", "COMPOUNDED IN-HOUSE")}`.toUpperCase(), x, y: 112, fontSize: 7, bold: false },
     { id: "ml-rph", label: "Pharmacist / Comp / Partial", value: `RPH: ${(v("pharmacistFirstName", "Emily") || "E")[0]} ${v("pharmacistLastName", "Bychkov")}`.toUpperCase(), x, y: 124, fontSize: 6, bold: false },
-    { id: "ml-barcode", label: "Main Barcode", value: `b${v("fillId", "154687")}:${v("labelVersion", "0")}`, x, y: 150, fontSize: 6, bold: false, isBarcode: true, maxWidth: 200 },
+    { id: "ml-barcode", label: "Main Barcode (fill ID)", value: `b${v("fillId", "154687")}:${v("labelVersion", "0")}`, x, y: 150, fontSize: 6, bold: false, isBarcode: true, rotation: 0, barcodeWidth: 20, barcodeHeight: 180 },
   );
 
   // Brand name (conditional)
@@ -134,7 +134,7 @@ function buildRxLabelFields(formData: Record<string, string>): LabelField[] {
     { id: "bl-price", label: "Price", value: `Price: $${v("copay", "45.00")}`, x: x + 100, y: y0 + 64, fontSize: 10, bold: true },
     { id: "bl-drugfull", label: "Drug Name (Full)", value: v("itemName", "Ketoprofen 10%/Cyclobenzaprine 2%/Lidocaine 5% Cream").toUpperCase(), x, y: y0 + 78, fontSize: 8, bold: true, maxWidth: 288 },
     { id: "bl-qtyfill", label: "QTY / Fill#", value: `QTY: ${v("dispensedQuantity", "120")} ${v("qtyType", "GM")} | FILL#: ${v("fillNumber", "1")}`, x, y: y0 + 90, fontSize: 8, bold: true },
-    { id: "bl-barcode", label: "Bottom Barcode", value: `b${v("fillId", "154687")}:${v("labelVersion", "0")}`, x, y: y0 + 100, fontSize: 6, bold: false, isBarcode: true, maxWidth: 180 },
+    { id: "bl-barcode", label: "Bottom Barcode (fill ID)", value: `b${v("fillId", "154687")}:${v("labelVersion", "0")}`, x, y: y0 + 95, fontSize: 6, bold: false, isBarcode: true, rotation: 90, barcodeWidth: 16, barcodeHeight: 70 },
   );
 
   // ── Section 3: AUX ────────────────────────────────────────────
@@ -221,7 +221,7 @@ function buildRxLabelFields(formData: Record<string, string>): LabelField[] {
 
   // Barcode #3 — Item ID (DRX: Patient Notes, i:{itemId}, vertical)
   if (v("itemId")) {
-    fields.push({ id: "item-barcode", label: "Item ID Barcode (i:itemId)", value: `i:${v("itemId", "71662")}`, x: sx, y: sy, fontSize: 5, bold: false, isBarcode: true, maxWidth: 50 });
+    fields.push({ id: "item-barcode", label: "Item ID Barcode (i:itemId)", value: `i:${v("itemId", "71662")}`, x: sx, y: sy, fontSize: 5, bold: false, isBarcode: true, rotation: 90, barcodeWidth: 14, barcodeHeight: 50 });
   }
 
   // QR — Patient Education URL
@@ -230,7 +230,7 @@ function buildRxLabelFields(formData: Record<string, string>): LabelField[] {
   }
 
   // Barcode #4 — Signature fill ID (DRX: Signature2, id|fill_number, vertical)
-  fields.push({ id: "sig-barcode", label: "Signature Barcode (fill ID)", value: `b${v("fillId", "154687")}:${v("fillNumber", "1")}`, x: sx + 60, y: sy, fontSize: 5, bold: false, isBarcode: true, maxWidth: 50 });
+  fields.push({ id: "sig-barcode", label: "Signature Barcode (fill ID)", value: `b${v("fillId", "154687")}:${v("fillNumber", "1")}`, x: sx + 60, y: sy, fontSize: 5, bold: false, isBarcode: true, rotation: 90, barcodeWidth: 14, barcodeHeight: 50 });
 
   // ── Backtag (right column of section 4) ───────────────────────
   const btX = sx + 170;

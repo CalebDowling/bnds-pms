@@ -15,6 +15,9 @@ export interface LabelField {
   maxWidth?: number;    // in points
   isBarcode?: boolean;
   isQrCode?: boolean;
+  rotation?: number;    // degrees (0=horizontal, 90=vertical CW, -90=vertical CCW)
+  barcodeWidth?: number;  // barcode bar thickness in px
+  barcodeHeight?: number; // barcode length in px
 }
 
 export interface InteractiveLabelCanvasProps {
@@ -227,8 +230,13 @@ export default function InteractiveLabelCanvas({
     if (isSelected) borderColor = "#16a34a"; // green-600
     else if (isHovered) borderColor = "#3b82f6"; // blue-500
 
-    // Barcode placeholder
+    // Barcode placeholder — supports horizontal (rot=0) and vertical (rot=90/-90)
     if (field.isBarcode) {
+      const rot = field.rotation ?? 90; // default vertical
+      const bcW = field.barcodeWidth ?? 18;
+      const bcH = field.barcodeHeight ?? (field.maxWidth || 80);
+      const isVert = rot === 90 || rot === -90;
+
       return (
         <div
           key={field.id}
@@ -240,25 +248,36 @@ export default function InteractiveLabelCanvas({
             outlineOffset: 1,
             opacity: isDragging ? 0.7 : 1,
             zIndex: isSelected ? 20 : isDragging ? 15 : 10,
-            padding: "2px 4px",
+            padding: "2px",
             background: isSelected ? "rgba(22,163,74,0.04)" : "transparent",
           }}
           onMouseDown={(e) => handleMouseDown(e, field)}
           onMouseEnter={() => setHoveredFieldId(field.id)}
           onMouseLeave={() => setHoveredFieldId(null)}
         >
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 2 }}>
-            <div
-              style={{
-                width: 18,
-                height: field.maxWidth || 80,
-                background: "repeating-linear-gradient(180deg, #000 0px, #000 2px, #fff 2px, #fff 4px)",
-              }}
-            />
-            <div style={{ fontSize: 5, color: "#666", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-              {field.value || field.label}
+          {isVert ? (
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
+              <div style={{
+                width: bcW,
+                height: bcH,
+                background: "repeating-linear-gradient(180deg, #000 0px, #000 1.5px, #fff 1.5px, #fff 3px)",
+              }} />
+              <div style={{ fontSize: 4, color: "#666", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                {field.value || field.label}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <div style={{
+                width: bcH,
+                height: bcW,
+                background: "repeating-linear-gradient(90deg, #000 0px, #000 1.5px, #fff 1.5px, #fff 3px)",
+              }} />
+              <div style={{ fontSize: 4, color: "#666", textAlign: "center", marginTop: 1 }}>
+                {field.value || field.label}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -547,6 +566,83 @@ export function PropertiesPanel({
             />
           </div>
         </div>
+
+        {/* Barcode controls */}
+        {field.isBarcode && (
+          <>
+            <div>
+              <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-0.5 uppercase tracking-wide">
+                Rotation
+              </label>
+              <select
+                value={field.rotation ?? 90}
+                onChange={(e) => onUpdate(field.id, { rotation: parseInt(e.target.value, 10) })}
+                className="w-full px-2 py-1.5 border border-[var(--border)] rounded text-xs focus:outline-none focus:ring-1 focus:ring-[var(--green-200)] focus:border-[var(--green-700)] bg-white"
+              >
+                <option value={0}>Horizontal (0°)</option>
+                <option value={90}>Vertical CW (90°)</option>
+                <option value={-90}>Vertical CCW (-90°)</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-0.5 uppercase tracking-wide">
+                  Bar Width (px)
+                </label>
+                <input
+                  type="number"
+                  step={1}
+                  min={5}
+                  max={60}
+                  value={field.barcodeWidth ?? 18}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val)) onUpdate(field.id, { barcodeWidth: val });
+                  }}
+                  className="w-full px-2 py-1.5 border border-[var(--border)] rounded text-xs focus:outline-none focus:ring-1 focus:ring-[var(--green-200)] focus:border-[var(--green-700)]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-0.5 uppercase tracking-wide">
+                  Length (px)
+                </label>
+                <input
+                  type="number"
+                  step={5}
+                  min={20}
+                  max={300}
+                  value={field.barcodeHeight ?? (field.maxWidth || 80)}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val)) onUpdate(field.id, { barcodeHeight: val });
+                  }}
+                  className="w-full px-2 py-1.5 border border-[var(--border)] rounded text-xs focus:outline-none focus:ring-1 focus:ring-[var(--green-200)] focus:border-[var(--green-700)]"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* QR code size */}
+        {field.isQrCode && (
+          <div>
+            <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-0.5 uppercase tracking-wide">
+              QR Size (px)
+            </label>
+            <input
+              type="number"
+              step={2}
+              min={16}
+              max={100}
+              value={field.barcodeWidth ?? 24}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) onUpdate(field.id, { barcodeWidth: val, barcodeHeight: val });
+              }}
+              className="w-full px-2 py-1.5 border border-[var(--border)] rounded text-xs focus:outline-none focus:ring-1 focus:ring-[var(--green-200)] focus:border-[var(--green-700)]"
+            />
+          </div>
+        )}
 
         {/* Font size */}
         {!field.isBarcode && !field.isQrCode && (
