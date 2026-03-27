@@ -421,9 +421,11 @@ export default function TemplatePreviewPage() {
     loadTemplate();
   }, [templateId]);
 
-  // Build canvas fields whenever formData or template changes
+  // Build canvas fields on initial load only (when template loads)
+  const fieldsInitialized = useRef(false);
+
   useEffect(() => {
-    if (!templateMeta) return;
+    if (!templateMeta || fieldsInitialized.current) return;
 
     let newFields: LabelField[];
     if (isRxLabel && useSpecializedRenderer) {
@@ -460,16 +462,46 @@ export default function TemplatePreviewPage() {
     }
 
     setCanvasFields(newFields);
+    fieldsInitialized.current = true;
 
-    // Store original positions on first build
-    if (Object.keys(originalPositions).length === 0 && newFields.length > 0) {
-      const posMap: Record<string, { x: number; y: number }> = {};
-      for (const f of newFields) {
-        posMap[f.id] = { x: f.x, y: f.y };
-      }
-      setOriginalPositions(posMap);
+    // Store original positions
+    const posMap: Record<string, { x: number; y: number }> = {};
+    for (const f of newFields) {
+      posMap[f.id] = { x: f.x, y: f.y };
     }
-  }, [formData, templateMeta, isRxLabel, useSpecializedRenderer, variables]);
+    setOriginalPositions(posMap);
+  }, [templateMeta, isRxLabel, useSpecializedRenderer, variables, savedLayoutData]);
+
+  // Update field VALUES only when formData changes (preserve positions)
+  useEffect(() => {
+    if (!fieldsInitialized.current || canvasFields.length === 0) return;
+
+    // Rebuild values from formData but keep existing positions
+    let freshFields: LabelField[];
+    if (isRxLabel && useSpecializedRenderer) {
+      freshFields = buildRxLabelFields(formData);
+    } else {
+      freshFields = buildGenericLabelFields(
+        variables,
+        formData,
+        templateMeta?.pageWidth || 8,
+        templateMeta?.pageHeight || 4,
+      );
+    }
+
+    const freshMap = new Map(freshFields.map((f) => [f.id, f]));
+
+    setCanvasFields((prev) =>
+      prev.map((existing) => {
+        const fresh = freshMap.get(existing.id);
+        if (fresh) {
+          // Update only value, keep position and styling from current state
+          return { ...existing, value: fresh.value };
+        }
+        return existing;
+      })
+    );
+  }, [formData]);
 
   const updateField = useCallback((key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
