@@ -169,395 +169,588 @@ async function generateQRPNG(text: string, size: number): Promise<Buffer> {
 }
 
 // ---------------------------------------------------------------------------
-// Section boundaries (points)
+// DRX coordinate conversion helpers
 // ---------------------------------------------------------------------------
-const SEC1_LEFT = 4;
-const SEC1_RIGHT = 230; // 3.2" = 230.4pt
-const SEC2_TOP = 178;
-const SEC3_LEFT = 238; // 3.3" = 237.6pt
-const SEC3_RIGHT = 572; // leave 4pt margin
-const SEC4_TOP = 144;
+
+/**
+ * Convert DRX x_position, y_position to PDF landscape coordinates.
+ * PDF is 576pt × 288pt (8" × 4" landscape at 72 DPI).
+ *
+ *   PDF_X = drxY × 72       (DRX y_position → horizontal)
+ *   PDF_Y = (4 - drxX) × 72 - fontSize  (DRX x_position → vertical, inverted)
+ *
+ * All DRX text elements have rotation=-90 (read sideways on portrait) which
+ * maps to normal horizontal text in landscape. Elements with rotation=null/0
+ * are horizontal in DRX portrait and become vertical in landscape.
+ */
+function drx(drxX: number, drxY: number, fontSize: number): { x: number; y: number } {
+  return {
+    x: drxY * 72,
+    y: (4 - drxX) * 72 - fontSize,
+  };
+}
 
 // ---------------------------------------------------------------------------
-// Section 1: MAIN LABEL  (x: 0–3.2", y: 0–~170pt)
+// Toll Free line (separate helper called from drawMainLabel)
+// ---------------------------------------------------------------------------
+
+function drawTollFree(
+  doc: InstanceType<typeof PDFDocument>,
+  data: CompoundLabelData
+): void {
+  // DRX: x:2.35 y:0.1 fs:10 "Toll Free 1-855-305-2110"
+  const pos = drx(2.35, 0.1, 10);
+  placeText(doc, data.tollFreeNumber || "Toll Free 1-855-305-2110", pos.x, pos.y, {
+    fontSize: 10,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Section 1: MAIN LABEL — Left half, top portion
+// DRX elements with rotation=-90 → horizontal text via placeText
 // ---------------------------------------------------------------------------
 
 async function drawMainLabel(
   doc: InstanceType<typeof PDFDocument>,
   data: CompoundLabelData
 ): Promise<void> {
-  const x = SEC1_LEFT;
+  // x:3.35 y:0.1 fs:8 "RX# {{el}}"
+  const rxPos = drx(3.35, 0.1, 8);
+  placeText(doc, `RX# ${data.rxNumber}`, rxPos.x, rxPos.y, { fontSize: 8 });
 
-  // Row 1: RX# ... Doctor ... Qty
-  placeText(doc, `RX# ${data.rxNumber}`, x, 8, { fontSize: 8 });
-  placeText(doc, `Doctor: ${data.doctorFirstName} ${data.doctorLastName}`, x + 80, 8, {
+  // x:3.35 y:1.6 fs:5 doctor name
+  const drPos = drx(3.35, 1.6, 5);
+  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, drPos.x, drPos.y, {
     fontSize: 5, upperCase: true,
   });
-  placeText(doc, `Qty: ${data.dispensedQuantity} ${data.qtyType}`, x + 175, 8, {
-    fontSize: 6, upperCase: true,
+
+  // x:3.2 y:1.8 fs:6 "Quantity: {{el}}"
+  const qtyPos = drx(3.2, 1.8, 6);
+  placeText(doc, `Quantity: ${data.dispensedQuantity} ${data.qtyType}`, qtyPos.x, qtyPos.y, {
+    fontSize: 6,
   });
 
-  // Row 2: Patient name
-  placeText(doc, `${data.patientLastName}, ${data.patientFirstName}`, x, 22, {
+  // x:3.15 y:0.1 fs:10 patient.last_name, first_name
+  const patPos = drx(3.15, 0.1, 10);
+  placeText(doc, `${data.patientLastName}, ${data.patientFirstName}`, patPos.x, patPos.y, {
     fontSize: 10, bold: true, upperCase: true,
   });
 
-  // Row 3: Drug name
-  placeText(doc, data.itemPrintName, x, 36, {
-    fontSize: 10, maxWidth: SEC1_RIGHT - x,
-  });
+  // x:2.95 y:0.1 fs:12 item.print_name (show only iftrue)
+  const itemPos = drx(2.95, 0.1, 12);
+  placeText(doc, data.itemPrintName, itemPos.x, itemPos.y, { fontSize: 12 });
 
-  // Row 4: Generic For (if brandName exists)
+  // x:2.8 y:0.1 fs:12 brand_name_if_generic
   if (data.brandName) {
-    placeText(doc, `Generic For: ${data.brandName}`, x, 50, { fontSize: 10 });
+    const brandPos = drx(2.8, 0.1, 12);
+    placeText(doc, `Generic For ${data.brandName}`, brandPos.x, brandPos.y, { fontSize: 12 });
   }
 
-  // Row 5: SIG
-  placeText(doc, data.sig, x, 64, {
-    fontSize: 9, maxWidth: 216, // 3"
-  });
-
-  // Row 6: Toll Free
-  placeText(doc, data.tollFreeNumber || "Toll Free 1-855-305-2110", x, 100, {
-    fontSize: 8,
-  });
-
-  // Row 7: MFG
-  placeText(doc, `MFG: ${data.manufacturer}`, x, 112, {
-    fontSize: 7, upperCase: true,
-  });
-
-  // Row 8: RPH | Comp | Partial
-  const rphParts = [`RPH: ${data.pharmacistFirstName[0]} ${data.pharmacistLastName}`];
-  if (data.completionQuantity) rphParts.push(`Comp: ${data.completionQuantity}`);
-  if (data.partialQuantity) rphParts.push(`Partial: ${data.partialQuantity}`);
-  placeText(doc, rphParts.join(" | "), x, 124, {
-    fontSize: 6, upperCase: true,
-  });
-
-  // Row 9: Formula | Batch | Use By
-  const batchParts: string[] = [];
-  if (data.formulaId) batchParts.push(`Formula: ${data.formulaId}`);
-  if (data.batchId) batchParts.push(`Batch: ${data.batchId}`);
-  if (data.batchExpiration) batchParts.push(`Use By: ${data.batchExpiration}`);
-  if (batchParts.length > 0) {
-    placeText(doc, batchParts.join(" | "), x, 136, { fontSize: 6 });
+  // x:2.75 y:0.1 fs:10 item.print_name second line (slice 24-50)
+  if (data.itemPrintName.length > 24) {
+    const item2Pos = drx(2.75, 0.1, 10);
+    placeText(doc, data.itemPrintName.slice(24, 50), item2Pos.x, item2Pos.y, { fontSize: 10 });
   }
 
-  // Row 10: Barcode #1 — MAIN LABEL fill ID (DRX: rotation=null → horizontal)
+  // x:2.6 y:0.1 fs:12 prescription.sig_translated pw:3.4
+  const sigPos = drx(2.6, 0.1, 12);
+  placeText(doc, data.sig, sigPos.x, sigPos.y, {
+    fontSize: 12, maxWidth: 3.4 * 72,
+  });
+
+  // x:2.35 y:0.1 fs:10 toll free
+  drawTollFree(doc, data);
+
+  // x:2.2 y:0.1 fs:8 "MFG: ..." pw:3.8
+  const mfgPos = drx(2.2, 0.1, 8);
+  placeText(doc, `MFG: ${data.manufacturer}`, mfgPos.x, mfgPos.y, {
+    fontSize: 8, upperCase: true, maxWidth: 3.8 * 72,
+  });
+
+  // x:2.2 y:1.35 fs:6 "Formula: {{el}}"
+  const fmPos = drx(2.2, 1.35, 6);
+  if (data.formulaId) {
+    placeText(doc, `Formula: ${data.formulaId}`, fmPos.x, fmPos.y, { fontSize: 6 });
+  }
+
+  // x:2.1 y:1.35 fs:6 "Batch: {{el}}"
+  const bchPos = drx(2.1, 1.35, 6);
+  if (data.batchId) {
+    placeText(doc, `Batch: ${data.batchId}`, bchPos.x, bchPos.y, { fontSize: 6 });
+  }
+
+  // x:2.0 y:0.1 fs:6 "RPH: Emily"
+  const rphPos = drx(2.0, 0.1, 6);
+  placeText(doc, `RPH: ${data.pharmacistFirstName}`, rphPos.x, rphPos.y, { fontSize: 6 });
+
+  // x:2.0 y:0.5 fs:6 "Bychkov" (pharmacist last name)
+  const rph2Pos = drx(2.0, 0.5, 6);
+  placeText(doc, data.pharmacistLastName, rph2Pos.x, rph2Pos.y, { fontSize: 6 });
+
+  // x:2.0 y:0.9 fs:8 BOLD "Comp"
+  if (data.completionQuantity) {
+    const compPos = drx(2.0, 0.9, 8);
+    placeText(doc, `Comp`, compPos.x, compPos.y, { fontSize: 8, bold: true });
+  }
+
+  // x:2.0 y:1.3 fs:8 BOLD "Partial"
+  if (data.partialQuantity) {
+    const partPos = drx(2.0, 1.3, 8);
+    placeText(doc, `Partial`, partPos.x, partPos.y, { fontSize: 8, bold: true });
+  }
+
+  // x:2.0 y:2.5 rot:null [BC128] "b154687:0" — HORIZONTAL barcode
+  // DRX rotation=null → place horizontally with doc.image()
   try {
     const bcText = `b${data.fillId}:${data.labelVersion}`;
     const png = await generateBarcodePNG(bcText, 10);
-    doc.image(png, x, 148, { height: 22, fit: [200, 22] });
+    const bcPos = drx(2.0, 2.5, 22); // use barcode height as fontSize offset
+    doc.image(png, bcPos.x, bcPos.y, { height: 22, fit: [200, 22] });
   } catch {
-    placeText(doc, `[BC] b${data.fillId}:${data.labelVersion}`, x, 150, { fontSize: 6 });
+    const bcPos = drx(2.0, 2.5, 6);
+    placeText(doc, `[BC] b${data.fillId}:${data.labelVersion}`, bcPos.x, bcPos.y, { fontSize: 6 });
   }
 }
 
 // ---------------------------------------------------------------------------
-// Section 2: BOTTOM LABEL  (x: 0–3.2", y: 178–288pt)
+// Section 2: BOTTOM LABEL — Left half, bottom portion
 // ---------------------------------------------------------------------------
 
 async function drawBottomLabel(
   doc: InstanceType<typeof PDFDocument>,
   data: CompoundLabelData
 ): Promise<void> {
-  const x = SEC1_LEFT;
-  const y0 = SEC2_TOP;
+  // x:1.3 y:0.1 fs:11 BOLD "RX# 154687"
+  const rxPos = drx(1.3, 0.1, 11);
+  placeText(doc, `RX# ${data.rxNumber}`, rxPos.x, rxPos.y, { fontSize: 11, bold: true });
 
-  // Row 1: RX# | Filled | Doctor
-  placeText(doc, `RX# ${data.rxNumber}`, x, y0, { fontSize: 11, bold: true });
-  placeText(doc, `Filled: ${data.fillDate}`, x + 90, y0 + 1, { fontSize: 10 });
-  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, x + 175, y0 + 2, {
+  // x:1.3 y:1.2 fs:10 "Filled: 21/12/2022"
+  const fillPos = drx(1.3, 1.2, 10);
+  placeText(doc, `Filled: ${data.fillDate}`, fillPos.x, fillPos.y, { fontSize: 10 });
+
+  // x:1.3 y:2.4 fs:9 "CHARLES MURPHY" (doctor name)
+  const drNamePos = drx(1.3, 2.4, 9);
+  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, drNamePos.x, drNamePos.y, {
     fontSize: 9, upperCase: true,
   });
 
-  // Row 2: Patient name (reversed) | Doctor address
-  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, x, y0 + 14, {
+  // x:1.2 y:2.4 fs:8 "132 Unknown Ave" (doctor address)
+  const drAddrPos = drx(1.2, 2.4, 8);
+  placeText(doc, data.doctorAddressLine1, drAddrPos.x, drAddrPos.y, { fontSize: 8 });
+
+  // x:1.1 y:0.1 fs:12 BOLD "ROLYAT GRAY" (patient name)
+  const patPos = drx(1.1, 0.1, 12);
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, patPos.x, patPos.y, {
     fontSize: 12, bold: true, upperCase: true,
   });
-  placeText(doc, data.doctorAddressLine1, x + 160, y0 + 16, { fontSize: 8 });
 
-  // Row 3: DOB | Doctor city/state/zip
-  placeText(doc, `DOB: ${data.patientDOB}`, x, y0 + 28, {
-    fontSize: 8, bold: true, upperCase: true,
-  });
+  // x:1.1 y:2.4 fs:8 "LAKE CHARLES, LA 01457" (doctor city/state/zip)
+  const drCSZPos = drx(1.1, 2.4, 8);
   const drCSZ = [data.doctorCity, `${data.doctorState} ${data.doctorZip}`].filter(Boolean).join(", ");
-  placeText(doc, drCSZ, x + 160, y0 + 28, { fontSize: 8, upperCase: true });
+  placeText(doc, drCSZ, drCSZPos.x, drCSZPos.y, { fontSize: 8, upperCase: true });
 
-  // Row 4: Patient address | Doctor phone
+  // x:1.0 y:2.4 fs:8 "(585) 454-7777" (doctor phone)
+  const drPhPos = drx(1.0, 2.4, 8);
+  placeText(doc, data.doctorPhone, drPhPos.x, drPhPos.y, { fontSize: 8 });
+
+  // x:0.96 y:0.1 fs:8 BOLD "DOB: 12/22/2022"
+  const dobPos = drx(0.96, 0.1, 8);
+  placeText(doc, `DOB: ${data.patientDOB}`, dobPos.x, dobPos.y, { fontSize: 8, bold: true });
+
+  // x:0.86 y:0.1 fs:8 "123 UNKNOWN ADVE APT C" (patient address)
+  const addrPos = drx(0.86, 0.1, 8);
   const addrFull = [data.patientAddressLine1, data.patientAddressLine2].filter(Boolean).join(" ");
-  placeText(doc, addrFull, x, y0 + 40, { fontSize: 8, upperCase: true });
-  placeText(doc, data.doctorPhone, x + 160, y0 + 40, { fontSize: 8 });
+  placeText(doc, addrFull, addrPos.x, addrPos.y, { fontSize: 8, upperCase: true });
 
-  // Row 5: Phones | Insurance
-  const phoneParts = [data.patientPhone, data.patientCellPhone, data.primaryInsurance]
-    .filter(Boolean)
-    .join(" | ");
-  placeText(doc, phoneParts, x, y0 + 52, {
-    fontSize: 8, upperCase: true, maxWidth: SEC1_RIGHT - x,
-  });
+  // x:0.76 y:0.1 fs:8 "LAKE CHARLES, LA, 12345" (patient city/state/zip)
+  const cszPos = drx(0.76, 0.1, 8);
+  const patCSZ = [data.patientCity, `${data.patientState}, ${data.patientZip}`].filter(Boolean).join(", ");
+  placeText(doc, patCSZ, cszPos.x, cszPos.y, { fontSize: 8, upperCase: true });
 
-  // Row 6: Delivery | Price
-  placeText(doc, data.patientDeliveryMethod, x, y0 + 64, {
-    fontSize: 12, bold: true, upperCase: true,
-  });
-  placeText(doc, `Price: $${data.copay}`, x + 100, y0 + 64, {
-    fontSize: 10, bold: true,
-  });
+  // x:0.66 y:0.1 fs:8 "(585) 285-4577" (patient phone)
+  const phPos = drx(0.66, 0.1, 8);
+  placeText(doc, data.patientPhone, phPos.x, phPos.y, { fontSize: 8 });
 
-  // Row 7: Drug name full
-  placeText(doc, data.itemName, x, y0 + 78, {
-    fontSize: 8, bold: true, upperCase: true, maxWidth: 288, // 4"
-  });
+  // x:0.66 y:1.2 fs:8 "(585) 285-4577" (patient cell)
+  const cellPos = drx(0.66, 1.2, 8);
+  placeText(doc, data.patientCellPhone, cellPos.x, cellPos.y, { fontSize: 8 });
 
-  // Row 8: QTY | FILL#
-  placeText(doc, `QTY: ${data.dispensedQuantity} ${data.qtyType} | FILL#: ${data.fillNumber}`, x, y0 + 90, {
-    fontSize: 8, bold: true,
-  });
+  // x:0.66 y:2.2 fs:8 BOLD "WELLCARE MEDICARE PART D" (insurance)
+  const insPos = drx(0.66, 2.2, 8);
+  placeText(doc, data.primaryInsurance, insPos.x, insPos.y, { fontSize: 8, bold: true, upperCase: true });
 
-  // Row 9: Barcode (vertical — rotated 90° like DRX)
+  // x:0.4 y:4.2 rot:-90 [BC128] "b154687:0" — VERTICAL barcode
+  // DRX rotation=-90 → place VERTICALLY with save/translate/rotate(90)/image/restore
   try {
     const bcText = `b${data.fillId}:${data.labelVersion}`;
     const png = await generateBarcodePNG(bcText, 8);
+    const bcPos = drx(0.4, 4.2, 0);
     doc.save();
-    doc.translate(x + 20, y0 + 100);
+    doc.translate(bcPos.x, bcPos.y);
     doc.rotate(90);
     doc.image(png, 0, 0, { height: 18, fit: [70, 18] });
     doc.restore();
   } catch {
-    placeText(doc, `[BC] b${data.fillId}:${data.labelVersion}`, x, y0 + 100, { fontSize: 6 });
+    const bcPos = drx(0.4, 4.2, 6);
+    placeText(doc, `[BC] b${data.fillId}:${data.labelVersion}`, bcPos.x, bcPos.y, { fontSize: 6 });
   }
+
+  // x:0.35 y:0.1 fs:12 BOLD "DELIVERY"
+  const delPos = drx(0.35, 0.1, 12);
+  placeText(doc, data.patientDeliveryMethod, delPos.x, delPos.y, {
+    fontSize: 12, bold: true, upperCase: true,
+  });
+
+  // x:0.3 y:3.0 fs:10 BOLD "Price: $12.01"
+  const pricePos = drx(0.3, 3.0, 10);
+  placeText(doc, `Price: $${data.copay}`, pricePos.x, pricePos.y, { fontSize: 10, bold: true });
+
+  // x:0.2 y:0.1 fs:10 BOLD item name pw:4.3
+  const itemPos = drx(0.2, 0.1, 10);
+  placeText(doc, data.itemName, itemPos.x, itemPos.y, {
+    fontSize: 10, bold: true, upperCase: true, maxWidth: 4.3 * 72,
+  });
+
+  // x:0.1 y:3.0 fs:8 BOLD "Qty: 120"
+  const qtyPos = drx(0.1, 3.0, 8);
+  placeText(doc, `Qty: ${data.dispensedQuantity}`, qtyPos.x, qtyPos.y, { fontSize: 8, bold: true });
+
+  // x:0.1 y:3.6 fs:8 BOLD "Fill#: 1"
+  const fillNPos = drx(0.1, 3.6, 8);
+  placeText(doc, `Fill#: ${data.fillNumber}`, fillNPos.x, fillNPos.y, { fontSize: 8, bold: true });
 }
 
 // ---------------------------------------------------------------------------
-// Section 3: RIGHT PANEL TOP  (x: 3.3"–8", y: 0–144pt)  AUX + batch
+// Section 3: AUX — Right of main label, y starts at 3.0
 // ---------------------------------------------------------------------------
 
 function drawAuxSection(
   doc: InstanceType<typeof PDFDocument>,
   data: CompoundLabelData
 ): void {
-  const x = SEC3_LEFT;
-  let y = 6;
+  const pw = 2 * 72; // print width 2" = 144pt
 
-  // Aux labels (up to 4)
-  for (let i = 0; i < Math.min(data.auxLabels.length, 4); i++) {
-    placeText(doc, data.auxLabels[i], x, y, {
-      fontSize: 8, maxWidth: SEC3_RIGHT - x, upperCase: true,
-    });
-    y += 14;
+  // x:3.9 y:3.0 fs:10 aux_labels[0]
+  if (data.auxLabels[0]) {
+    const p = drx(3.9, 3.0, 10);
+    placeText(doc, data.auxLabels[0], p.x, p.y, { fontSize: 10, maxWidth: pw, upperCase: true });
   }
 
-  // Compounded notice
-  y += 4;
-  placeText(doc, "This medication has been compounded by this pharmacy", x, y, {
-    fontSize: 8, maxWidth: SEC3_RIGHT - x,
+  // x:3.5 y:3.0 fs:10 aux_labels[1]
+  if (data.auxLabels[1]) {
+    const p = drx(3.5, 3.0, 10);
+    placeText(doc, data.auxLabels[1], p.x, p.y, { fontSize: 10, maxWidth: pw, upperCase: true });
+  }
+
+  // x:3.1 y:3.0 fs:10 aux_labels[2]
+  if (data.auxLabels[2]) {
+    const p = drx(3.1, 3.0, 10);
+    placeText(doc, data.auxLabels[2], p.x, p.y, { fontSize: 10, maxWidth: pw, upperCase: true });
+  }
+
+  // x:2.7 y:3.0 fs:10 "This medication has been compounded..." pw:2
+  const compNotice = drx(2.7, 3.0, 10);
+  placeText(doc, "This medication has been compounded by this pharmacy", compNotice.x, compNotice.y, {
+    fontSize: 10, maxWidth: pw,
   });
-  y += 20;
 
-  // Batch / Formula / Use By
+  // x:2.7 y:3.0 fs:6 aux_labels[3] (same DRX x but different fontSize — renders below the notice)
+  if (data.auxLabels[3]) {
+    const p = drx(2.7, 3.0, 6);
+    placeText(doc, data.auxLabels[3], p.x, p.y, { fontSize: 6, maxWidth: pw });
+  }
+
+  // x:2.3 y:3.0 fs:6 "FormulaID: {{el}}"
   if (data.formulaId) {
-    placeText(doc, `FormulaID: ${data.formulaId}`, x, y, { fontSize: 6 });
-    y += 10;
+    const p = drx(2.3, 3.0, 6);
+    placeText(doc, `FormulaID: ${data.formulaId}`, p.x, p.y, { fontSize: 6 });
   }
+
+  // x:2.2 y:3.0 fs:6 "Batch: {{el}}"
   if (data.batchId) {
-    placeText(doc, `Batch: ${data.batchId}`, x, y, { fontSize: 6 });
-    y += 10;
+    const p = drx(2.2, 3.0, 6);
+    placeText(doc, `Batch: ${data.batchId}`, p.x, p.y, { fontSize: 6 });
   }
+
+  // x:2.1 y:3.0 fs:6 "Use By: {{el}}"
   if (data.batchExpiration) {
-    placeText(doc, `Use By: ${data.batchExpiration}`, x, y, { fontSize: 6 });
+    const p = drx(2.1, 3.0, 6);
+    placeText(doc, `Use By: ${data.batchExpiration}`, p.x, p.y, { fontSize: 6 });
   }
 }
 
 // ---------------------------------------------------------------------------
-// Section 4: RIGHT PANEL BOTTOM  (x: 3.3"–8", y: 144–288pt)
-// Signature area, patient notes, fill tags, barcodes, backtag
+// Section 4: Signature, Patient Notes, and Backtag
 // ---------------------------------------------------------------------------
 
 async function drawSignatureAndNotes(
   doc: InstanceType<typeof PDFDocument>,
   data: CompoundLabelData
 ): Promise<void> {
-  const x = SEC3_LEFT;
-  const maxW = SEC3_RIGHT - x; // full right panel width (~334pt)
-  let y = SEC4_TOP + 2;
+  // === Signature 1 (4 elements) — y starts at 4.6 ===
 
-  // --- Left column: Signature + Patient Notes (x to x+160) ---
-  const leftW = 160;
+  // x:2.0 y:4.6 fs:8 BOLD patient name
+  const s1Name = drx(2.0, 4.6, 8);
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, s1Name.x, s1Name.y, {
+    fontSize: 8, bold: true, upperCase: true,
+  });
 
-  // Signature 1: patient name | home | cell
-  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, x, y, { fontSize: 7, bold: true });
-  placeText(doc, `Home: ${data.patientPhone}`, x + 75, y, { fontSize: 6 });
-  placeText(doc, `Cell: ${data.patientCellPhone}`, x + 135, y, { fontSize: 6 });
-  y += 10;
+  // x:1.9 y:4.6 fs:7 "Home: (585) 454-7744"
+  const s1Home = drx(1.9, 4.6, 7);
+  placeText(doc, `Home: ${data.patientPhone}`, s1Home.x, s1Home.y, { fontSize: 7 });
 
-  // BOH
+  // x:1.9 y:5.8 fs:7 "Cell: (585) 454-7744"
+  const s1Cell = drx(1.9, 5.8, 7);
+  placeText(doc, `Cell: ${data.patientCellPhone}`, s1Cell.x, s1Cell.y, { fontSize: 7 });
+
+  // x:1.7 y:5.8 fs:8 BOLD "BOH: 16"
   if (data.boh) {
-    placeText(doc, `BOH: ${data.boh}`, x, y, { fontSize: 7, bold: true });
-  }
-  y += 10;
-
-  // Signature 2
-  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, x, y, { fontSize: 7, bold: true });
-  placeText(doc, `Home: ${data.patientPhone}`, x + 75, y, { fontSize: 6 });
-  placeText(doc, `Cell: ${data.patientCellPhone}`, x + 135, y, { fontSize: 6 });
-  y += 10;
-
-  // Signature line
-  placeText(doc, "Signature: __________________________", x, y, { fontSize: 6 });
-  y += 10;
-
-  // Patient comments (reduced font)
-  if (data.patientComments) {
-    placeText(doc, data.patientComments, x, y, { fontSize: 7, maxWidth: leftW });
-    y += 16;
+    const bohPos = drx(1.7, 5.8, 8);
+    placeText(doc, `BOH: ${data.boh}`, bohPos.x, bohPos.y, { fontSize: 8, bold: true });
   }
 
-  // Fill tags
-  if (data.fillTags.length > 0) {
-    placeText(doc, `Tags: ${data.fillTags.join(", ")}`, x, y, { fontSize: 7, maxWidth: leftW });
-    y += 10;
-  }
+  // === Signature 2 (8 elements) — y starts at 4.6 ===
 
-  // Promised time
-  if (data.pickupTime) {
-    placeText(doc, `Promised: ${data.pickupTime}`, x, y, { fontSize: 6 });
-    y += 9;
-  }
+  // x:1.5 y:4.6 fs:8 BOLD patient name
+  const s2Name = drx(1.5, 4.6, 8);
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, s2Name.x, s2Name.y, {
+    fontSize: 8, bold: true, upperCase: true,
+  });
 
-  // Disp Qty | Filled | NDC
-  placeText(doc, `Disp Qty: ${data.dispensedQuantity} | Filled: ${data.fillDate} | NDC: ${data.ndc}`, x, y, { fontSize: 5 });
-  y += 9;
+  // x:1.4 y:4.6 fs:7 "Home: (585) 454-7744"
+  const s2Home = drx(1.4, 4.6, 7);
+  placeText(doc, `Home: ${data.patientPhone}`, s2Home.x, s2Home.y, { fontSize: 7 });
 
-  // Barcode #3 — Item ID (DRX: Patient Notes group, i:{itemId}, rotation=90, vertical)
-  if (data.itemId) {
-    try {
-      const itemBcPng = await generateBarcodePNG(`i:${data.itemId}`, 6);
-      doc.save();
-      doc.translate(x + 14, y);
-      doc.rotate(90);
-      doc.image(itemBcPng, 0, 0, { height: 14, fit: [50, 14] });
-      doc.restore();
-    } catch {
-      placeText(doc, `i:${data.itemId}`, x, y, { fontSize: 5 });
-    }
-  }
+  // x:1.4 y:5.8 fs:7 "Cell: (585) 454-7744"
+  const s2Cell = drx(1.4, 5.8, 7);
+  placeText(doc, `Cell: ${data.patientCellPhone}`, s2Cell.x, s2Cell.y, { fontSize: 7 });
 
-  // QR code — Patient Education URL (DRX: UNGROUPED, rotation=null)
-  if (data.patientEducationUrl) {
-    try {
-      const qrPng = await generateQRPNG(data.patientEducationUrl, 150);
-      if (qrPng.length > 0) {
-        doc.image(qrPng, x + 30, y - 4, { width: 24, height: 24 });
-      }
-    } catch { /* QR optional */ }
-  }
+  // x:1.4 y:7.1 fs:7 "Disp Qty: 120"
+  const dispQty = drx(1.4, 7.1, 7);
+  placeText(doc, `Disp Qty: ${data.dispensedQuantity}`, dispQty.x, dispQty.y, { fontSize: 7 });
 
-  // Barcode #4 — Signature fill ID (DRX: Signature2 group, id|fill_number, rotation=90, vertical)
+  // x:1.3 y:7.0 fs:7 "Filled: 11/22/2022"
+  const s2Fill = drx(1.3, 7.0, 7);
+  placeText(doc, `Filled: ${data.fillDate}`, s2Fill.x, s2Fill.y, { fontSize: 7 });
+
+  // x:1.2 y:7.0 fs:6 "NDC: 5555-4455-01"
+  const s2Ndc = drx(1.2, 7.0, 6);
+  placeText(doc, `NDC: ${data.ndc}`, s2Ndc.x, s2Ndc.y, { fontSize: 6 });
+
+  // x:1.0 y:4.7 fs:6 "Signature: __________________________"
+  const sigLine = drx(1.0, 4.7, 6);
+  placeText(doc, "Signature: __________________________", sigLine.x, sigLine.y, { fontSize: 6 });
+
+  // x:1.0 y:6.5 rot:90 [BC128] — VERTICAL barcode (signature fill ID)
+  // DRX rotation=90 → place VERTICALLY with save/translate/rotate(-90)/image/restore
   try {
     const sigBcPng = await generateBarcodePNG(`b${data.fillId}:${data.fillNumber}`, 6);
+    const sigBcPos = drx(1.0, 6.5, 0);
     doc.save();
-    doc.translate(x + 60, y);
-    doc.rotate(90);
+    doc.translate(sigBcPos.x, sigBcPos.y);
+    doc.rotate(-90);
     doc.image(sigBcPng, 0, 0, { height: 14, fit: [50, 14] });
     doc.restore();
   } catch {
-    placeText(doc, `[BC] ${data.fillId}:${data.fillNumber}`, x + 60, y, { fontSize: 5 });
+    const sigBcPos = drx(1.0, 6.5, 6);
+    placeText(doc, `[BC] ${data.fillId}:${data.fillNumber}`, sigBcPos.x, sigBcPos.y, { fontSize: 6 });
   }
 
-  // --- Right column: Backtag (x+170 to end) ---
-  const btX = x + 170;
-  const btW = SEC3_RIGHT - btX; // ~164pt
-  let btY = SEC4_TOP + 2;
+  // === Patient Notes (7 elements) — y starts at 4.6 ===
 
-  placeText(doc, `RX ${data.rxNumber}`, btX, btY, { fontSize: 6, bold: true });
-  placeText(doc, `DOB: ${data.patientDOB}`, btX + 50, btY, { fontSize: 5 });
-  btY += 8;
+  // x:3.8 y:4.6 fs:10 patient.comments pw:3.5
+  if (data.patientComments) {
+    const cmtPos = drx(3.8, 4.6, 10);
+    placeText(doc, data.patientComments, cmtPos.x, cmtPos.y, {
+      fontSize: 10, maxWidth: 3.5 * 72,
+    });
+  }
 
-  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, btX, btY, { fontSize: 6, bold: true, upperCase: true });
-  btY += 8;
+  // x:3.4 y:4.6 fs:10 prescription_fill_tags pw:3.5
+  if (data.fillTags.length > 0) {
+    const tagPos = drx(3.4, 4.6, 10);
+    placeText(doc, data.fillTags.join(", "), tagPos.x, tagPos.y, {
+      fontSize: 10, maxWidth: 3.5 * 72,
+    });
+  }
 
-  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, btX, btY, { fontSize: 6, upperCase: true });
-  btY += 8;
+  // x:2.95 y:4.6 fs:7 "Promised: 01/01/2025 1:00 PM" pw:3.5
+  if (data.pickupTime) {
+    const promPos = drx(2.95, 4.6, 7);
+    placeText(doc, `Promised: ${data.pickupTime}`, promPos.x, promPos.y, {
+      fontSize: 7, maxWidth: 3.5 * 72,
+    });
+  }
 
-  const drAddr = [data.doctorAddressLine1, data.doctorCity, `${data.doctorState} ${data.doctorZip}`].filter(Boolean).join(", ");
-  placeText(doc, drAddr, btX, btY, { fontSize: 5, maxWidth: btW });
-  btY += 8;
+  // x:2.6 y:7.0 fs:8 "i:71662" (text label for item barcode)
+  if (data.itemId) {
+    const itemTxtPos = drx(2.6, 7.0, 8);
+    placeText(doc, `i:${data.itemId}`, itemTxtPos.x, itemTxtPos.y, { fontSize: 8 });
+  }
 
-  placeText(doc, `DEA: ${data.doctorDEA}`, btX, btY, { fontSize: 5 });
-  placeText(doc, `NPI: ${data.doctorNPI}`, btX + 70, btY, { fontSize: 5 });
-  btY += 8;
+  // x:2.4 y:6.5 rot:90 [BC128] "i:71662" — VERTICAL barcode
+  // DRX rotation=90 → save/translate/rotate(-90)/image/restore
+  if (data.itemId) {
+    try {
+      const itemBcPng = await generateBarcodePNG(`i:${data.itemId}`, 6);
+      const itemBcPos = drx(2.4, 6.5, 0);
+      doc.save();
+      doc.translate(itemBcPos.x, itemBcPos.y);
+      doc.rotate(-90);
+      doc.image(itemBcPng, 0, 0, { height: 14, fit: [50, 14] });
+      doc.restore();
+    } catch {
+      const itemBcPos = drx(2.4, 6.5, 6);
+      placeText(doc, `i:${data.itemId}`, itemBcPos.x, itemBcPos.y, { fontSize: 6 });
+    }
+  }
 
-  placeText(doc, data.itemName, btX, btY, { fontSize: 5, maxWidth: btW, upperCase: true });
-  btY += 14;
+  // Watermark elements (x:2.3 y:5.0 rot:-70 and x:1.0 y:4.4 rot:-70) are
+  // drawn by drawWatermarks, not here.
 
-  placeText(doc, data.sig, btX, btY, { fontSize: 5, maxWidth: btW });
-  btY += 14;
+  // === Backtag (20 elements) — y starts at 4.6 ===
 
-  placeText(doc, `NDC: ${data.ndc}`, btX, btY, { fontSize: 5 });
-  placeText(doc, `QTY: ${data.dispensedQuantity}`, btX + 75, btY, { fontSize: 5 });
-  btY += 8;
+  // x:0.85 y:4.6 fs:7 BOLD "RX 12454"
+  const btRx = drx(0.85, 4.6, 7);
+  placeText(doc, `RX ${data.rxNumber}`, btRx.x, btRx.y, { fontSize: 7, bold: true });
 
-  placeText(doc, `INS: $${data.copay}`, btX, btY, { fontSize: 5 });
-  placeText(doc, `Filled: ${data.fillDate}`, btX + 50, btY, { fontSize: 5 });
-  btY += 8;
+  // x:0.85 y:5.3 fs:6.5 BOLD "DOB: 12/4/54"
+  const btDob = drx(0.85, 5.3, 6.5);
+  placeText(doc, `DOB: ${data.patientDOB}`, btDob.x, btDob.y, { fontSize: 6.5, bold: true });
 
-  placeText(doc, `${data.refillsLeft} Refill(s) left until ${data.rxExpires}`, btX, btY, { fontSize: 5 });
+  // x:0.85 y:7.2 fs:6 BOLD "Filled 12/22/2022"
+  const btFill = drx(0.85, 7.2, 6);
+  placeText(doc, `Filled ${data.fillDate}`, btFill.x, btFill.y, { fontSize: 6, bold: true });
+
+  // x:0.8 y:6.0 fs:6 "NDC: 00111-0222-99" pw:3.8
+  const btNdc = drx(0.8, 6.0, 6);
+  placeText(doc, `NDC: ${data.ndc}`, btNdc.x, btNdc.y, { fontSize: 6, maxWidth: 3.8 * 72 });
+
+  // x:0.75 y:4.6 fs:8 BOLD patient name
+  const btPat = drx(0.75, 4.6, 8);
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, btPat.x, btPat.y, {
+    fontSize: 8, bold: true, upperCase: true,
+  });
+
+  // x:0.75 y:7.2 fs:6 BOLD "QTY: 150"
+  const btQty = drx(0.75, 7.2, 6);
+  placeText(doc, `QTY: ${data.dispensedQuantity}`, btQty.x, btQty.y, { fontSize: 6, bold: true });
+
+  // x:0.65 y:4.6 fs:6 patient address
+  const btAddr = drx(0.65, 4.6, 6);
+  const btAddrFull = [data.patientAddressLine1, data.patientAddressLine2].filter(Boolean).join(" ");
+  placeText(doc, btAddrFull, btAddr.x, btAddr.y, { fontSize: 6, upperCase: true });
+
+  // x:0.65 y:7.2 fs:6 BOLD "Part" (completion or partial — show one)
+  if (data.completionQuantity || data.partialQuantity) {
+    const btPart = drx(0.65, 7.2, 6);
+    placeText(doc, data.completionQuantity ? `Comp: ${data.completionQuantity}` : `Part: ${data.partialQuantity}`, btPart.x, btPart.y, {
+      fontSize: 6, bold: true,
+    });
+  }
+
+  // x:0.6 y:5.9 fs:6 item.name pw:3.3
+  const btItem = drx(0.6, 5.9, 6);
+  placeText(doc, data.itemName, btItem.x, btItem.y, { fontSize: 6, maxWidth: 3.3 * 72 });
+
+  // x:0.58 y:4.6 fs:6 "LAKE CHARLES, LA, 12345" (patient city/state/zip)
+  const btCSZ = drx(0.58, 4.6, 6);
+  const btPatCSZ = [data.patientCity, `${data.patientState}, ${data.patientZip}`].filter(Boolean).join(", ");
+  placeText(doc, btPatCSZ, btCSZ.x, btCSZ.y, { fontSize: 6, upperCase: true });
+
+  // x:0.45 y:4.6 fs:8 BOLD "CHARLES XAVIER" (doctor name)
+  const btDr = drx(0.45, 4.6, 8);
+  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, btDr.x, btDr.y, {
+    fontSize: 8, bold: true, upperCase: true,
+  });
+
+  // x:0.45 y:7.2 fs:6 BOLD "INS: $1.00"
+  const btIns = drx(0.45, 7.2, 6);
+  placeText(doc, `INS: $${data.copay}`, btIns.x, btIns.y, { fontSize: 6, bold: true });
+
+  // x:0.38 y:4.6 fs:6 "NPI: 1231415566"
+  const btNpi = drx(0.38, 4.6, 6);
+  placeText(doc, `NPI: ${data.doctorNPI}`, btNpi.x, btNpi.y, { fontSize: 6 });
+
+  // x:0.3 y:4.6 fs:6 "DEA: 12314155"
+  const btDea = drx(0.3, 4.6, 6);
+  placeText(doc, `DEA: ${data.doctorDEA}`, btDea.x, btDea.y, { fontSize: 6 });
+
+  // x:0.3 y:5.9 fs:12 prescription.sig_translated pw:2
+  const btSig = drx(0.3, 5.9, 12);
+  placeText(doc, data.sig, btSig.x, btSig.y, { fontSize: 12, maxWidth: 2 * 72 });
+
+  // x:0.22 y:4.6 fs:6 doctor address pw:3.4
+  const btDrAddr = drx(0.22, 4.6, 6);
+  const drAddrFull = [data.doctorAddressLine1, data.doctorCity, `${data.doctorState} ${data.doctorZip}`].filter(Boolean).join(", ");
+  placeText(doc, drAddrFull, btDrAddr.x, btDrAddr.y, { fontSize: 6, maxWidth: 3.4 * 72 });
+
+  // x:0.1 y:4.6 fs:6 "1 Refill(s) left until"
+  const btRef = drx(0.1, 4.6, 6);
+  placeText(doc, `${data.refillsLeft} Refill(s) left until`, btRef.x, btRef.y, { fontSize: 6 });
+
+  // x:0.1 y:5.3 fs:6 "11/1/2022" (rx expires)
+  const btExp = drx(0.1, 5.3, 6);
+  placeText(doc, data.rxExpires, btExp.x, btExp.y, { fontSize: 6 });
 }
 
 // ---------------------------------------------------------------------------
 // Watermarks (overlaid with opacity)
+// DRX rotation=-70 → rotate(20) in landscape (90 + (-70) = 20)
 // ---------------------------------------------------------------------------
 
 function drawWatermarks(
   doc: InstanceType<typeof PDFDocument>,
   data: CompoundLabelData
 ): void {
+  // x:2.3 y:5.0 rot:-70 fs:40 BOLD "HOLD"
   if (data.holdWarning) {
+    const pos = drx(2.3, 5.0, 0);
     doc.save();
     doc.fillOpacity(0.5);
-    doc.font("Helvetica-Bold").fontSize(30);
-    doc.save();
-    doc.translate(100, 100);
-    doc.rotate(-15);
+    doc.font("Helvetica-Bold").fontSize(40);
+    doc.translate(pos.x, pos.y);
+    doc.rotate(20);
     doc.text("HOLD", 0, 0, { lineBreak: false });
-    doc.restore();
-    doc.fillOpacity(1);
     doc.restore();
   }
 
+  // x:1.0 y:4.4 rot:-70 fs:30 BOLD "NO PAID CLAIM"
   if (data.noClaimWarning) {
+    const pos = drx(1.0, 4.4, 0);
     doc.save();
     doc.fillOpacity(0.5);
-    doc.font("Helvetica-Bold").fontSize(24);
-    doc.save();
-    doc.translate(80, 200);
-    doc.rotate(-15);
+    doc.font("Helvetica-Bold").fontSize(30);
+    doc.translate(pos.x, pos.y);
+    doc.rotate(20);
     doc.text("NO PAID CLAIM", 0, 0, { lineBreak: false });
-    doc.restore();
-    doc.fillOpacity(1);
     doc.restore();
   }
 }
 
 // ---------------------------------------------------------------------------
-// Separator lines
+// Separator lines (kept as-is — use legacy section boundaries for lines)
 // ---------------------------------------------------------------------------
+const SEP_SEC1_LEFT = 4;
+const SEP_SEC1_RIGHT = 230;
+const SEP_SEC2_TOP = 178;
+const SEP_SEC3_LEFT = 238;
+const SEP_SEC3_RIGHT = 572;
+const SEP_SEC4_TOP = 144;
 
 function drawSeparators(doc: InstanceType<typeof PDFDocument>): void {
   doc.save();
   doc.lineWidth(0.5).strokeColor("#999999");
 
   // Horizontal line between Section 1 (main label) and Section 2 (bottom label)
-  doc.moveTo(SEC1_LEFT, SEC2_TOP - 2).lineTo(SEC1_RIGHT, SEC2_TOP - 2).stroke();
+  doc.moveTo(SEP_SEC1_LEFT, SEP_SEC2_TOP - 2).lineTo(SEP_SEC1_RIGHT, SEP_SEC2_TOP - 2).stroke();
 
   // Vertical line between left and right panels
-  const vx = SEC3_LEFT - 4;
+  const vx = SEP_SEC3_LEFT - 4;
   doc.moveTo(vx, 0).lineTo(vx, PDF_H).stroke();
 
   // Horizontal line in right panel between Section 3 and Section 4
-  doc.moveTo(SEC3_LEFT, SEC4_TOP).lineTo(SEC3_RIGHT, SEC4_TOP).stroke();
+  doc.moveTo(SEP_SEC3_LEFT, SEP_SEC4_TOP).lineTo(SEP_SEC3_RIGHT, SEP_SEC4_TOP).stroke();
 
   doc.restore();
 }
