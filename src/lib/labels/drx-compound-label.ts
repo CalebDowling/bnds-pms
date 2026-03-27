@@ -376,133 +376,112 @@ async function drawSignatureAndNotes(
   data: CompoundLabelData
 ): Promise<void> {
   const x = SEC3_LEFT;
+  const maxW = SEC3_RIGHT - x; // full right panel width (~334pt)
   let y = SEC4_TOP + 2;
 
+  // --- Left column: Signature + Patient Notes (x to x+160) ---
+  const leftW = 160;
+
   // Signature 1: patient name | home | cell
-  const sig1 = [
-    `${data.patientFirstName} ${data.patientLastName}`,
-    `Home: ${data.patientPhone}`,
-    `Cell: ${data.patientCellPhone}`,
-  ].filter(Boolean).join(" | ");
-  placeText(doc, sig1, x, y, { fontSize: 7, upperCase: true });
-  y += 12;
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, x, y, { fontSize: 7, bold: true });
+  placeText(doc, `Home: ${data.patientPhone}`, x + 75, y, { fontSize: 6 });
+  placeText(doc, `Cell: ${data.patientCellPhone}`, x + 135, y, { fontSize: 6 });
+  y += 10;
 
   // BOH
   if (data.boh) {
-    placeText(doc, `BOH: ${data.boh}`, x, y, { fontSize: 8, bold: true });
-    y += 12;
+    placeText(doc, `BOH: ${data.boh}`, x, y, { fontSize: 7, bold: true });
   }
+  y += 10;
 
-  // Signature 2 (duplicate)
-  const sig2 = [
-    `${data.patientFirstName} ${data.patientLastName}`,
-    `Home: ${data.patientPhone}`,
-    `Cell: ${data.patientCellPhone}`,
-  ].filter(Boolean).join(" | ");
-  placeText(doc, sig2, x, y, { fontSize: 7, upperCase: true });
-  y += 12;
+  // Signature 2
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, x, y, { fontSize: 7, bold: true });
+  placeText(doc, `Home: ${data.patientPhone}`, x + 75, y, { fontSize: 6 });
+  placeText(doc, `Cell: ${data.patientCellPhone}`, x + 135, y, { fontSize: 6 });
+  y += 10;
 
   // Signature line
   placeText(doc, "Signature: __________________________", x, y, { fontSize: 6 });
-  y += 12;
+  y += 10;
 
-  // Patient comments
+  // Patient comments (reduced font)
   if (data.patientComments) {
-    placeText(doc, data.patientComments, x, y, {
-      fontSize: 10, maxWidth: 216, // 3"
-    });
-    y += 22;
+    placeText(doc, data.patientComments, x, y, { fontSize: 7, maxWidth: leftW });
+    y += 16;
   }
 
   // Fill tags
   if (data.fillTags.length > 0) {
-    placeText(doc, data.fillTags.join(", "), x, y, {
-      fontSize: 10, maxWidth: 216,
-    });
-    y += 14;
+    placeText(doc, `Tags: ${data.fillTags.join(", ")}`, x, y, { fontSize: 7, maxWidth: leftW });
+    y += 10;
   }
 
   // Promised time
   if (data.pickupTime) {
-    placeText(doc, `Promised: ${data.pickupTime}`, x, y, { fontSize: 7 });
-    y += 10;
+    placeText(doc, `Promised: ${data.pickupTime}`, x, y, { fontSize: 6 });
+    y += 9;
   }
 
   // Disp Qty | Filled | NDC
-  const dispLine = [
-    `Disp Qty: ${data.dispensedQuantity}`,
-    `Filled: ${data.fillDate}`,
-    `NDC: ${data.ndc}`,
-  ].join(" | ");
-  placeText(doc, dispLine, x, y, { fontSize: 6 });
-  y += 12;
+  placeText(doc, `Disp Qty: ${data.dispensedQuantity} | Filled: ${data.fillDate} | NDC: ${data.ndc}`, x, y, { fontSize: 5 });
+  y += 9;
 
-  // Barcode + QR side by side
+  // Barcode + QR
   try {
     const bcText = `${data.fillId}:${data.fillNumber}`;
-    const png = await generateBarcodePNG(bcText, 10);
-    doc.image(png, x, y, { height: 20, fit: [140, 20] });
+    const png = await generateBarcodePNG(bcText, 8);
+    doc.image(png, x, y, { height: 16, fit: [120, 16] });
   } catch {
-    placeText(doc, `[BC] ${data.fillId}:${data.fillNumber}`, x, y, { fontSize: 6 });
+    placeText(doc, `[BC] ${data.fillId}:${data.fillNumber}`, x, y, { fontSize: 5 });
   }
 
   if (data.patientEducationUrl) {
     try {
       const qrPng = await generateQRPNG(data.patientEducationUrl, 150);
       if (qrPng.length > 0) {
-        doc.image(qrPng, x + 150, y - 5, { width: 30, height: 30 });
+        doc.image(qrPng, x + 125, y - 4, { width: 24, height: 24 });
       }
     } catch { /* QR optional */ }
   }
 
-  // --- Backtag info (small text, below barcodes / bottom-right) ---
-  const btX = SEC3_LEFT + 200;
-  let btY = SEC4_TOP + 4;
+  // --- Right column: Backtag (x+170 to end) ---
+  const btX = x + 170;
+  const btW = SEC3_RIGHT - btX; // ~164pt
+  let btY = SEC4_TOP + 2;
 
-  placeText(doc, `RX ${data.rxNumber} | DOB: ${data.patientDOB} | Filled ${data.fillDate}`, btX, btY, {
-    fontSize: 6,
-  });
-  btY += 9;
+  placeText(doc, `RX ${data.rxNumber}`, btX, btY, { fontSize: 6, bold: true });
+  placeText(doc, `DOB: ${data.patientDOB}`, btX + 50, btY, { fontSize: 5 });
+  btY += 8;
 
-  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, btX, btY, {
-    fontSize: 7, bold: true, upperCase: true,
-  });
-  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, btX + 100, btY, {
-    fontSize: 6, upperCase: true,
-  });
-  btY += 9;
+  placeText(doc, `${data.patientFirstName} ${data.patientLastName}`, btX, btY, { fontSize: 6, bold: true, upperCase: true });
+  btY += 8;
 
-  // Doctor address / DEA / NPI
-  const drAddr = [data.doctorAddressLine1, data.doctorAddressLine2, data.doctorCity, data.doctorState, data.doctorZip]
-    .filter(Boolean).join(" ");
-  placeText(doc, drAddr, btX, btY, { fontSize: 6, maxWidth: 130 });
-  btY += 9;
-  placeText(doc, `DEA: ${data.doctorDEA} | NPI: ${data.doctorNPI}`, btX, btY, { fontSize: 6 });
-  btY += 9;
+  placeText(doc, `${data.doctorFirstName} ${data.doctorLastName}`, btX, btY, { fontSize: 6, upperCase: true });
+  btY += 8;
 
-  // Drug / SIG / NDC / QTY
-  placeText(doc, data.itemName, btX, btY, { fontSize: 6, maxWidth: 130, upperCase: true });
-  btY += 18;
-  placeText(doc, data.sig, btX, btY, { fontSize: 6, maxWidth: 130 });
-  btY += 18;
-  placeText(doc, `NDC: ${data.ndc} | QTY: ${data.dispensedQuantity} ${data.qtyType}`, btX, btY, { fontSize: 6 });
-  btY += 9;
+  const drAddr = [data.doctorAddressLine1, data.doctorCity, `${data.doctorState} ${data.doctorZip}`].filter(Boolean).join(", ");
+  placeText(doc, drAddr, btX, btY, { fontSize: 5, maxWidth: btW });
+  btY += 8;
 
-  // Comp / Partial
-  const cpParts: string[] = [];
-  if (data.completionQuantity) cpParts.push(`Comp: ${data.completionQuantity}`);
-  if (data.partialQuantity) cpParts.push(`Partial: ${data.partialQuantity}`);
-  if (cpParts.length > 0) {
-    placeText(doc, cpParts.join(" | "), btX, btY, { fontSize: 6 });
-    btY += 9;
-  }
+  placeText(doc, `DEA: ${data.doctorDEA}`, btX, btY, { fontSize: 5 });
+  placeText(doc, `NPI: ${data.doctorNPI}`, btX + 70, btY, { fontSize: 5 });
+  btY += 8;
 
-  // Insurance copay
-  placeText(doc, `INS: $${data.copay}`, btX, btY, { fontSize: 6 });
-  btY += 9;
+  placeText(doc, data.itemName, btX, btY, { fontSize: 5, maxWidth: btW, upperCase: true });
+  btY += 14;
 
-  // Refills / expires
-  placeText(doc, `${data.refillsLeft} Refill(s) left until ${data.rxExpires}`, btX, btY, { fontSize: 6 });
+  placeText(doc, data.sig, btX, btY, { fontSize: 5, maxWidth: btW });
+  btY += 14;
+
+  placeText(doc, `NDC: ${data.ndc}`, btX, btY, { fontSize: 5 });
+  placeText(doc, `QTY: ${data.dispensedQuantity}`, btX + 75, btY, { fontSize: 5 });
+  btY += 8;
+
+  placeText(doc, `INS: $${data.copay}`, btX, btY, { fontSize: 5 });
+  placeText(doc, `Filled: ${data.fillDate}`, btX + 50, btY, { fontSize: 5 });
+  btY += 8;
+
+  placeText(doc, `${data.refillsLeft} Refill(s) left until ${data.rxExpires}`, btX, btY, { fontSize: 5 });
 }
 
 // ---------------------------------------------------------------------------
