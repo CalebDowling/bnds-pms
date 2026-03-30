@@ -454,20 +454,21 @@ export async function renderDRXTemplate(
         // Manually convert portrait coordinates to landscape.
         // No global matrix transform — avoids rotation composition issues.
         //
-        // Portrait (4×8) → Landscape (8×4) via 90° CW page rotation:
-        //   landscape_x = portrait_y   (text that flowed down now flows right)
-        //   landscape_y = portrait_x   (left edge of portrait = top of reading)
+        // Portrait (4×8) → Landscape (8×4) via 90° CCW page rotation:
+        //   landscape_x = portrait_y
+        //   landscape_y = pageWidth - portrait_x
         //   rotation += 90°            (-90° portrait text → 0° horizontal)
         //
-        // The "BOTTOM LABEL" group (small x, large fonts) is the patient-facing
-        // section and appears at the TOP of landscape. The "MAIN LABEL" group
-        // (larger x, smaller fonts) is the detail section at the BOTTOM.
+        // This maps DRX portrait layout correctly:
+        //   MAIN LABEL (large portrait x ~2-3.5) → small landscape y → TOP
+        //   BOTTOM LABEL (small portrait x ~0-1.3) → large landscape y → BOTTOM
+        //   Backtag elements (large portrait y ~4.6-7.2) → right side of landscape
         const portraitX = element.xPosition + gx;
         const portraitY = element.yPosition + gy;
         const adjusted: DRXElement = {
           ...element,
           xPosition: portraitY,
-          yPosition: portraitX,
+          yPosition: template.pageWidth - portraitX,
           rotationAngle: (element.rotationAngle || 0) + 90,
         };
         await renderElement(doc, adjusted, data, 0, 0);
@@ -629,15 +630,17 @@ export function extractTemplateVariables(template: DRXTemplate): TemplateVariabl
 }
 
 /**
- * Build a default data object from template variables (using exampleText values).
- * Skips large-font overlay elements (warnings, watermarks) that would cover the label.
+ * Build a default data object for preview mode.
+ *
+ * Returns an EMPTY object so that each element falls back to its own
+ * `exampleText` in resolveValue(). This is important because:
+ *   - Repeating elements (aux_labels) have different exampleTexts per slot
+ *   - Different label sections may show different example patient names
+ *   - Watermark elements are suppressed via WATERMARK_KEYS in resolveValue()
+ *
+ * For real prescription data, the caller builds the data object directly
+ * from database fields (see fill-data-mapper.ts).
  */
-export function buildDefaultData(variables: TemplateVariable[]): Record<string, string> {
-  const data: Record<string, string> = {};
-  for (const v of variables) {
-    // Skip known watermark overlays (NO PAID CLAIM, HOLD, etc.)
-    if (WATERMARK_KEYS.has(v.key)) continue;
-    data[v.key] = v.exampleText;
-  }
-  return data;
+export function buildDefaultData(_variables: TemplateVariable[]): Record<string, string> {
+  return {};
 }
