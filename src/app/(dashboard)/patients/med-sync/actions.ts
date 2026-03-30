@@ -284,3 +284,132 @@ export async function getMedSyncStats() {
     throw error;
   }
 }
+
+export async function getPatientPrescriptions(patientId: string) {
+  // Get active prescriptions for enrollment selection
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Unauthorized');
+
+  return prisma.prescription.findMany({
+    where: { patientId, isActive: true },
+    include: { item: { select: { name: true, genericName: true } } },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+export async function searchPatientsForSync(query: string) {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Unauthorized');
+
+  if (!query || query.length < 2) return [];
+
+  return prisma.patient.findMany({
+    where: {
+      OR: [
+        { firstName: { contains: query, mode: 'insensitive' } },
+        { lastName: { contains: query, mode: 'insensitive' } },
+        { mrn: { contains: query, mode: 'insensitive' } },
+      ],
+    },
+    select: { id: true, firstName: true, lastName: true, mrn: true, metadata: true },
+    take: 10,
+  });
+}
+
+export async function getSyncCalendar() {
+  // Returns data for a monthly calendar view showing which days have sync batches
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const patients = await prisma.patient.findMany({
+    where: {
+      metadata: { path: ['medSync', 'enrolled'], equals: true },
+    },
+    select: { id: true, firstName: true, lastName: true, metadata: true },
+  });
+
+  // Build a map of day-of-month -> patients
+  const calendarData: Record<number, { patientId: string; name: string; medCount: number }[]> = {};
+
+  for (const patient of patients) {
+    const medSync = (patient.metadata as any)?.medSync;
+    if (!medSync?.syncDay) continue;
+    const day = medSync.syncDay;
+    if (!calendarData[day]) calendarData[day] = [];
+    calendarData[day].push({
+      patientId: patient.id,
+      name: `${patient.firstName} ${patient.lastName}`,
+      medCount: medSync.medications?.length || 0,
+    });
+  }
+
+  return calendarData;
+}
+
+export async function getAdherenceData() {
+  // Get adherence metrics for enrolled patients
+  const { getCurrentUser } = await import("@/lib/auth");
+  const { prisma } = await import("@/lib/prisma");
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const patients = await prisma.patient.findMany({
+    where: {
+      metadata: { path: ['medSync', 'enrolled'], equals: true },
+    },
+    include: {
+      prescriptions: {
+        where: { isActive: true },
+        include: {
+          fills: {
+            orderBy: { createdAt: 'desc' },
+            take: 3,
+          },
+        },
+      },
+    },
+  });
+
+  let totalPatients = patients.length;
+  let adherentPatients = 0;
+  let totalMeds = 0;
+  let onTimeFills = 0;
+
+  for (const patient of patients) {
+    const medSync = (patient.metadata as any)?.medSync;
+    if (!medSync) continue;
+
+    let patientAdherent = true;
+    for (const rx of patient.prescriptions) {
+      totalMeds++;
+      const lastFill = rx.fills[0];
+      if (lastFill) {
+        const daysSinceFill = Math.floor((Date.now() - new Date(lastFill.createdAt).getTime()) / 86400000);
+        const daysSupply = (rx as any).daysSupply || 30;
+        if (daysSinceFill <= daysSupply + 7) {
+          onTimeFills++;
+        } else {
+          patientAdherent = false;
+        }
+      } else {
+        patientAdherent = false;
+      }
+    }
+    if (patientAdherent) adherentPatients++;
+  }
+
+  return {
+    totalPatients,
+    adherentPatients,
+    adherenceRate: totalPatients > 0 ? Math.round((adherentPatients / totalPatients) * 100) : 0,
+    totalMeds,
+    onTimeFills,
+    fillRate: totalMeds > 0 ? Math.round((onTimeFills / totalMeds) * 100) : 0,
+  };
+}
