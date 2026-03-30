@@ -181,9 +181,16 @@ function resolveValue(
     val = data[camelKey];
   }
 
-  // Fall back to example text
+  // Fall back to example text.
+  // For large-font elements (>= 20pt), skip the fallback — these are
+  // watermark overlays (NO PAID CLAIM, HOLD, etc.) that should only
+  // appear when real data explicitly provides a value.
   if (val === undefined || val === null) {
-    val = element.exampleText || "";
+    if ((element.fontSize || 8) >= 20) {
+      val = "";
+    } else {
+      val = element.exampleText || "";
+    }
   }
 
   // Apply text transforms
