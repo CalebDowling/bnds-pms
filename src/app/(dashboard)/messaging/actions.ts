@@ -9,6 +9,7 @@ import { notifyPatient } from "@/lib/messaging/dispatcher";
 import { TemplateName, TemplateData } from "@/lib/messaging/templates";
 import { Channel } from "@/lib/messaging/dispatcher";
 import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/permissions";
 
 /**
  * Get messaging statistics
@@ -159,7 +160,8 @@ export async function sendManualNotification(
   try {
     const user = await requireUser();
 
-    // TODO: Add permission check for messaging
+    // Require messaging:write permission (admin, pharmacist, or technician)
+    await requirePermission("messaging", "write");
 
     const result = await notifyPatient(patientId, template, data, {
       channels,

@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/permissions";
 import { notifyPatient } from "@/lib/messaging/dispatcher";
 import { TemplateName } from "@/lib/messaging/templates";
 import { Channel } from "@/lib/messaging/dispatcher";
@@ -22,8 +23,8 @@ export async function POST(req: NextRequest) {
   try {
     const user = await requireUser();
 
-    // TODO: Add permission check for "messaging:send" or "staff"
-    // For now, just check that user exists
+    // Require messaging:write permission (admin, pharmacist, or technician)
+    await requirePermission("messaging", "write");
 
     const body: SendNotificationBody = await req.json();
     const { patientId, template, data, channels } = body;
@@ -60,6 +61,10 @@ export async function POST(req: NextRequest) {
 
     if (error instanceof Error && error.message.includes("Not authenticated")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (error instanceof Error && error.message.includes("Permission denied")) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
     return NextResponse.json(

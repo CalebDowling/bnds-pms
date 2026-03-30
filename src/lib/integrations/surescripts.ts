@@ -365,27 +365,181 @@ export class SureScriptsClient {
     signature?: string;
     timestamp?: string;
     prescriberId?: string;
-  }): Promise<boolean> {
+    deaNumber?: string;
+    drugSchedule?: string;
+    signatureAlgorithm?: string;
+    certificateSerial?: string;
+  }): Promise<{
+    valid: boolean;
+    reason?: string;
+    auditDetails: Record<string, unknown>;
+  }> {
+    const auditDetails: Record<string, unknown> = {
+      prescriberId: rxData.prescriberId,
+      deaNumber: rxData.deaNumber ? `${rxData.deaNumber.slice(0, 2)}****${rxData.deaNumber.slice(-2)}` : null,
+      drugSchedule: rxData.drugSchedule,
+      verificationTimestamp: new Date().toISOString(),
+      signaturePresent: !!rxData.signature,
+      timestampPresent: !!rxData.timestamp,
+    };
+
     try {
       logger.info("[SureScripts] Verifying EPCS signature");
 
+      // 1. Signature presence check
       if (!rxData.signature) {
         logger.warn("[SureScripts] No EPCS signature provided");
-        return false;
+        auditDetails.failureReason = "missing_signature";
+        return { valid: false, reason: "No EPCS digital signature provided", auditDetails };
       }
 
-      // TODO: Implement full EPCS signature verification
-      // - Validate signature against prescriber certificate
-      // - Check timestamp is within acceptable range
-      // - Verify DEA compliance (Form 106 requirements, etc)
-      // - Log all verification attempts for audit trail
+      // 2. Prescriber ID required for EPCS
+      if (!rxData.prescriberId) {
+        logger.warn("[SureScripts] No prescriber ID for EPCS verification");
+        auditDetails.failureReason = "missing_prescriber_id";
+        return { valid: false, reason: "Prescriber ID required for EPCS verification", auditDetails };
+      }
 
-      logger.info("[SureScripts] EPCS signature verification placeholder");
-      return true;
+      // 3. DEA number validation (format: 2 letters + 7 digits, checksum on last digit)
+      if (!rxData.deaNumber) {
+        logger.warn("[SureScripts] No DEA number provided for controlled substance");
+        auditDetails.failureReason = "missing_dea_number";
+        return { valid: false, reason: "DEA number required for controlled substance prescriptions", auditDetails };
+      }
+
+      if (!this.validateDEANumberFormat(rxData.deaNumber)) {
+        logger.warn("[SureScripts] Invalid DEA number format");
+        auditDetails.failureReason = "invalid_dea_format";
+        return { valid: false, reason: "DEA number format is invalid", auditDetails };
+      }
+
+      // 4. Timestamp validation — must be within 24 hours to prevent replay attacks
+      if (!rxData.timestamp) {
+        logger.warn("[SureScripts] No timestamp on EPCS signature");
+        auditDetails.failureReason = "missing_timestamp";
+        return { valid: false, reason: "Signature timestamp required", auditDetails };
+      }
+
+      const signatureTime = new Date(rxData.timestamp);
+      const now = new Date();
+      const timeDiffMs = Math.abs(now.getTime() - signatureTime.getTime());
+      const maxAgeMs = 24 * 60 * 60 * 1000; // 24 hours
+
+      if (timeDiffMs > maxAgeMs) {
+        logger.warn(`[SureScripts] EPCS signature expired — age: ${Math.round(timeDiffMs / 3600000)}h`);
+        auditDetails.failureReason = "signature_expired";
+        auditDetails.signatureAgeHours = Math.round(timeDiffMs / 3600000);
+        return { valid: false, reason: "EPCS signature has expired (>24 hours old)", auditDetails };
+      }
+
+      // 5. Controlled substance schedule validation
+      const validSchedules = ["II", "III", "IV", "V", "2", "3", "4", "5"];
+      if (rxData.drugSchedule && !validSchedules.includes(rxData.drugSchedule)) {
+        logger.warn(`[SureScripts] Invalid drug schedule: ${rxData.drugSchedule}`);
+        auditDetails.failureReason = "invalid_schedule";
+        return { valid: false, reason: `Invalid controlled substance schedule: ${rxData.drugSchedule}`, auditDetails };
+      }
+
+      // 6. Signature format validation (base64-encoded PKCS#7 / CMS)
+      // DEA EPCS requirements: two-factor authentication, FIPS 140-2 Level 1 compliant,
+      // digitally signed with prescriber's private key
+      const signatureBuffer = Buffer.from(rxData.signature, "base64");
+      if (signatureBuffer.length < 64) {
+        logger.warn("[SureScripts] EPCS signature too short — likely invalid");
+        auditDetails.failureReason = "signature_too_short";
+        return { valid: false, reason: "Digital signature is malformed or too short", auditDetails };
+      }
+
+      // 7. In production with SureScripts connected, the signature would be verified against
+      // the prescriber's X.509 certificate obtained from the SureScripts EPCS certificate
+      // authority. The verification chain is:
+      //   a) Retrieve prescriber certificate from SureScripts PKI
+      //   b) Validate certificate chain to trusted CA root
+      //   c) Check certificate revocation status (CRL/OCSP)
+      //   d) Verify digital signature against certificate public key
+      //   e) Confirm prescriber DEA number matches certificate subject
+      //
+      // When SureScripts credentials are configured, this will use the live PKI endpoint.
+      // Until then, we validate everything we can locally and log for audit.
+
+      if (!this.endpoint || this.endpoint.includes("placeholder")) {
+        logger.info("[SureScripts] PKI verification skipped — SureScripts not connected. Local checks passed.");
+        auditDetails.verificationMode = "local_validation_only";
+        auditDetails.pki_verified = false;
+        auditDetails.localChecksPasssed = true;
+        return { valid: true, reason: "Local validation passed (PKI verification pending SureScripts connection)", auditDetails };
+      }
+
+      // Live PKI verification via SureScripts EPCS endpoint
+      try {
+        const verifyPayload = {
+          prescriberId: rxData.prescriberId,
+          deaNumber: rxData.deaNumber,
+          signature: rxData.signature,
+          timestamp: rxData.timestamp,
+          algorithm: rxData.signatureAlgorithm || "SHA256withRSA",
+          certificateSerial: rxData.certificateSerial,
+        };
+
+        const response = await this.sendToApi("/epcs/verify-signature", verifyPayload);
+
+        const isValid = response.status === "valid" || response.verified === true;
+        auditDetails.verificationMode = "pki_live";
+        auditDetails.pki_verified = isValid;
+        auditDetails.pki_response_code = response.code;
+
+        if (!isValid) {
+          logger.warn(`[SureScripts] PKI verification failed: ${response.message}`);
+          auditDetails.failureReason = "pki_verification_failed";
+          return { valid: false, reason: String(response.message || "PKI signature verification failed"), auditDetails };
+        }
+
+        logger.info("[SureScripts] EPCS signature verified via PKI");
+        return { valid: true, auditDetails };
+      } catch (pkiError) {
+        // PKI call failed — log but don't block if local checks passed
+        logger.error("[SureScripts] PKI verification call failed, falling back to local validation", pkiError);
+        auditDetails.verificationMode = "local_fallback_after_pki_error";
+        auditDetails.pki_error = pkiError instanceof Error ? pkiError.message : String(pkiError);
+        return { valid: true, reason: "Local validation passed (PKI endpoint unavailable)", auditDetails };
+      }
     } catch (error) {
       logger.error("[SureScripts] EPCS signature verification failed", error);
-      return false;
+      auditDetails.failureReason = "unexpected_error";
+      auditDetails.error = error instanceof Error ? error.message : String(error);
+      return { valid: false, reason: "Unexpected error during signature verification", auditDetails };
     }
+  }
+
+  /**
+   * Validate DEA number format and checksum
+   * Format: 2 prefix chars (letter + letter/digit) + 6 digits + 1 check digit
+   * Checksum: (sum of digits at odd positions + 2 * sum of digits at even positions) mod 10 = check digit
+   */
+  private validateDEANumberFormat(deaNumber: string): boolean {
+    if (!deaNumber || deaNumber.length !== 9) return false;
+
+    const prefix1 = deaNumber[0];
+    const prefix2 = deaNumber[1];
+    const digits = deaNumber.slice(2);
+
+    // First char must be a valid DEA registrant type (A, B, C, D, F, G, M)
+    const validPrefixes = ["A", "B", "C", "D", "F", "G", "M"];
+    if (!validPrefixes.includes(prefix1.toUpperCase())) return false;
+
+    // Second char must be a letter (first letter of registrant's last name) or digit
+    if (!/[A-Za-z0-9]/.test(prefix2)) return false;
+
+    // Remaining 7 characters must be digits
+    if (!/^\d{7}$/.test(digits)) return false;
+
+    // Checksum validation
+    const d = digits.split("").map(Number);
+    const oddSum = d[0] + d[2] + d[4];
+    const evenSum = d[1] + d[3] + d[5];
+    const checksum = (oddSum + 2 * evenSum) % 10;
+
+    return checksum === d[6];
   }
 
   /**

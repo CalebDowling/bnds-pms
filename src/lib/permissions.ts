@@ -26,6 +26,7 @@ export type PermissionResource =
   | "billing"
   | "insurance"
   | "shipping"
+  | "messaging"
   | "pos"
   | "reports"
   | "settings"
@@ -114,6 +115,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     patients: ["read", "write"],
     inventory: ["read", "write"],
     billing: ["read", "write"],
+    messaging: ["read", "write"],
     reports: ["read"],
     settings: ["read", "write"],
     users: ["read", "write"],
@@ -124,6 +126,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     compounding: ["read", "write"],
     patients: ["read", "write"],
     inventory: ["read", "write"],
+    messaging: ["read", "write"],
     billing: ["read"],
     reports: ["read"],
   },

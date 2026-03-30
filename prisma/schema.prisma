@@ -479,7 +479,9 @@ model Item {
   isActive             Boolean  @default(true) @map("is_active")
   metadata             Json     @default("{}")
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+  supplierId           String?  @map("supplier_id") @db.Uuid
 
+  supplier             Supplier? @relation("ItemSupplier", fields: [supplierId], references: [id])
   lots                 ItemLot[]
   formulaIngredients   FormulaIngredient[]
   prescriptions        Prescription[]
@@ -489,6 +491,7 @@ model Item {
 
   @@index([ndc])
   @@index([externalId])
+  @@index([supplierId])
   @@map("items")
 }
 
@@ -503,6 +506,7 @@ model Supplier {
   leadTimeDays Int?     @map("lead_time_days")
   isActive     Boolean  @default(true) @map("is_active")
 
+  items        Item[]   @relation("ItemSupplier")
   lots         ItemLot[]
   orders       PurchaseOrder[]
 

@@ -50,12 +50,20 @@ export async function checkReorderLevels(): Promise<ReorderCheckResult> {
 
   try {
     // Get all active items with reorder points and their current stock
-    const items = await prisma.item.findMany({
+    // Note: `supplier` include requires `npx prisma generate` after the schema update
+    // that added `supplierId` to the Item model. The `as any` cast can be removed after regeneration.
+    const items = await (prisma.item.findMany as any)({
       where: {
         isActive: true,
         reorderPoint: { not: null },
       },
       include: {
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         lots: {
           where: {
             quantityOnHand: { gt: 0 },
@@ -80,11 +88,11 @@ export async function checkReorderLevels(): Promise<ReorderCheckResult> {
     result.totalItemsProcessed = items.length;
 
     // Process each item
-    for (const item of items) {
+    for (const item of items as any[]) {
       try {
         // Calculate current stock from available lots
         const currentStock = item.lots.reduce(
-          (sum, lot) => sum + Number(lot.quantityOnHand || 0),
+          (sum: number, lot: any) => sum + Number(lot.quantityOnHand || 0),
           0
         );
 
@@ -103,6 +111,8 @@ export async function checkReorderLevels(): Promise<ReorderCheckResult> {
             currentStock,
             reorderPoint,
             reorderQuantity,
+            supplierId: item.supplier?.id,
+            supplierName: item.supplier?.name,
             isCritical,
             severity,
           };
@@ -115,8 +125,8 @@ export async function checkReorderLevels(): Promise<ReorderCheckResult> {
             result.lowStockItems.push(reorderItem);
           }
 
-          // Group by supplier (placeholder - would need supplier relation)
-          const supplierKey = item.id; // TODO: add supplier relation to Item model
+          // Group by supplier for bulk ordering
+          const supplierKey = item.supplier?.id || "unassigned";
           if (!result.itemsBySupplier.has(supplierKey)) {
             result.itemsBySupplier.set(supplierKey, []);
           }
