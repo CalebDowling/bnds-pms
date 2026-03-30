@@ -1497,6 +1497,30 @@ model AuditLog {
 // NOTIFICATIONS & AUTOMATION
 // ═══════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════
+// SIG CODES
+// ═══════════════════════════════════════════════
+
+model SigCode {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code         String   @unique @db.VarChar(20)     // Short code, e.g. "BID", "QHS", "1TPOBID"
+  expansion    String   @db.Text                     // Full directions, e.g. "Take 1 tablet by mouth twice daily"
+  category     String   @default("general") @db.VarChar(50) // frequency, route, timing, compound, custom
+  route        String?  @db.VarChar(50)              // PO, TOP, INH, INJ, OPH, OT, PR, SL, etc.
+  frequency    String?  @db.VarChar(50)              // BID, TID, QID, QHS, PRN, etc.
+  isActive     Boolean  @default(true) @map("is_active")
+  isCustom     Boolean  @default(false) @map("is_custom")  // true = pharmacy-created, false = system default
+  sortOrder    Int      @default(0) @map("sort_order")
+  usageCount   Int      @default(0) @map("usage_count")    // Track popularity for sorting
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([code])
+  @@index([category])
+  @@index([isActive, usageCount(sort: Desc)])
+  @@map("sig_codes")
+}
+
 model Notification {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String   @map("user_id") @db.Uuid

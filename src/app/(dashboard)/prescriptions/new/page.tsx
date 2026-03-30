@@ -7,6 +7,7 @@ import { searchPrescribers } from "@/app/(dashboard)/prescriptions/prescriber-ac
 import { searchItems } from "@/app/(dashboard)/inventory/actions";
 import { searchFormulas } from "@/app/(dashboard)/compounding/actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import SigCodePicker from "@/components/rx/SigCodePicker";
 
 import type { PatientSearchResult, PrescriberSearchResult, FormulaSearchResult, ItemSearchResult, SearchableItem, DrugSearchResult } from "@/types";
 function NewPrescriptionPageContent() {
@@ -263,10 +264,10 @@ function NewPrescriptionPageContent() {
             </div>
           </div>
           <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Directions (SIG)</label>
-            <textarea value={form.directions} onChange={(e) => updateField("directions", e.target.value)}
-              rows={2} placeholder="Take 1 capsule by mouth twice daily..."
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#40721D]" />
+            <SigCodePicker
+              value={form.directions}
+              onChange={(val) => updateField("directions", val)}
+            />
           </div>
         </div>
 
