@@ -1,9 +1,6 @@
 "use client";
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   searchPatientsForEligibility,
   getPatientInsurance,
@@ -113,7 +110,6 @@ export default function InsuranceEligibilityPage() {
   const [checkLoading, setCheckLoading] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
 
-  // Load stats on mount
   useEffect(() => {
     loadStats();
     loadRecentChecks();
@@ -205,12 +201,9 @@ export default function InsuranceEligibilityPage() {
   const handleBatchCheck = useCallback(async () => {
     setBatchLoading(true);
     try {
-      // Get all active insurance records that haven't been checked in 30+ days
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      // In a real implementation, this would be a server action
-      // For now, we'll batch check insurances from the current patient if they're overdue
       const toCheck = patientInsurances
         .filter(
           (ins) =>
@@ -293,46 +286,42 @@ export default function InsuranceEligibilityPage() {
 
         {/* Stats Bar */}
         <div className="grid grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-[#40721D]">
-                  {stats.checksToday}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Checks Today</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-[#40721D]">
-                  {stats.eligiblePercent}%
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Eligible</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-[#40721D]">
-                  {stats.neverCheckedCount}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">Never Checked</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-[#40721D]">
+                {stats.checksToday}
+              </p>
+              <p className="text-sm text-gray-600 mt-1">Checks Today</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-[#40721D]">
+                {stats.eligiblePercent}%
+              </p>
+              <p className="text-sm text-gray-600 mt-1">Eligible</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-[#40721D]">
+                {stats.neverCheckedCount}
+              </p>
+              <p className="text-sm text-gray-600 mt-1">Never Checked</p>
+            </div>
+          </div>
         </div>
 
         {/* Main Content - Two Panel Layout */}
         <div className="grid grid-cols-2 gap-6 mb-8">
           {/* LEFT PANEL - Patient Search & Insurance Cards */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Patient Search</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Patient Search
+              </h2>
+            </div>
+            <div className="p-6">
               {/* Search Input */}
               <div className="mb-6">
                 <div className="relative">
@@ -428,21 +417,20 @@ export default function InsuranceEligibilityPage() {
                                   "Unknown Plan"}
                               </p>
                               <div className="flex gap-2 mt-1">
-                                <Badge
-                                  variant="outline"
-                                  className={
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
                                     insurance.isActive
-                                      ? "border-green-300 bg-green-50"
-                                      : "border-gray-300 bg-gray-50"
-                                  }
+                                      ? "border-green-300 bg-green-50 text-green-800"
+                                      : "border-gray-300 bg-gray-50 text-gray-700"
+                                  }`}
                                 >
                                   {insurance.priority}
-                                </Badge>
+                                </span>
                                 {insurance.lastEligibilityCheck && (
-                                  <Badge variant="outline">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border border-gray-300 bg-gray-50 text-gray-700">
                                     Checked:{" "}
                                     {formatDate(insurance.lastEligibilityCheck)}
-                                  </Badge>
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -469,10 +457,10 @@ export default function InsuranceEligibilityPage() {
                             )}
                           </div>
 
-                          <Button
+                          <button
                             onClick={() => handleRunCheck(insurance.id)}
                             disabled={checkLoading}
-                            className="w-full bg-[#40721D] hover:bg-[#2d5115] text-white"
+                            className="w-full px-4 py-2 rounded-lg text-white font-medium bg-[#40721D] hover:bg-[#2d5115] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                           >
                             {checkLoading ? (
                               <>
@@ -482,7 +470,7 @@ export default function InsuranceEligibilityPage() {
                             ) : (
                               "Check Eligibility"
                             )}
-                          </Button>
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -496,15 +484,17 @@ export default function InsuranceEligibilityPage() {
                     )}
                 </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* RIGHT PANEL - Results Area */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Eligibility Results</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Eligibility Results
+              </h2>
+            </div>
+            <div className="p-6">
               {eligibilityResult ? (
                 <div className="space-y-4">
                   {/* Status Banner */}
@@ -611,17 +601,17 @@ export default function InsuranceEligibilityPage() {
                   </p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* Batch Check Section */}
         {patientInsurances.length > 0 && (
           <div className="mb-8">
-            <Button
+            <button
               onClick={handleBatchCheck}
               disabled={batchLoading}
-              className="bg-[#40721D] hover:bg-[#2d5115] text-white"
+              className="px-4 py-2 rounded-lg text-white font-medium bg-[#40721D] hover:bg-[#2d5115] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
             >
               {batchLoading ? (
                 <>
@@ -631,16 +621,18 @@ export default function InsuranceEligibilityPage() {
               ) : (
                 "Batch Check (30+ Days Overdue)"
               )}
-            </Button>
+            </button>
           </div>
         )}
 
         {/* Recent Checks History Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Eligibility Checks</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Recent Eligibility Checks
+            </h2>
+          </div>
+          <div className="p-6">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -679,9 +671,11 @@ export default function InsuranceEligibilityPage() {
                         {check.insurance.thirdPartyPlan?.planName || "N/A"}
                       </td>
                       <td className="py-3 px-4">
-                        <Badge className={getStatusColor(check.status)}>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(check.status)}`}
+                        >
                           {check.status}
-                        </Badge>
+                        </span>
                       </td>
                       <td className="py-3 px-4 text-gray-600">
                         {check.insurance.memberId}
@@ -697,8 +691,8 @@ export default function InsuranceEligibilityPage() {
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
