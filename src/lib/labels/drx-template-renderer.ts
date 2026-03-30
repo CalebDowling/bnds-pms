@@ -95,6 +95,14 @@ export interface DRXTemplate {
 // Points per inch
 const IN = 72;
 
+// Known watermark/overlay element keys that should only display with real data.
+// These are large-font elements (30-40pt) that overlay the entire label in DRX
+// (e.g. "NO PAID CLAIM", "HOLD") and should be suppressed in preview mode.
+const WATERMARK_KEYS = new Set([
+  "no_paid_claim_warning",
+  "hold_warning",
+]);
+
 // ─── Helpers ───────────────────────────────────────────────────────
 
 function parseColor(color: string | null): string {
@@ -182,11 +190,11 @@ function resolveValue(
   }
 
   // Fall back to example text.
-  // For large-font elements (>= 20pt), skip the fallback — these are
-  // watermark overlays (NO PAID CLAIM, HOLD, etc.) that should only
+  // For known watermark overlay elements, skip the fallback so they only
   // appear when real data explicitly provides a value.
   if (val === undefined || val === null) {
-    if ((element.fontSize || 8) >= 20) {
+    const isWatermark = WATERMARK_KEYS.has(key);
+    if (isWatermark) {
       val = "";
     } else {
       val = element.exampleText || "";
@@ -309,6 +317,35 @@ async function renderElement(
       doc.restore();
     } catch {
       // Skip image on error
+    }
+    return;
+  }
+
+  // ── Auto-detect QR code for URL-like elements with square dimensions ──
+  // DRX auto-generates QR codes for elements like patient_education_url
+  // that have square width/height even without the displayBarcodeQr flag.
+  if (
+    value &&
+    element.width && element.height &&
+    Math.abs(element.width - element.height) < 0.1 &&
+    element.width >= 0.5 &&
+    (element.elementData?.toLowerCase().includes("url") ||
+     element.elementData?.toLowerCase().includes("qr") ||
+     value.startsWith("http"))
+  ) {
+    try {
+      const sizePt = Math.min(element.width * IN, element.height * IN);
+      const png = await generateQRPNG(value, Math.round(sizePt));
+
+      if (png.length > 0) {
+        doc.save();
+        doc.translate(xIn * IN, yIn * IN);
+        if (rotation) doc.rotate(rotation);
+        doc.image(png, 0, 0, { width: sizePt, height: sizePt });
+        doc.restore();
+      }
+    } catch {
+      renderTextElement(doc, value, xIn, yIn, element, rotation);
     }
     return;
   }
@@ -482,7 +519,15 @@ export async function generateTemplatePreviewPDF(
     doc.on("error", reject);
 
     renderDRXTemplate(doc, template, data)
-      .then(() => doc.end())
+      .then(() => {
+        // Draw a thin black border around the label (matches DRX output)
+        doc.save();
+        doc.lineWidth(0.5);
+        doc.strokeColor("#000000");
+        doc.rect(0, 0, pageWidth, pageHeight).stroke();
+        doc.restore();
+        doc.end();
+      })
       .catch(reject);
   });
 }
@@ -590,8 +635,8 @@ export function extractTemplateVariables(template: DRXTemplate): TemplateVariabl
 export function buildDefaultData(variables: TemplateVariable[]): Record<string, string> {
   const data: Record<string, string> = {};
   for (const v of variables) {
-    // Skip watermark overlays (NO PAID CLAIM, HOLD, etc.) — fontSize >= 20
-    if (v.fontSize >= 20) continue;
+    // Skip known watermark overlays (NO PAID CLAIM, HOLD, etc.)
+    if (WATERMARK_KEYS.has(v.key)) continue;
     data[v.key] = v.exampleText;
   }
   return data;
