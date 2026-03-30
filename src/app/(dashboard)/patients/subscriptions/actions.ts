@@ -82,7 +82,7 @@ export async function getSubscriptions({
   const rows: SubscriptionRow[] = [];
 
   for (const patient of patients) {
-    const subscriptions = (patient.metadata?.subscriptions as SubscriptionEntry[] | undefined) || [];
+    const subscriptions = ((patient.metadata as Record<string, unknown> | null)?.subscriptions as SubscriptionEntry[] | undefined) || [];
 
     for (const sub of subscriptions) {
       // Find the prescription data
@@ -158,7 +158,7 @@ export async function enrollSubscription(
       return { success: false, error: "Patient not found" };
     }
 
-    const subscriptions = (patient.metadata?.subscriptions as SubscriptionEntry[] | undefined) || [];
+    const subscriptions = ((patient.metadata as Record<string, unknown> | null)?.subscriptions as SubscriptionEntry[] | undefined) || [];
 
     // Check if already subscribed
     if (subscriptions.some((s) => s.prescriptionId === prescriptionId)) {
@@ -187,7 +187,7 @@ export async function enrollSubscription(
       where: { id: patientId },
       data: {
         metadata: {
-          ...patient.metadata,
+          ...(patient.metadata as Record<string, unknown> || {}),
           subscriptions,
         },
       },
@@ -220,7 +220,7 @@ export async function cancelSubscription(
       return { success: false, error: "Patient not found" };
     }
 
-    const subscriptions = (patient.metadata?.subscriptions as SubscriptionEntry[] | undefined) || [];
+    const subscriptions = ((patient.metadata as Record<string, unknown> | null)?.subscriptions as SubscriptionEntry[] | undefined) || [];
     const subscription = subscriptions.find((s) => s.prescriptionId === prescriptionId);
 
     if (!subscription) {
@@ -235,7 +235,7 @@ export async function cancelSubscription(
       where: { id: patientId },
       data: {
         metadata: {
-          ...patient.metadata,
+          ...(patient.metadata as Record<string, unknown> || {}),
           subscriptions,
         },
       },
@@ -271,7 +271,7 @@ export async function getSubscriptionStats(): Promise<SubscriptionStats> {
   });
 
   for (const patient of patients) {
-    const subscriptions = (patient.metadata?.subscriptions as SubscriptionEntry[] | undefined) || [];
+    const subscriptions = ((patient.metadata as Record<string, unknown> | null)?.subscriptions as SubscriptionEntry[] | undefined) || [];
 
     for (const sub of subscriptions) {
       if (sub.isActive) {
@@ -319,7 +319,7 @@ export async function processUpcomingSubscriptions(): Promise<ProcessRefillResul
   });
 
   for (const patient of patients) {
-    const subscriptions = (patient.metadata?.subscriptions as SubscriptionEntry[] | undefined) || [];
+    const subscriptions = ((patient.metadata as Record<string, unknown> | null)?.subscriptions as SubscriptionEntry[] | undefined) || [];
 
     for (const sub of subscriptions) {
       // Skip inactive subscriptions
@@ -402,7 +402,7 @@ export async function processUpcomingSubscriptions(): Promise<ProcessRefillResul
         where: { id: patient.id },
         data: {
           metadata: {
-            ...patient.metadata,
+            ...(patient.metadata as Record<string, unknown> || {}),
             subscriptions,
           },
         },
@@ -455,7 +455,7 @@ export async function getPatientPrescriptions(patientId: string): Promise<
 
   if (!patient) return [];
 
-  const subscriptions = (patient.metadata?.subscriptions as SubscriptionEntry[] | undefined) || [];
+  const subscriptions = ((patient.metadata as Record<string, unknown> | null)?.subscriptions as SubscriptionEntry[] | undefined) || [];
   const subscribedIds = new Set(subscriptions.map((s) => s.prescriptionId));
 
   return patient.prescriptions.map((rx) => ({
