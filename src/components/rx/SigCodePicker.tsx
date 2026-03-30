@@ -41,7 +41,7 @@ export default function SigCodePicker({ value, onChange, placeholder, className 
   const [isPickerMode, setIsPickerMode] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Search sig codes when query changes
   const doSearch = useCallback(async (q: string) => {

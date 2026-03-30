@@ -6,6 +6,7 @@ import { formatDate, formatPhone } from "@/lib/utils";
 import type { PatientWithRelations } from "@/types/patient";
 import type { PatientPrescription } from "@/types/patient";
 import { addAllergy, deleteAllergy } from "@/app/(dashboard)/patients/actions";
+import DocumentsTab from "@/components/patients/DocumentsTab";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -14,6 +15,7 @@ const TABS = [
   { id: "insurance", label: "Insurance" },
   { id: "contacts", label: "Phone & Address" },
   { id: "meds", label: "Outside Meds" },
+  { id: "documents", label: "Documents" },
   { id: "notes", label: "Notes" },
 ];
 
@@ -49,6 +51,7 @@ export default function PatientTabs({ patient }: { patient: PatientWithRelations
         {activeTab === "insurance" && <InsuranceTab patient={patient} />}
         {activeTab === "contacts" && <ContactsTab patient={patient} />}
         {activeTab === "meds" && <OutsideMedsTab patient={patient} />}
+        {activeTab === "documents" && <DocumentsTab patientId={patient.id} />}
         {activeTab === "notes" && <NotesTab patient={patient} />}
       </div>
     </div>
