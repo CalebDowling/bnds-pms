@@ -208,24 +208,11 @@ export default function CompoundLabelEditorPage() {
         patientEducationUrl: "",
       };
 
-      const res = await fetch("/api/labels/compound", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch("/api/labels/print/preview");
 
       if (!res.ok) {
-        // Fall back to sample if POST not available
-        const sampleRes = await fetch("/api/labels/compound?sample=true");
-        if (!sampleRes.ok) {
-          const data = await sampleRes.json();
-          throw new Error(data.error || "Failed to generate label");
-        }
-        const blob = await sampleRes.blob();
-        const url = URL.createObjectURL(blob);
-        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-        setPdfUrl(url);
-        return;
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate label");
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -243,7 +230,7 @@ export default function CompoundLabelEditorPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/labels/compound?fillId=${encodeURIComponent(fillId.trim())}`);
+      const res = await fetch(`/api/labels/print/${encodeURIComponent(fillId.trim())}`);
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to generate label");

@@ -313,12 +313,12 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
       const targetFills = processed.filter((f) => ids.includes(f.fillId));
       if (targetFills.length === 0) {
         // No selection — open preview
-        window.open("/api/labels/compound/preview", "_blank");
+        window.open("/api/labels/print/preview", "_blank");
         return;
       }
       // Open each fill's label in a new tab
       for (const fill of targetFills) {
-        window.open(`/api/labels/compound/${fill.fillId}`, "_blank");
+        window.open(`/api/labels/print/${fill.fillId}`, "_blank");
       }
       return;
     }

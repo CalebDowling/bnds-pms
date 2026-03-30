@@ -635,7 +635,7 @@ export default function TemplatePreviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/labels/compound?fillId=${encodeURIComponent(fillId.trim())}`);
+      const res = await fetch(`/api/labels/print/${encodeURIComponent(fillId.trim())}?templateId=${templateId}`);
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to generate label from fill");
