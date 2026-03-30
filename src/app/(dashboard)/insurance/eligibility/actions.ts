@@ -106,7 +106,7 @@ export async function searchPatientsForEligibility(
       dateOfBirth: true,
       _count: {
         select: {
-          insurances: true,
+          insurance: true,
         },
       },
     },
@@ -119,7 +119,7 @@ export async function searchPatientsForEligibility(
     lastName: patient.lastName,
     mrn: patient.mrn,
     dateOfBirth: patient.dateOfBirth.toISOString().split("T")[0],
-    insuranceCount: patient._count.insurances,
+    insuranceCount: patient._count.insurance,
   }));
 }
 
