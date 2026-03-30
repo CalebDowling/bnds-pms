@@ -290,11 +290,10 @@ async function renderElement(
     rotation = element.rotationAngle || 0;
   }
 
-  // ── Barcode Code128 ── (temporarily disabled for alignment debugging)
-  if (false && element.displayBarcodeCode128 && value) {
+  // ── Barcode Code128 ── (disabled for alignment debugging)
+  /*
+  if (element.displayBarcodeCode128 && value) {
     try {
-      // DRX stores barcode height as a scale factor (e.g. 6), NOT inches.
-      // Values > 1 are clearly not inches — use a sensible default.
       const barcodeHeightIn = (element.height && element.height > 1)
         ? 0.4
         : (element.height || 0.4);
@@ -308,14 +307,15 @@ async function renderElement(
       doc.image(png, 0, 0, { fit: [widthPt, heightPt] });
       doc.restore();
     } catch {
-      // Fallback: render as text
       renderTextElement(doc, `[BC] ${value}`, xIn, yIn, element, rotation);
     }
     return;
   }
+  */
 
-  // ── QR Code ── (temporarily disabled for alignment debugging)
-  if (false && element.displayBarcodeQr && value) {
+  // ── QR Code ── (disabled for alignment debugging)
+  /*
+  if (element.displayBarcodeQr && value) {
     try {
       const qrW = element.width && element.width <= 2 ? element.width : 0.75;
       const qrH = element.height && element.height <= 2 ? element.height : 0.75;
@@ -334,9 +334,11 @@ async function renderElement(
     }
     return;
   }
+  */
 
-  // ── Base64 Image ── (temporarily disabled for alignment debugging)
-  if (false && element.displayBase64Jpeg && element.base64Image) {
+  // ── Base64 Image ── (disabled for alignment debugging)
+  /*
+  if (element.displayBase64Jpeg && element.base64Image) {
     try {
       const imgBuffer = Buffer.from(element.base64Image, "base64");
       const widthPt = (element.width || 1) * IN;
@@ -352,10 +354,11 @@ async function renderElement(
     }
     return;
   }
+  */
 
-  // ── Auto-detect QR code ── (temporarily disabled for alignment debugging)
+  // ── Auto-detect QR code ── (disabled for alignment debugging)
+  /*
   if (
-    false &&
     value &&
     element.width && element.height &&
     Math.abs(element.width - element.height) < 0.1 &&
@@ -380,6 +383,7 @@ async function renderElement(
     }
     return;
   }
+  */
 
   // ── Text element (default) ──
   renderTextElement(doc, value, xIn, yIn, element, rotation);
