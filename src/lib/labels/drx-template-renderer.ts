@@ -241,22 +241,54 @@ function shouldDisplay(
 
 // ─── Element rendering ─────────────────────────────────────────────
 
+/**
+ * Render a single element.
+ *
+ * When `landscape` info is provided the DRX portrait coordinates are
+ * converted to landscape on-the-fly:
+ *   landscape_x  = portrait_y   (DRX y-up → landscape left-to-right)
+ *   landscape_y  = pageWidth − portrait_x  (DRX x-right → landscape top-to-bottom, inverted)
+ *   rotation     = 0  (text is rendered horizontal; the -90° is absorbed by the conversion)
+ */
+interface LandscapeCtx {
+  pageWidthIn: number;  // portrait page width in inches (e.g. 4)
+}
+
 async function renderElement(
   doc: InstanceType<typeof PDFDocument>,
   element: DRXElement,
   data: Record<string, string>,
   groupOffsetX: number,
   groupOffsetY: number,
-  rotationAdjust: number = 0
+  landscape?: LandscapeCtx
 ): Promise<void> {
   if (!shouldDisplay(element, data)) return;
 
   const value = resolveValue(element, data);
   if (!value && !element.displayBase64Jpeg && !element.base64Image) return;
 
-  const xIn = element.xPosition + groupOffsetX;
-  const yIn = element.yPosition + groupOffsetY;
-  const rotation = (element.rotationAngle || 0) + rotationAdjust;
+  // Portrait coordinates (DRX native)
+  const portraitX = element.xPosition + groupOffsetX;
+  const portraitY = element.yPosition + groupOffsetY;
+
+  // Convert to final rendering coordinates
+  let xIn: number;
+  let yIn: number;
+  let rotation: number;
+
+  if (landscape) {
+    // DRX uses y-up (PDF-native) coordinates on a portrait page.
+    // Convert to landscape (8×4) with PDFKit y-down:
+    //   landscape_x = portrait_y   (y increases upward → x increases rightward)
+    //   landscape_y = pageWidth - portrait_x  (x increases right in portrait → y increases downward in landscape, inverted)
+    xIn = portraitY;
+    yIn = landscape.pageWidthIn - portraitX;
+    rotation = 0; // text rendered horizontal
+  } else {
+    xIn = portraitX;
+    yIn = portraitY;
+    rotation = element.rotationAngle || 0;
+  }
 
   // ── Barcode Code128 ──
   if (element.displayBarcodeCode128 && value) {
@@ -415,16 +447,18 @@ function needsLandscapeTransform(template: DRXTemplate): boolean {
 /**
  * Render a DRX template to a PDFKit document.
  *
- * Elements are rendered at their EXACT DRX coordinates with their EXACT
- * rotation angles — no coordinate conversion. For portrait templates with
- * -90° rotated text (like 4×8 pharmacy labels), the page is created in
- * portrait and a /Rotate flag is set so PDF viewers display it in landscape.
- * This ensures pixel-perfect positioning that matches DRX's own rendering.
+ * For portrait templates with -90° rotated text (like 4×8 pharmacy labels),
+ * coordinates are converted from DRX's portrait/y-up system to a landscape
+ * page with PDFKit's y-down system:
+ *   landscape_x = portrait_y
+ *   landscape_y = pageWidth − portrait_x
+ * Text is rendered horizontally (rotation stripped).
  */
 export async function renderDRXTemplate(
   doc: InstanceType<typeof PDFDocument>,
   template: DRXTemplate,
-  data: Record<string, string>
+  data: Record<string, string>,
+  useLandscape: boolean = false
 ): Promise<void> {
   // Group elements by labelGroupId for offset application
   const groupMap = new Map<number, DRXLabelGroup>();
@@ -434,8 +468,10 @@ export async function renderDRXTemplate(
     }
   }
 
-  // Render all elements at their original DRX coordinates.
-  // No coordinate conversion — the page rotation flag handles landscape display.
+  const landscapeCtx: LandscapeCtx | undefined = useLandscape
+    ? { pageWidthIn: template.pageWidth }
+    : undefined;
+
   for (const element of template.elements) {
     // Skip sub-template references (handled separately if needed)
     if (element.subLabelTemplateId) continue;
@@ -445,7 +481,7 @@ export async function renderDRXTemplate(
     const gy = group?.yOffset || 0;
 
     try {
-      await renderElement(doc, element, data, gx, gy);
+      await renderElement(doc, element, data, gx, gy, landscapeCtx);
     } catch (err) {
       console.error(`Error rendering element ${element.id} (${element.elementData}):`, err);
     }
@@ -456,10 +492,12 @@ export async function renderDRXTemplate(
  * Generate a PDF buffer from a DRX template and variable data.
  *
  * For portrait templates with -90° rotated text (4×8 pharmacy labels),
- * the PDF is created in portrait with a /Rotate 90 page flag. This tells
- * PDF viewers to display the page rotated 90° CW (landscape orientation)
- * while keeping all coordinates in DRX's native portrait coordinate system.
- * This produces pixel-perfect output matching DRX's rendering.
+ * the PDF page is created in LANDSCAPE (8×4) and DRX portrait coordinates
+ * are converted on-the-fly:
+ *   landscape_x = portrait_y
+ *   landscape_y = pageWidth − portrait_x
+ * Text is rendered horizontally (the -90° rotation is absorbed by the
+ * coordinate conversion).
  */
 export async function generateTemplatePreviewPDF(
   template: DRXTemplate,
@@ -468,26 +506,19 @@ export async function generateTemplatePreviewPDF(
   return new Promise((resolve, reject) => {
     const useLandscape = needsLandscapeTransform(template);
 
-    // Always create page at DRX's native dimensions (portrait for 4×8 labels)
-    const pageWidth = template.pageWidth * IN;
-    const pageHeight = template.pageHeight * IN;
+    // For landscape templates, swap width/height to create a landscape page.
+    // DRX portrait 4×8 → PDF landscape 8×4.
+    const pageWidth = useLandscape
+      ? template.pageHeight * IN   // 8" = 576pt
+      : template.pageWidth * IN;
+    const pageHeight = useLandscape
+      ? template.pageWidth * IN    // 4" = 288pt
+      : template.pageHeight * IN;
 
     const doc = new PDFDocument({
       size: [pageWidth, pageHeight],
       margin: 0,
     });
-
-    // For landscape display, set /Rotate flag on the PDF page.
-    // This tells viewers to rotate the page 90° CW for display,
-    // which makes -90° rotated text appear horizontal.
-    if (useLandscape) {
-      // Access the internal page dictionary to set the Rotate key
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pageDict = (doc.page as any).dictionary;
-      if (pageDict && pageDict.data) {
-        pageDict.data.Rotate = 90;
-      }
-    }
 
     const chunks: Uint8Array[] = [];
 
@@ -508,7 +539,7 @@ export async function generateTemplatePreviewPDF(
 
     doc.on("error", reject);
 
-    renderDRXTemplate(doc, template, data)
+    renderDRXTemplate(doc, template, data, useLandscape)
       .then(() => {
         // Draw a thin black border around the label (matches DRX output)
         doc.save();
