@@ -231,7 +231,8 @@ async function renderElement(
   element: DRXElement,
   data: Record<string, string>,
   groupOffsetX: number,
-  groupOffsetY: number
+  groupOffsetY: number,
+  rotationAdjust: number = 0
 ): Promise<void> {
   if (!shouldDisplay(element, data)) return;
 
@@ -240,18 +241,24 @@ async function renderElement(
 
   const xIn = element.xPosition + groupOffsetX;
   const yIn = element.yPosition + groupOffsetY;
-  const rotation = element.rotationAngle || 0;
+  const rotation = (element.rotationAngle || 0) + rotationAdjust;
 
   // ── Barcode Code128 ──
   if (element.displayBarcodeCode128 && value) {
     try {
-      const heightPt = (element.height || 0.5) * IN;
-      const png = await generateBarcodePNG(value, Math.round(heightPt * 0.8));
+      // DRX stores barcode height as a scale factor (e.g. 6), NOT inches.
+      // Values > 1 are clearly not inches — use a sensible default.
+      const barcodeHeightIn = (element.height && element.height > 1)
+        ? 0.4
+        : (element.height || 0.4);
+      const heightPt = barcodeHeightIn * IN;
+      const widthPt = (element.width ? element.width * IN : heightPt * 4);
+      const png = await generateBarcodePNG(value, Math.round(barcodeHeightIn * 25.4));
 
       doc.save();
       doc.translate(xIn * IN, yIn * IN);
       if (rotation) doc.rotate(rotation);
-      doc.image(png, 0, 0, { height: heightPt, fit: [heightPt * 4, heightPt] });
+      doc.image(png, 0, 0, { fit: [widthPt, heightPt] });
       doc.restore();
     } catch {
       // Fallback: render as text
@@ -263,7 +270,9 @@ async function renderElement(
   // ── QR Code ──
   if (element.displayBarcodeQr && value) {
     try {
-      const sizePt = Math.min((element.width || 1) * IN, (element.height || 1) * IN);
+      const qrW = element.width && element.width <= 2 ? element.width : 0.75;
+      const qrH = element.height && element.height <= 2 ? element.height : 0.75;
+      const sizePt = Math.min(qrW * IN, qrH * IN);
       const png = await generateQRPNG(value, Math.round(sizePt));
 
       if (png.length > 0) {
@@ -383,6 +392,11 @@ export async function renderDRXTemplate(
     }
   }
 
+  // When using landscape transform, compensate per-element rotation.
+  // The global transform rotates 90° CW, so add +90° to cancel out
+  // the dominant -90° rotation and keep text horizontal.
+  const rotationAdjust = useLandscape ? 90 : 0;
+
   // Render elements in order
   for (const element of template.elements) {
     // Skip sub-template references (handled separately if needed)
@@ -393,7 +407,7 @@ export async function renderDRXTemplate(
     const gy = group?.yOffset || 0;
 
     try {
-      await renderElement(doc, element, data, gx, gy);
+      await renderElement(doc, element, data, gx, gy, rotationAdjust);
     } catch (err) {
       console.error(`Error rendering element ${element.id} (${element.elementData}):`, err);
     }
