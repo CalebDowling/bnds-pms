@@ -370,6 +370,16 @@ function needsLandscapeTransform(template: DRXTemplate): boolean {
 
 /**
  * Render a DRX template to a PDFKit document.
+ *
+ * For portrait templates where most elements are rotated -90° (like 4×8 pharmacy
+ * labels), we render on a landscape page by manually converting each element's
+ * portrait coordinates to landscape. This avoids matrix transform composition
+ * issues that cause incorrect text rotation.
+ *
+ * Portrait→Landscape conversion (90° CCW page rotation):
+ *   landscape_x = portrait_y
+ *   landscape_y = pageWidth - portrait_x
+ *   landscape_rotation = portrait_rotation + 90°
  */
 export async function renderDRXTemplate(
   doc: InstanceType<typeof PDFDocument>,
@@ -378,12 +388,6 @@ export async function renderDRXTemplate(
 ): Promise<void> {
   const useLandscape = needsLandscapeTransform(template);
 
-  if (useLandscape) {
-    // Global transform: rotate portrait coordinates 90° CW onto landscape page
-    // Maps (x, y) → (y, pageWidth*72 - x)
-    doc.transform(0, -1, 1, 0, 0, template.pageWidth * IN);
-  }
-
   // Group elements by labelGroupId for offset application
   const groupMap = new Map<number, DRXLabelGroup>();
   for (const el of template.elements) {
@@ -391,11 +395,6 @@ export async function renderDRXTemplate(
       groupMap.set(el.labelGroupId, el.labelGroup);
     }
   }
-
-  // When using landscape transform, compensate per-element rotation.
-  // The global transform rotates 90° CW, so add +90° to cancel out
-  // the dominant -90° rotation and keep text horizontal.
-  const rotationAdjust = useLandscape ? 90 : 0;
 
   // Render elements in order
   for (const element of template.elements) {
@@ -407,7 +406,21 @@ export async function renderDRXTemplate(
     const gy = group?.yOffset || 0;
 
     try {
-      await renderElement(doc, element, data, gx, gy, rotationAdjust);
+      if (useLandscape) {
+        // Manually convert portrait coordinates to landscape.
+        // No global matrix transform — avoids rotation composition issues.
+        const portraitX = element.xPosition + gx;
+        const portraitY = element.yPosition + gy;
+        const adjusted: DRXElement = {
+          ...element,
+          xPosition: portraitY,
+          yPosition: template.pageWidth - portraitX,
+          rotationAngle: (element.rotationAngle || 0) + 90,
+        };
+        await renderElement(doc, adjusted, data, 0, 0);
+      } else {
+        await renderElement(doc, element, data, gx, gy);
+      }
     } catch (err) {
       console.error(`Error rendering element ${element.id} (${element.elementData}):`, err);
     }
