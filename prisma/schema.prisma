@@ -127,6 +127,7 @@ model User {
   auditLogs        AuditLog[]
   claimStatusChanges ClaimStatusLog[] @relation("ClaimStatusChanger")
   notifications    Notification[]
+  patientDocumentsUploaded PatientDocument[] @relation("DocumentUploader")
 
   @@map("users")
 }
@@ -258,6 +259,7 @@ model Patient {
   posTransactions  PosTransaction[]
   communications   CommunicationLog[] @relation("PatientComms")
   payments         Payment[]
+  documents        PatientDocument[]
 
   @@index([lastName])
   @@index([dateOfBirth])
@@ -1496,6 +1498,36 @@ model AuditLog {
 // ═══════════════════════════════════════════════
 // NOTIFICATIONS & AUTOMATION
 // ═══════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════
+// PATIENT DOCUMENTS
+// ═══════════════════════════════════════════════
+
+model PatientDocument {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId   String   @map("patient_id") @db.Uuid
+  fileName    String   @map("file_name") @db.VarChar(255)
+  fileType    String   @map("file_type") @db.VarChar(50)
+  fileSize    Int      @default(0) @map("file_size")
+  storagePath String   @map("storage_path") @db.Text
+  storageUrl  String?  @map("storage_url") @db.Text
+  category    String   @default("general") @db.VarChar(50) // id, insurance, rx, lab, consent, photo, other
+  description String?  @db.Text
+  tags        String[] @default([])
+  uploadedBy  String?  @map("uploaded_by") @db.Uuid
+  isArchived  Boolean  @default(false) @map("is_archived")
+  metadata    Json?    @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  uploader    User?    @relation("DocumentUploader", fields: [uploadedBy], references: [id])
+
+  @@index([patientId])
+  @@index([patientId, category])
+  @@index([patientId, createdAt(sort: Desc)])
+  @@map("patient_documents")
+}
 
 // ═══════════════════════════════════════════════
 // SIG CODES
