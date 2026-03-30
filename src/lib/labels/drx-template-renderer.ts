@@ -491,6 +491,7 @@ export interface TemplateVariable {
   category: string;      // grouping category
   isBarcode: boolean;
   isQR: boolean;
+  fontSize: number;      // font size (for filtering overlays)
 }
 
 const CATEGORY_MAP: Record<string, string> = {
@@ -562,6 +563,7 @@ export function extractTemplateVariables(template: DRXTemplate): TemplateVariabl
       category,
       isBarcode: !!el.displayBarcodeCode128,
       isQR: !!el.displayBarcodeQr,
+      fontSize: el.fontSize || 8,
     });
   }
 
@@ -574,10 +576,13 @@ export function extractTemplateVariables(template: DRXTemplate): TemplateVariabl
 
 /**
  * Build a default data object from template variables (using exampleText values).
+ * Skips large-font overlay elements (warnings, watermarks) that would cover the label.
  */
 export function buildDefaultData(variables: TemplateVariable[]): Record<string, string> {
   const data: Record<string, string> = {};
   for (const v of variables) {
+    // Skip watermark overlays (NO PAID CLAIM, HOLD, etc.) — fontSize >= 20
+    if (v.fontSize >= 20) continue;
     data[v.key] = v.exampleText;
   }
   return data;
