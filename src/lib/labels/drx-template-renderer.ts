@@ -416,12 +416,21 @@ export async function renderDRXTemplate(
       if (useLandscape) {
         // Manually convert portrait coordinates to landscape.
         // No global matrix transform — avoids rotation composition issues.
+        //
+        // Portrait (4×8) → Landscape (8×4) via 90° CW page rotation:
+        //   landscape_x = portrait_y   (text that flowed down now flows right)
+        //   landscape_y = portrait_x   (left edge of portrait = top of reading)
+        //   rotation += 90°            (-90° portrait text → 0° horizontal)
+        //
+        // The "BOTTOM LABEL" group (small x, large fonts) is the patient-facing
+        // section and appears at the TOP of landscape. The "MAIN LABEL" group
+        // (larger x, smaller fonts) is the detail section at the BOTTOM.
         const portraitX = element.xPosition + gx;
         const portraitY = element.yPosition + gy;
         const adjusted: DRXElement = {
           ...element,
           xPosition: portraitY,
-          yPosition: template.pageWidth - portraitX,
+          yPosition: portraitX,
           rotationAngle: (element.rotationAngle || 0) + 90,
         };
         await renderElement(doc, adjusted, data, 0, 0);
