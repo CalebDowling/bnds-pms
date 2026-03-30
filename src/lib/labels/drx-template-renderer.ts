@@ -290,8 +290,8 @@ async function renderElement(
     rotation = element.rotationAngle || 0;
   }
 
-  // ── Barcode Code128 ──
-  if (element.displayBarcodeCode128 && value) {
+  // ── Barcode Code128 ── (temporarily disabled for alignment debugging)
+  if (false && element.displayBarcodeCode128 && value) {
     try {
       // DRX stores barcode height as a scale factor (e.g. 6), NOT inches.
       // Values > 1 are clearly not inches — use a sensible default.
@@ -314,8 +314,8 @@ async function renderElement(
     return;
   }
 
-  // ── QR Code ──
-  if (element.displayBarcodeQr && value) {
+  // ── QR Code ── (temporarily disabled for alignment debugging)
+  if (false && element.displayBarcodeQr && value) {
     try {
       const qrW = element.width && element.width <= 2 ? element.width : 0.75;
       const qrH = element.height && element.height <= 2 ? element.height : 0.75;
@@ -335,8 +335,8 @@ async function renderElement(
     return;
   }
 
-  // ── Base64 Image ──
-  if (element.displayBase64Jpeg && element.base64Image) {
+  // ── Base64 Image ── (temporarily disabled for alignment debugging)
+  if (false && element.displayBase64Jpeg && element.base64Image) {
     try {
       const imgBuffer = Buffer.from(element.base64Image, "base64");
       const widthPt = (element.width || 1) * IN;
@@ -353,10 +353,9 @@ async function renderElement(
     return;
   }
 
-  // ── Auto-detect QR code for URL-like elements with square dimensions ──
-  // DRX auto-generates QR codes for elements like patient_education_url
-  // that have square width/height even without the displayBarcodeQr flag.
+  // ── Auto-detect QR code ── (temporarily disabled for alignment debugging)
   if (
+    false &&
     value &&
     element.width && element.height &&
     Math.abs(element.width - element.height) < 0.1 &&
