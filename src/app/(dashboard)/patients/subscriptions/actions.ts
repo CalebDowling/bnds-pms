@@ -101,7 +101,7 @@ export async function getSubscriptions({
         patientId: patient.id,
         patientName: `${patient.lastName}, ${patient.firstName}`,
         drugName,
-        strength,
+        strength: strength ?? undefined,
         interval: sub.interval,
         status: sub.isActive ? "ACTIVE" : "PAUSED",
         lastRefillDate: sub.lastRefillDate,
@@ -462,7 +462,7 @@ export async function getPatientPrescriptions(patientId: string): Promise<
     id: rx.id,
     rxNumber: rx.rxNumber,
     drugName: rx.item?.name || rx.formula?.name || "Compound",
-    strength: rx.item?.strength,
+    strength: rx.item?.strength ?? undefined,
     isSubscribed: subscribedIds.has(rx.id),
   }));
 }
