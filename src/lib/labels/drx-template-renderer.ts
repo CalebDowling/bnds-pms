@@ -103,6 +103,15 @@ const WATERMARK_KEYS = new Set([
   "hold_warning",
 ]);
 
+// Elements that share the same position with another element and are mutually
+// exclusive in practice (e.g. a fill is either partial OR complete, never both).
+// In preview mode (no real data), suppress these to avoid visual overlap.
+const PREVIEW_SUPPRESS_KEYS = new Set([
+  "completion_quantity",       // overlaps partial_quantity at same position
+  "fill_date_plus_365_days",   // overlaps compound_batch.expiration_date
+  "patient_education_url",     // QR code placeholder, renders as huge text without QR
+]);
+
 // ─── Helpers ───────────────────────────────────────────────────────
 
 function parseColor(color: string | null): string {
@@ -190,11 +199,10 @@ function resolveValue(
   }
 
   // Fall back to example text.
-  // For known watermark overlay elements, skip the fallback so they only
-  // appear when real data explicitly provides a value.
+  // For known watermark overlay elements and mutually-exclusive elements,
+  // skip the fallback so they only appear when real data provides a value.
   if (val === undefined || val === null) {
-    const isWatermark = WATERMARK_KEYS.has(key);
-    if (isWatermark) {
+    if (WATERMARK_KEYS.has(key) || PREVIEW_SUPPRESS_KEYS.has(key)) {
       val = "";
     } else {
       val = element.exampleText || "";
