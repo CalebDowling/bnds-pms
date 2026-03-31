@@ -329,8 +329,7 @@ async function renderElement(
     rotation = element.rotationAngle || 0;
   }
 
-  // ── Barcode Code128 ── (disabled for alignment debugging)
-  /*
+  // ── Barcode Code128 ──
   if (element.displayBarcodeCode128 && value) {
     try {
       const barcodeHeightIn = (element.height && element.height > 1)
@@ -350,10 +349,8 @@ async function renderElement(
     }
     return;
   }
-  */
 
-  // ── QR Code ── (disabled for alignment debugging)
-  /*
+  // ── QR Code ──
   if (element.displayBarcodeQr && value) {
     try {
       const qrW = element.width && element.width <= 2 ? element.width : 0.75;
@@ -373,10 +370,8 @@ async function renderElement(
     }
     return;
   }
-  */
 
-  // ── Base64 Image ── (disabled for alignment debugging)
-  /*
+  // ── Base64 Image ──
   if (element.displayBase64Jpeg && element.base64Image) {
     try {
       const imgBuffer = Buffer.from(element.base64Image, "base64");
@@ -393,10 +388,8 @@ async function renderElement(
     }
     return;
   }
-  */
 
-  // ── Auto-detect QR code ── (disabled for alignment debugging)
-  /*
+  // ── Auto-detect QR code ──
   if (
     value &&
     element.width && element.height &&
@@ -422,7 +415,6 @@ async function renderElement(
     }
     return;
   }
-  */
 
   // ── Text element (default) ──
   renderTextElement(doc, value, xIn, yIn, element, rotation);
