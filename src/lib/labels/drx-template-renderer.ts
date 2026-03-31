@@ -333,10 +333,10 @@ async function renderElement(
   if (element.displayBarcodeCode128 && value) {
     try {
       const barcodeHeightIn = (element.height && element.height > 1)
-        ? 0.4
-        : (element.height || 0.4);
+        ? 0.3
+        : Math.min(element.height || 0.3, 0.4);
       const heightPt = barcodeHeightIn * IN;
-      const widthPt = (element.width ? element.width * IN : heightPt * 4);
+      const widthPt = (element.width ? element.width * IN * 0.8 : heightPt * 3);
       const png = await generateBarcodePNG(value, Math.round(barcodeHeightIn * 25.4));
 
       doc.save();
@@ -420,6 +420,12 @@ async function renderElement(
   renderTextElement(doc, value, xIn, yIn, element, rotation);
 }
 
+// DRX font sizes are calibrated for a different rendering engine.
+// PDFKit renders text slightly larger at the same nominal point size,
+// causing overlap on tightly-packed labels. This factor scales them down
+// so text fits within the intended bounding boxes.
+const FONT_SCALE = 0.52;
+
 function renderTextElement(
   doc: InstanceType<typeof PDFDocument>,
   text: string,
@@ -430,7 +436,8 @@ function renderTextElement(
 ): void {
   if (!text) return;
 
-  const fontSize = element.fontSize || 8;
+  const rawFontSize = element.fontSize || 8;
+  const fontSize = Math.max(4, Math.round(rawFontSize * FONT_SCALE * 10) / 10);
   const fontName = getPDFFont(element.fontName, element.fontStyle);
   const textColor = parseColor(element.textColor || element.color);
 
@@ -445,7 +452,7 @@ function renderTextElement(
 
   if (element.paragraphWidth) {
     textOptions.width = element.paragraphWidth * IN;
-    textOptions.lineGap = 1;
+    textOptions.lineGap = 0.5;
   }
 
   if (element.textAlign) {
@@ -453,6 +460,12 @@ function renderTextElement(
     if (!textOptions.width && element.width) {
       textOptions.width = element.width * IN;
     }
+  }
+
+  // If the element has a defined width but no paragraphWidth, use it as a
+  // max width to prevent text from overflowing into adjacent sections.
+  if (!textOptions.width && element.width) {
+    textOptions.width = element.width * IN;
   }
 
   doc.text(text, 0, 0, textOptions);
