@@ -1,35 +1,61 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useState, useEffect } from "react";
 import SidebarProvider, {
   useSidebar,
 } from "@/components/providers/SidebarProvider";
 import SidebarNew from "@/components/layout/SidebarNew";
+import SidebarDark from "@/components/layout/SidebarDark";
 import HeaderNew from "@/components/layout/HeaderNew";
+import TopNavLayout from "@/components/layout/TopNavLayout";
+import IconRailLayout from "@/components/layout/IconRailLayout";
+import LayoutSwitcher, {
+  useLayoutOption,
+  type LayoutOption,
+} from "@/components/layout/LayoutSwitcher";
 
-/**
- * Client-side layout shell that provides the sidebar + header.
- * Wraps the main content area and adjusts margin based on sidebar state.
- */
 export default function SidebarLayoutShell({
   children,
 }: {
   children: ReactNode;
 }) {
+  const [layout, setLayout] = useLayoutOption();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  if (!hydrated) return null;
+
   return (
-    <SidebarProvider>
-      <SidebarNew />
-      <MainArea>{children}</MainArea>
-    </SidebarProvider>
+    <>
+      {layout === "C" ? (
+        <TopNavLayout>{children}</TopNavLayout>
+      ) : layout === "D" ? (
+        <IconRailLayout>{children}</IconRailLayout>
+      ) : (
+        <SidebarProvider>
+          <SidebarContent layout={layout}>{children}</SidebarContent>
+        </SidebarProvider>
+      )}
+      <LayoutSwitcher current={layout} onChange={setLayout} />
+    </>
   );
 }
 
-function MainArea({ children }: { children: ReactNode }) {
+function SidebarContent({
+  layout,
+  children,
+}: {
+  layout: LayoutOption;
+  children: ReactNode;
+}) {
   const { collapsed } = useSidebar();
 
   return (
     <>
-      {/* Inline style for dynamic sidebar margin; CSS class zeroes it on mobile */}
+      {layout === "B" ? <SidebarDark /> : <SidebarNew />}
       <style>{`
         .sidebar-main-area {
           margin-left: 0;
