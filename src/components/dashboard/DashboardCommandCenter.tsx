@@ -19,9 +19,7 @@ import {
   Printer,
   Clock,
   ScanLine,
-  FileX,
   ChevronRight,
-  Zap,
   CreditCard,
   BadgeDollarSign,
   ThumbsDown,
@@ -35,27 +33,6 @@ import { getQueueCounts } from "@/app/(dashboard)/dashboard/actions";
 import type { DashboardData } from "@/components/dashboard/CardGrid";
 import PhoneDialer from "@/components/dashboard/PhoneDialer";
 
-function formatCurrency(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(n);
-}
-
-function KPIPill({ label, value, alert }: { label: string; value: string | number; alert?: boolean }) {
-  return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold ${
-      alert
-        ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800"
-        : "bg-gray-50 dark:bg-gray-800 text-[var(--text-primary)] border border-[var(--border)] dark:border-gray-700"
-    }`}>
-      <span className="text-gray-400 dark:text-gray-500 uppercase tracking-wider text-[9px] font-bold">{label}</span>
-      <span className="tabular-nums font-bold">{value}</span>
-    </div>
-  );
-}
-
 interface WorkflowItemProps {
   label: string;
   count: number;
@@ -68,21 +45,26 @@ function WorkflowItem({ label, count, href, statusColor, icon }: WorkflowItemPro
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors no-underline group"
+      className="flex items-center gap-2 px-3 py-2 rounded-md transition-colors no-underline group"
+      style={{ color: "var(--text-primary)" }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
     >
       <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
-      <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">{icon}</span>
-      <span className="text-[12px] font-medium text-[var(--text-primary)] dark:text-gray-300 flex-1 truncate group-hover:text-[var(--green-700)] dark:group-hover:text-emerald-400 transition-colors">
+      <span style={{ color: "var(--text-muted)" }} className="flex-shrink-0">{icon}</span>
+      <span className="text-[12px] font-medium flex-1 truncate" style={{ color: "var(--text-primary)" }}>
         {label}
       </span>
-      <span className={`text-[11px] font-bold tabular-nums px-1.5 py-px rounded ${
-        count > 0
-          ? "bg-[var(--green-100)] dark:bg-emerald-900/40 text-[var(--green-700)] dark:text-emerald-400"
-          : "text-gray-300 dark:text-gray-600"
-      }`}>
+      <span
+        className="text-[11px] font-bold tabular-nums px-1.5 py-px rounded"
+        style={{
+          backgroundColor: count > 0 ? "var(--green-100)" : undefined,
+          color: count > 0 ? "var(--green-700)" : "var(--text-muted)",
+        }}
+      >
         {count}
       </span>
-      <ChevronRight size={12} className="text-gray-300 dark:text-gray-600 group-hover:text-gray-400 transition-colors" />
+      <ChevronRight size={12} style={{ color: "var(--border)" }} />
     </Link>
   );
 }
@@ -99,7 +81,16 @@ function ModuleCardMini({ title, stat, icon, accentColor, href }: ModuleCardMini
   return (
     <Link
       href={href}
-      className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-lg border border-[var(--border)] dark:border-gray-700 hover:border-[var(--green-700)] dark:hover:border-emerald-500 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all no-underline group"
+      className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-lg transition-all no-underline group"
+      style={{ border: "1px solid var(--border)" }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--color-primary)";
+        (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+        (e.currentTarget as HTMLElement).style.backgroundColor = "";
+      }}
     >
       <div
         className="w-7 h-7 rounded-md flex items-center justify-center text-white mb-0.5"
@@ -107,10 +98,10 @@ function ModuleCardMini({ title, stat, icon, accentColor, href }: ModuleCardMini
       >
         {icon}
       </div>
-      <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 text-center leading-tight group-hover:text-[var(--green-700)] dark:group-hover:text-emerald-400 transition-colors">
+      <span className="text-[10px] font-semibold text-center leading-tight" style={{ color: "var(--text-secondary)" }}>
         {title}
       </span>
-      <span className="text-[10px] font-bold tabular-nums text-gray-400 dark:text-gray-500">
+      <span className="text-[10px] font-bold tabular-nums" style={{ color: "var(--text-muted)" }}>
         {stat}
       </span>
     </Link>
@@ -182,13 +173,13 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
     <div className="px-6 pb-6">
       {/* Three Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Column 1: Workflow Queue — matches master QueueBar */}
-        <div className="bg-[var(--card-bg)] dark:bg-gray-800/60 rounded-lg border border-[var(--border)] dark:border-gray-700 overflow-hidden">
-          <div className="px-3 pt-3 pb-2 border-b border-[var(--border-light)] dark:border-gray-700 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+        {/* Column 1: Workflow Queue */}
+        <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
+          <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-light)" }}>
+            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
               Workflow Queue
             </span>
-            <Link href="/queue" className="text-[9px] font-semibold text-[#40721D] dark:text-emerald-400 hover:underline">
+            <Link href="/queue" className="text-[9px] font-semibold hover:underline" style={{ color: "var(--green-700)" }}>
               Open Queue
             </Link>
           </div>
@@ -209,9 +200,9 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
         {/* Column 2: Quick Access + Phone Dialer */}
         <div className="space-y-4">
           {/* Quick Access Modules */}
-          <div className="bg-[var(--card-bg)] dark:bg-gray-800/60 rounded-lg border border-[var(--border)] dark:border-gray-700 overflow-hidden">
-            <div className="px-3 pt-3 pb-2 border-b border-[var(--border-light)] dark:border-gray-700">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
+            <div className="px-3 pt-3 pb-2" style={{ borderBottom: "1px solid var(--border-light)" }}>
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
                 Quick Access
               </span>
             </div>
@@ -235,65 +226,69 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
         {/* Column 3: Activity & Alerts */}
         <div className="space-y-4">
           {/* Recent Activity */}
-          <div className="bg-[var(--card-bg)] dark:bg-gray-800/60 rounded-lg border border-[var(--border)] dark:border-gray-700 overflow-hidden">
-            <div className="px-3 pt-3 pb-2 border-b border-[var(--border-light)] dark:border-gray-700">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
+            <div className="px-3 pt-3 pb-2" style={{ borderBottom: "1px solid var(--border-light)" }}>
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
                 Recent Activity
               </span>
             </div>
-            <div className="divide-y divide-[var(--border-light)] dark:divide-gray-700">
-              {recentActivity.map((item) => (
-                <div key={item.rxNum} className="px-3 py-2">
+            <div>
+              {recentActivity.map((item, i) => (
+                <div key={item.rxNum} className="px-3 py-2" style={{ borderTop: i > 0 ? "1px solid var(--border-light)" : undefined }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-[var(--green-700)] dark:text-emerald-400 tabular-nums">
+                    <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--green-700)" }}>
                       Rx# {item.rxNum}
                     </span>
-                    <span className="text-[9px] text-gray-400">
+                    <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>
                       {item.minutesAgo < 60 ? `${item.minutesAgo}m` : `${Math.floor(item.minutesAgo / 60)}h`}
                     </span>
                   </div>
-                  <div className="text-[11px] font-medium text-[var(--text-primary)] dark:text-gray-300">
+                  <div className="text-[11px] font-medium" style={{ color: "var(--text-primary)" }}>
                     {item.patient}
                   </div>
-                  <div className="text-[10px] text-gray-400 tabular-nums">{item.copay}</div>
+                  <div className="text-[10px] tabular-nums" style={{ color: "var(--text-muted)" }}>{item.copay}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Stock Alerts */}
-          <div className="bg-[var(--card-bg)] dark:bg-gray-800/60 rounded-lg border border-[var(--border)] dark:border-gray-700 overflow-hidden">
-            <div className="px-3 pt-3 pb-2 border-b border-[var(--border-light)] dark:border-gray-700 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
+            <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-light)" }}>
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
                 Stock Alerts
               </span>
-              <Link href="/inventory" className="text-[9px] font-semibold text-[#40721D] dark:text-emerald-400 hover:underline">
+              <Link href="/inventory" className="text-[9px] font-semibold hover:underline" style={{ color: "var(--green-700)" }}>
                 View All
               </Link>
             </div>
             {allAlerts.length > 0 ? (
-              <div className="divide-y divide-[var(--border-light)] dark:divide-gray-700">
-                {allAlerts.map((item) => (
+              <div>
+                {allAlerts.map((item, i) => (
                   <Link
                     key={item.itemId}
                     href={`/inventory/${item.itemId}`}
-                    className={`block px-3 py-2 no-underline border-l-[3px] hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                      item.severity === "critical" ? "border-l-red-500" : "border-l-amber-500"
-                    }`}
+                    className="block px-3 py-2 no-underline transition-colors"
+                    style={{
+                      borderTop: i > 0 ? "1px solid var(--border-light)" : undefined,
+                      borderLeft: `3px solid ${item.severity === "critical" ? "#ef4444" : "#f59e0b"}`,
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
                   >
                     <div className={`text-[11px] font-semibold truncate ${
-                      item.severity === "critical" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
+                      item.severity === "critical" ? "text-red-600" : "text-amber-600"
                     }`}>
                       {item.itemName}
                     </div>
-                    <div className="text-[10px] text-gray-400 tabular-nums">
+                    <div className="text-[10px] tabular-nums" style={{ color: "var(--text-muted)" }}>
                       {item.currentStock} in stock
                     </div>
                   </Link>
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center text-[11px] text-gray-400 dark:text-gray-500">
+              <div className="p-4 text-center text-[11px]" style={{ color: "var(--text-muted)" }}>
                 All stock levels healthy
               </div>
             )}

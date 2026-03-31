@@ -2,11 +2,6 @@
 
 import { useEffect, useState } from "react";
 import type { DashboardData } from "@/components/dashboard/CardGrid";
-import DashboardStyleSwitcher, {
-  useDashboardStyle,
-} from "@/components/dashboard/DashboardStyleSwitcher";
-import DashboardWorklist from "@/components/dashboard/DashboardWorklist";
-import DashboardAnalytics from "@/components/dashboard/DashboardAnalytics";
 import DashboardCommandCenter from "@/components/dashboard/DashboardCommandCenter";
 
 import { getDashboardData } from "./actions";
@@ -28,7 +23,6 @@ const DEFAULT_DATA: DashboardData = {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>(DEFAULT_DATA);
-  const [dashStyle, setDashStyle] = useDashboardStyle();
 
   useEffect(() => {
     getDashboardData().then(setData);
@@ -36,8 +30,8 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Breadcrumb + Style Switcher */}
-      <div className="px-6 py-2.5 flex items-center justify-between">
+      {/* Breadcrumb */}
+      <div className="px-6 py-2.5">
         <div className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
           <a
             href="/dashboard"
@@ -50,13 +44,9 @@ export default function DashboardPage() {
             Dashboard
           </span>
         </div>
-        <DashboardStyleSwitcher current={dashStyle} onChange={setDashStyle} />
       </div>
 
-      {/* Render selected dashboard style */}
-      {dashStyle === "worklist" && <DashboardWorklist data={data} />}
-      {dashStyle === "analytics" && <DashboardAnalytics data={data} />}
-      {dashStyle === "command-center" && <DashboardCommandCenter data={data} />}
+      <DashboardCommandCenter data={data} />
     </div>
   );
 }
