@@ -1,7 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import QueueBar from "@/components/dashboard/QueueBar";
+import SidebarLayoutShell from "@/components/layout/SidebarLayoutShell";
 import DashboardSearch from "@/components/dashboard/DashboardSearch";
 import RealtimeProvider from "@/components/providers/RealtimeProvider";
 import { PermissionsProvider } from "@/components/providers/PermissionsProvider";
@@ -62,20 +61,20 @@ export default async function DashboardLayout({
           <SessionTimeoutProvider>
             <div className="min-h-screen bg-[var(--page-bg)]">
               <ShadowModeBanner />
-              <DashboardHeader />
-              <QueueBar />
-              <DashboardSearch />
-              <CommandPalette />
-              <Breadcrumbs />
-              <main id="main-content" className="p-0" role="main">
-                <RealtimeProvider>
-                  <PageTransition>{children}</PageTransition>
-                </RealtimeProvider>
-              </main>
-              <FloatingActionButton />
-              <div aria-live="polite" aria-atomic="true">
-                <ToastContainer />
-              </div>
+              <SidebarLayoutShell>
+                <DashboardSearch />
+                <CommandPalette />
+                <Breadcrumbs />
+                <main id="main-content" className="p-0" role="main">
+                  <RealtimeProvider>
+                    <PageTransition>{children}</PageTransition>
+                  </RealtimeProvider>
+                </main>
+                <FloatingActionButton />
+                <div aria-live="polite" aria-atomic="true">
+                  <ToastContainer />
+                </div>
+              </SidebarLayoutShell>
               <MobileBottomNav />
             </div>
           </SessionTimeoutProvider>
