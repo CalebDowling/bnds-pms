@@ -108,6 +108,7 @@ const WATERMARK_KEYS = new Set([
 // In preview mode (no real data), suppress these to avoid visual overlap.
 const PREVIEW_SUPPRESS_KEYS = new Set([
   "completion_quantity",       // overlaps partial_quantity at same position
+  "partial_quantity",          // overlaps completion_quantity at same position
   "fill_date_plus_365_days",   // overlaps compound_batch.expiration_date
   "patient_education_url",     // QR code placeholder, renders as huge text without QR
 ]);
@@ -191,11 +192,13 @@ function resolveValue(
 
   // Check direct key match
   let val = data[key];
+  let isRealData = val !== undefined;
 
   // Also try dotted path variations: "patient.first_name" -> "patientFirstName"
   if (val === undefined) {
     const camelKey = key.replace(/[._]([a-z])/g, (_, c) => c.toUpperCase());
     val = data[camelKey];
+    if (val !== undefined) isRealData = true;
   }
 
   // Fall back to example text.
@@ -209,11 +212,22 @@ function resolveValue(
     }
   }
 
-  // Apply slice (e.g. long drug names split across two lines)
-  if (val && (element.sliceStart != null || element.sliceEnd != null)) {
+  // Apply slice for real data only.
+  // For list elements (aux_labels), sliceStart/End are array indices — split by newline.
+  // For string elements (item.print_name), sliceStart/End are character indices.
+  // When using exampleText, skip slicing — the example already represents this element's slot.
+  if (isRealData && val && (element.sliceStart != null || element.sliceEnd != null)) {
     const start = element.sliceStart ?? 0;
-    const end = element.sliceEnd ?? val.length;
-    val = val.slice(start, end).trim();
+    const end = element.sliceEnd ?? undefined;
+
+    // If the value contains newlines, treat slicing as array indices
+    if (val.includes("\n")) {
+      const items = val.split("\n");
+      val = items.slice(start, end).join("\n").trim();
+    } else {
+      // Character slicing (e.g. long drug name split across lines)
+      val = val.slice(start, end ?? val.length).trim();
+    }
   }
 
   // Apply template string (e.g. "Use By: {{el}}", or static "Signature: ____")
