@@ -47,24 +47,27 @@ export default function DashboardStyleSwitcher({
   onChange: (v: DashboardStyle) => void;
 }) {
   return (
-    <div className="inline-flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 gap-0.5">
-      {styles.map((s) => (
-        <button
-          key={s.id}
-          onClick={() => onChange(s.id)}
-          title={s.label}
-          className={`
-            inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all
-            ${current === s.id
-              ? "bg-white dark:bg-gray-700 text-[var(--green-700)] dark:text-emerald-400 shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-            }
-          `}
-        >
-          {s.icon}
-          <span className="hidden sm:inline">{s.label}</span>
-        </button>
-      ))}
+    <div className="inline-flex items-center gap-2">
+      <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">View:</span>
+      <div className="inline-flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 gap-0.5 border border-gray-200 dark:border-gray-700">
+        {styles.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => onChange(s.id)}
+            title={s.label}
+            className={`
+              inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all
+              ${current === s.id
+                ? "bg-white dark:bg-gray-700 text-[var(--green-700)] dark:text-emerald-400 shadow-sm border border-gray-200 dark:border-gray-600"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+              }
+            `}
+          >
+            {s.icon}
+            <span className="hidden sm:inline">{s.label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
