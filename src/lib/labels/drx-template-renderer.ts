@@ -324,6 +324,10 @@ async function renderElement(
     //   landscape_y = pageWidth - portrait_x  (x increases right in portrait → y increases downward in landscape, inverted)
     xIn = portraitY;
     yIn = landscape.pageWidthIn - portraitX;
+    // Compress vertical layout: scale Y positions toward the top to reduce
+    // white space at the top and give more room at the bottom.
+    // 0.96 compresses ~4% — moves a y=0.65 element to y=0.62, and a y=3.9 element to y=3.74.
+    yIn = yIn * 0.96;
     rotation = 0; // text rendered horizontal
   } else {
     xIn = portraitX;
@@ -426,7 +430,7 @@ async function renderElement(
 // PDFKit renders text slightly larger at the same nominal point size,
 // causing overlap on tightly-packed labels. This factor scales them down
 // so text fits within the intended bounding boxes.
-const FONT_SCALE = 0.9;
+const FONT_SCALE = 0.95;
 
 function renderTextElement(
   doc: InstanceType<typeof PDFDocument>,
