@@ -424,7 +424,7 @@ async function renderElement(
 // PDFKit renders text slightly larger at the same nominal point size,
 // causing overlap on tightly-packed labels. This factor scales them down
 // so text fits within the intended bounding boxes.
-const FONT_SCALE = 0.52;
+const FONT_SCALE = 0.58;
 
 function renderTextElement(
   doc: InstanceType<typeof PDFDocument>,
