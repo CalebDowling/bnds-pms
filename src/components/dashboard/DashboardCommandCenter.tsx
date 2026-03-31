@@ -21,9 +21,19 @@ import {
   ScanLine,
   FileX,
   ChevronRight,
+  Zap,
+  CreditCard,
+  BadgeDollarSign,
+  ThumbsDown,
+  Building2,
+  Cherry,
+  ListTodo,
+  ArrowDownUp,
 } from "lucide-react";
 import { getReorderStatus } from "@/lib/inventory/reorder-check";
+import { getQueueCounts } from "@/app/(dashboard)/dashboard/actions";
 import type { DashboardData } from "@/components/dashboard/CardGrid";
+import PhoneDialer from "@/components/dashboard/PhoneDialer";
 
 function formatCurrency(n: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -117,13 +127,46 @@ interface ReorderItem {
   severity: "critical" | "low";
 }
 
+// Queue definition matching master QueueBar exactly
+const QUEUE_CONFIG: { status: string; label: string; icon: React.ReactNode; color: string }[] = [
+  { status: "intake", label: "Intake", icon: <Inbox size={13} />, color: "#3b82f6" },
+  { status: "sync", label: "Sync", icon: <ArrowDownUp size={13} />, color: "#06b6d4" },
+  { status: "reject", label: "Reject", icon: <XCircle size={13} />, color: "#ef4444" },
+  { status: "print", label: "Print", icon: <Printer size={13} />, color: "#a855f7" },
+  { status: "scan", label: "Scan", icon: <ScanLine size={13} />, color: "#6366f1" },
+  { status: "verify", label: "Verify", icon: <CheckCircle2 size={13} />, color: "#10b981" },
+  { status: "oos", label: "Out of Stock", icon: <AlertTriangle size={13} />, color: "#f97316" },
+  { status: "waiting_bin", label: "Waiting Bin", icon: <Clock size={13} />, color: "#f59e0b" },
+  { status: "renewals", label: "Renewals", icon: <RefreshCw size={13} />, color: "#14b8a6" },
+  { status: "todo", label: "Todo", icon: <ListTodo size={13} />, color: "#8b5cf6" },
+  { status: "price_check", label: "Price Check", icon: <BadgeDollarSign size={13} />, color: "#ec4899" },
+  { status: "prepay", label: "Prepay", icon: <CreditCard size={13} />, color: "#0ea5e9" },
+  { status: "ok_to_charge", label: "OK to Charge", icon: <DollarSign size={13} />, color: "#22c55e" },
+  { status: "decline", label: "Decline", icon: <ThumbsDown size={13} />, color: "#dc2626" },
+  { status: "ok_to_charge_clinic", label: "OK to Charge Clinic", icon: <Building2 size={13} />, color: "#16a34a" },
+  { status: "mochi", label: "Mochi", icon: <Cherry size={13} />, color: "#d946ef" },
+];
+
 export default function DashboardCommandCenter({ data }: { data: DashboardData }) {
   const [stockAlerts, setStockAlerts] = useState<{ critical: ReorderItem[]; low: ReorderItem[] }>({ critical: [], low: [] });
+  const [queueCounts, setQueueCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     getReorderStatus()
       .then((result) => setStockAlerts({ critical: result.critical.slice(0, 3), low: result.low.slice(0, 4) }))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    getQueueCounts()
+      .then((counts) => setQueueCounts(counts as Record<string, number>))
+      .catch(() => {});
+    const interval = setInterval(() => {
+      getQueueCounts()
+        .then((counts) => setQueueCounts(counts as Record<string, number>))
+        .catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const recentActivity = [
@@ -154,44 +197,54 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
 
       {/* Three Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Column 1: Workflow */}
+        {/* Column 1: Workflow Queue — matches master QueueBar */}
         <div className="bg-[var(--card-bg)] dark:bg-gray-800/60 rounded-lg border border-[var(--border)] dark:border-gray-700 overflow-hidden">
-          <div className="px-3 pt-3 pb-2 border-b border-[var(--border-light)] dark:border-gray-700">
+          <div className="px-3 pt-3 pb-2 border-b border-[var(--border-light)] dark:border-gray-700 flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
               Workflow Queue
             </span>
+            <Link href="/queue" className="text-[9px] font-semibold text-[#40721D] dark:text-emerald-400 hover:underline">
+              Open Queue
+            </Link>
           </div>
-          <div className="py-1">
-            <WorkflowItem label="eRx Intake" count={data.pendingRefills} href="/intake" statusColor="#3b82f6" icon={<Inbox size={13} />} />
-            <WorkflowItem label="Verification" count={data.rxToday} href="/queue?status=verify" statusColor="#10b981" icon={<CheckCircle2 size={13} />} />
-            <WorkflowItem label="Print Queue" count={Math.floor(data.rxToday * 0.3)} href="/queue?status=print" statusColor="#a855f7" icon={<Printer size={13} />} />
-            <WorkflowItem label="Scan Queue" count={Math.floor(data.rxToday * 0.15)} href="/queue?status=scan" statusColor="#6366f1" icon={<ScanLine size={13} />} />
-            <WorkflowItem label="Waiting Bin" count={data.salesToday} href="/queue?status=waiting_bin" statusColor="#f59e0b" icon={<Clock size={13} />} />
-            <WorkflowItem label="Rejected Claims" count={data.rejectedClaims} href="/billing/claims" statusColor="#ef4444" icon={<XCircle size={13} />} />
-            <WorkflowItem label="Out of Stock" count={data.lowStockItems} href="/inventory/reorder" statusColor="#f97316" icon={<AlertTriangle size={13} />} />
-            <WorkflowItem label="Pending Refills" count={data.pendingRefills} href="/prescriptions/batch-refills" statusColor="#14b8a6" icon={<RefreshCw size={13} />} />
-            <WorkflowItem label="Expiring Lots" count={data.expiringLots} href="/inventory?filter=expiring" statusColor="#ec4899" icon={<FileX size={13} />} />
+          <div className="py-1 max-h-[520px] overflow-y-auto">
+            {QUEUE_CONFIG.map((q) => (
+              <WorkflowItem
+                key={q.status}
+                label={q.label}
+                count={queueCounts[q.status] ?? 0}
+                href={`/queue?status=${q.status}`}
+                statusColor={q.color}
+                icon={q.icon}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Column 2: Quick Access Modules */}
-        <div className="bg-[var(--card-bg)] dark:bg-gray-800/60 rounded-lg border border-[var(--border)] dark:border-gray-700 overflow-hidden">
-          <div className="px-3 pt-3 pb-2 border-b border-[var(--border-light)] dark:border-gray-700">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-              Quick Access
-            </span>
+        {/* Column 2: Quick Access + Phone Dialer */}
+        <div className="space-y-4">
+          {/* Quick Access Modules */}
+          <div className="bg-[var(--card-bg)] dark:bg-gray-800/60 rounded-lg border border-[var(--border)] dark:border-gray-700 overflow-hidden">
+            <div className="px-3 pt-3 pb-2 border-b border-[var(--border-light)] dark:border-gray-700">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                Quick Access
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-3">
+              <ModuleCardMini title="Patient" stat={`${data.patientsToday} today`} icon={<Users size={13} />} accentColor="#10b981" href="/patients" />
+              <ModuleCardMini title="Rx" stat={`${data.rxToday} today`} icon={<Pill size={13} />} accentColor="#3b82f6" href="/prescriptions" />
+              <ModuleCardMini title="Item" stat={`${data.activeItems}`} icon={<Package size={13} />} accentColor="#a855f7" href="/inventory" />
+              <ModuleCardMini title="Prescriber" stat={`${data.doctorsOnFile}`} icon={<Cross size={13} />} accentColor="#f97316" href="/prescriptions/prescribers" />
+              <ModuleCardMini title="Compound" stat={`${data.pendingBatches} pend`} icon={<FlaskConical size={13} />} accentColor="#f43f5e" href="/compounding" />
+              <ModuleCardMini title="Inventory" stat={`${data.lowStockItems} low`} icon={<AlertTriangle size={13} />} accentColor="#f59e0b" href="/inventory" />
+              <ModuleCardMini title="Sales" stat={`${data.salesToday} today`} icon={<DollarSign size={13} />} accentColor="#40721d" href="/pos" />
+              <ModuleCardMini title="Claims" stat={`${data.rejectedClaims} rej`} icon={<ClipboardCheck size={13} />} accentColor="#6366f1" href="/billing/claims" />
+              <ModuleCardMini title="System" stat="Admin" icon={<Settings size={13} />} accentColor="#14b8a6" href="/settings" />
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 p-3">
-            <ModuleCardMini title="Patient" stat={`${data.patientsToday} today`} icon={<Users size={13} />} accentColor="#10b981" href="/patients" />
-            <ModuleCardMini title="Rx" stat={`${data.rxToday} today`} icon={<Pill size={13} />} accentColor="#3b82f6" href="/prescriptions" />
-            <ModuleCardMini title="Item" stat={`${data.activeItems}`} icon={<Package size={13} />} accentColor="#a855f7" href="/inventory" />
-            <ModuleCardMini title="Prescriber" stat={`${data.doctorsOnFile}`} icon={<Cross size={13} />} accentColor="#f97316" href="/prescriptions/prescribers" />
-            <ModuleCardMini title="Compound" stat={`${data.pendingBatches} pend`} icon={<FlaskConical size={13} />} accentColor="#f43f5e" href="/compounding" />
-            <ModuleCardMini title="Inventory" stat={`${data.lowStockItems} low`} icon={<AlertTriangle size={13} />} accentColor="#f59e0b" href="/inventory" />
-            <ModuleCardMini title="Sales" stat={`${data.salesToday} today`} icon={<DollarSign size={13} />} accentColor="#40721d" href="/pos" />
-            <ModuleCardMini title="Claims" stat={`${data.rejectedClaims} rej`} icon={<ClipboardCheck size={13} />} accentColor="#6366f1" href="/billing/claims" />
-            <ModuleCardMini title="System" stat="Admin" icon={<Settings size={13} />} accentColor="#14b8a6" href="/settings" />
-          </div>
+
+          {/* Phone Dialer */}
+          <PhoneDialer />
         </div>
 
         {/* Column 3: Activity & Alerts */}

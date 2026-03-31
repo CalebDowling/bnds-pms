@@ -225,7 +225,11 @@ export default function HeaderNew() {
 
   return (
     <header
-      className="sticky top-0 z-30 h-14 flex items-center justify-between gap-4 px-4 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out"
+      className="sticky top-0 z-30 h-14 flex items-center justify-between gap-4 px-4 transition-all duration-300 ease-in-out"
+      style={{
+        backgroundColor: "var(--card-bg)",
+        borderBottom: "1px solid var(--border)",
+      }}
     >
       {/* ── Left: Queue pills ── */}
       <div className="flex items-center gap-1.5 overflow-x-auto flex-shrink-0 mobile-scroll-x">

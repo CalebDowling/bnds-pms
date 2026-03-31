@@ -114,19 +114,16 @@ export default function SidebarNew() {
 
   return (
     <aside
-      className={`
-        fixed left-0 top-0 h-screen z-40
-        flex flex-col
-        bg-white dark:bg-[#0F172A]
-        border-r border-gray-200 dark:border-gray-700
-        transition-all duration-300 ease-in-out
-        hidden md:flex
-      `}
-      style={{ width: collapsed ? 64 : 256 }}
+      className="fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ease-in-out hidden md:flex"
+      style={{
+        width: collapsed ? 64 : 256,
+        backgroundColor: "var(--card-bg)",
+        borderRight: "1px solid var(--border)",
+      }}
       aria-label="Main navigation"
     >
       {/* ── Logo ── */}
-      <div className="h-14 flex items-center border-b border-gray-200 dark:border-gray-700 flex-shrink-0 overflow-hidden px-3">
+      <div className="h-14 flex items-center flex-shrink-0 overflow-hidden px-3" style={{ borderBottom: "1px solid var(--border)" }}>
         <Link href="/dashboard" className="flex items-center gap-2 no-underline min-w-0">
           {collapsed ? (
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#40721d] to-[#5a9f2a] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -153,7 +150,7 @@ export default function SidebarNew() {
               </div>
             )}
             {group.label && collapsed && (
-              <div className="mx-auto my-2 w-6 border-t border-gray-200 dark:border-gray-700" />
+              <div className="mx-auto my-2 w-6 border-t" style={{ borderColor: "var(--border)" }} />
             )}
 
             {/* Items */}
@@ -170,7 +167,7 @@ export default function SidebarNew() {
       </nav>
 
       {/* ── Bottom section ── */}
-      <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
         {/* Bottom nav items */}
         <div className="py-2 px-2 space-y-0.5">
           {bottomItems.map((item) => (
@@ -184,7 +181,7 @@ export default function SidebarNew() {
         </div>
 
         {/* Color theme picker */}
-        <div className="px-2 py-1 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-2 py-1" style={{ borderTop: "1px solid var(--border)" }}>
           {collapsed ? (
             <ColorThemePickerDot />
           ) : (
@@ -193,17 +190,18 @@ export default function SidebarNew() {
         </div>
 
         {/* Sign out */}
-        <div className="px-2 py-2 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-2 py-2" style={{ borderTop: "1px solid var(--border)" }}>
           <button
             onClick={handleSignOut}
             className={`
               w-full flex items-center gap-3 rounded-lg
-              text-sm text-gray-500 dark:text-gray-400
-              hover:bg-gray-100 dark:hover:bg-gray-800
-              hover:text-gray-700 dark:hover:text-gray-200
+              text-sm cursor-pointer border-none bg-transparent
               transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
               ${collapsed ? "justify-center px-2 py-2" : "px-3 py-2"}
             `}
+            style={{ color: "var(--text-muted)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-danger)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
             aria-label="Sign out"
             title={collapsed ? "Sign out" : undefined}
           >
@@ -215,17 +213,18 @@ export default function SidebarNew() {
         </div>
 
         {/* Toggle button */}
-        <div className="px-2 py-2 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-2 py-2" style={{ borderTop: "1px solid var(--border)" }}>
           <button
             onClick={toggle}
             className={`
               w-full flex items-center gap-3 rounded-lg
-              text-sm text-gray-500 dark:text-gray-400
-              hover:bg-gray-100 dark:hover:bg-gray-800
-              hover:text-gray-700 dark:hover:text-gray-200
+              text-sm cursor-pointer border-none bg-transparent
               transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
               ${collapsed ? "justify-center px-2 py-2" : "px-3 py-2"}
             `}
+            style={{ color: "var(--text-muted)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-primary)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -265,12 +264,24 @@ function SidebarLink({
         transition-colors duration-150 no-underline
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
         ${collapsed ? "justify-center px-2 py-2" : "px-3 py-2"}
-        ${
-          active
-            ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] dark:text-[#6bb240] dark:bg-[#6bb240]/10 border-l-[3px] border-[var(--color-primary)] dark:border-[#6bb240]"
-            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 border-l-[3px] border-transparent"
-        }
       `}
+      style={{
+        backgroundColor: active ? "var(--green-100)" : undefined,
+        color: active ? "var(--color-primary)" : "var(--text-secondary)",
+        borderLeft: active ? "3px solid var(--color-primary)" : "3px solid transparent",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)";
+          (e.currentTarget as HTMLElement).style.color = "var(--color-primary)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          (e.currentTarget as HTMLElement).style.backgroundColor = "";
+          (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+        }
+      }}
       title={collapsed ? item.label : undefined}
       aria-current={active ? "page" : undefined}
     >
@@ -288,19 +299,16 @@ function SidebarLink({
       {/* Tooltip for collapsed state */}
       {collapsed && (
         <div
-          className="
-            absolute left-full ml-2 top-1/2 -translate-y-1/2
-            bg-gray-900 dark:bg-gray-700 text-white text-xs font-medium
-            px-2.5 py-1.5 rounded-md whitespace-nowrap
-            opacity-0 pointer-events-none
-            group-hover:opacity-100
-            transition-opacity duration-200
-            z-50
-          "
+          className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50"
+          style={{
+            backgroundColor: "var(--card-bg)",
+            color: "var(--text-primary)",
+            border: "1px solid var(--border)",
+            boxShadow: "var(--shadow-md)",
+          }}
           role="tooltip"
         >
           {item.label}
-          <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-gray-900 dark:border-r-gray-700" />
         </div>
       )}
     </Link>
@@ -313,8 +321,8 @@ function ColorThemePickerDot() {
   return (
     <div className="flex justify-center py-2">
       <div
-        className="w-5 h-5 rounded-full border border-gray-200 dark:border-gray-600 cursor-pointer hover:scale-110 transition-transform"
-        style={{ background: "var(--theme-accent, #40721D)" }}
+        className="w-5 h-5 rounded-full cursor-pointer hover:scale-110 transition-transform"
+        style={{ background: "var(--theme-accent, #40721D)", border: "1px solid var(--border)" }}
         title="Theme color"
       />
     </div>
