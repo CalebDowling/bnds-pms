@@ -299,7 +299,9 @@ async function renderElement(
   data: Record<string, string>,
   groupOffsetX: number,
   groupOffsetY: number,
-  landscape?: LandscapeCtx
+  landscape?: LandscapeCtx,
+  pageWidthIn?: number,
+  pageHeightIn?: number
 ): Promise<void> {
   if (!shouldDisplay(element, data)) return;
 
@@ -345,7 +347,7 @@ async function renderElement(
       doc.image(png, 0, 0, { fit: [widthPt, heightPt] });
       doc.restore();
     } catch {
-      renderTextElement(doc, `[BC] ${value}`, xIn, yIn, element, rotation);
+      renderTextElement(doc, `[BC] ${value}`, xIn, yIn, element, rotation, pageWidthIn, pageHeightIn);
     }
     return;
   }
@@ -366,7 +368,7 @@ async function renderElement(
         doc.restore();
       }
     } catch {
-      renderTextElement(doc, "[QR]", xIn, yIn, element, rotation);
+      renderTextElement(doc, "[QR]", xIn, yIn, element, rotation, pageWidthIn, pageHeightIn);
     }
     return;
   }
@@ -411,20 +413,20 @@ async function renderElement(
         doc.restore();
       }
     } catch {
-      renderTextElement(doc, value, xIn, yIn, element, rotation);
+      renderTextElement(doc, value, xIn, yIn, element, rotation, pageWidthIn, pageHeightIn);
     }
     return;
   }
 
   // ── Text element (default) ──
-  renderTextElement(doc, value, xIn, yIn, element, rotation);
+  renderTextElement(doc, value, xIn, yIn, element, rotation, pageWidthIn, pageHeightIn);
 }
 
 // DRX font sizes are calibrated for a different rendering engine.
 // PDFKit renders text slightly larger at the same nominal point size,
 // causing overlap on tightly-packed labels. This factor scales them down
 // so text fits within the intended bounding boxes.
-const FONT_SCALE = 0.58;
+const FONT_SCALE = 0.9;
 
 function renderTextElement(
   doc: InstanceType<typeof PDFDocument>,
@@ -432,7 +434,9 @@ function renderTextElement(
   xIn: number,
   yIn: number,
   element: DRXElement,
-  rotation: number
+  rotation: number,
+  pageWidthIn?: number,
+  pageHeightIn?: number
 ): void {
   if (!text) return;
 
@@ -462,10 +466,47 @@ function renderTextElement(
     }
   }
 
-  // If the element has a defined width but no paragraphWidth, use it as a
-  // max width to prevent text from overflowing into adjacent sections.
+  // If the element has a defined width, use it as a max width.
   if (!textOptions.width && element.width) {
     textOptions.width = element.width * IN;
+  }
+
+  // For elements WITHOUT a defined width, compute available space from
+  // the element position to the page edge to prevent horizontal overflow.
+  if (!textOptions.width && pageWidthIn) {
+    const availableIn = Math.max(0.5, pageWidthIn - xIn - 0.05);
+    textOptions.width = availableIn * IN;
+  }
+
+  // Constrain height to prevent vertical overflow.
+  // Many DRX templates have oversized height values (e.g., 20" on a 4" label)
+  // which are effectively "no limit" — not actual bounding boxes.
+  const maxReasonableHeightIn = pageHeightIn ? pageHeightIn * 0.5 : 2;
+  const hasMultiLineIntent = !!element.paragraphWidth;
+
+  // Compute remaining vertical space to the bottom of the page
+  const remainingHeightPt = pageHeightIn
+    ? Math.max(fontSize * 1.2, (pageHeightIn - yIn - 0.02) * IN)
+    : fontSize * 4;
+
+  if (element.height && element.height > 0.05 && element.height <= maxReasonableHeightIn) {
+    // Reasonable height — use it as a bounding box, clamped to page bottom
+    const heightPt = Math.min(element.height * IN, remainingHeightPt);
+    textOptions.height = heightPt;
+    textOptions.ellipsis = "…";
+    if (heightPt < fontSize * 2.2) {
+      textOptions.lineBreak = false;
+    }
+  } else if (hasMultiLineIntent) {
+    // Element has paragraphWidth (designed for wrapping) but oversized/no height.
+    // Allow up to 3 lines, clamped to page bottom.
+    textOptions.height = Math.min(fontSize * 3.6, remainingHeightPt);
+    textOptions.ellipsis = "…";
+  } else {
+    // No height, no paragraphWidth — constrain to single line
+    textOptions.height = Math.min(fontSize * 1.4, remainingHeightPt);
+    textOptions.lineBreak = false;
+    textOptions.ellipsis = "…";
   }
 
   doc.text(text, 0, 0, textOptions);
@@ -519,6 +560,10 @@ export async function renderDRXTemplate(
     ? { pageWidthIn: template.pageWidth }
     : undefined;
 
+  // Compute actual rendered page dimensions in inches for text bounding
+  const renderedPageWidthIn = useLandscape ? template.pageHeight : template.pageWidth;
+  const renderedPageHeightIn = useLandscape ? template.pageWidth : template.pageHeight;
+
   for (const element of template.elements) {
     // Skip sub-template references (handled separately if needed)
     if (element.subLabelTemplateId) continue;
@@ -528,7 +573,7 @@ export async function renderDRXTemplate(
     const gy = group?.yOffset || 0;
 
     try {
-      await renderElement(doc, element, data, gx, gy, landscapeCtx);
+      await renderElement(doc, element, data, gx, gy, landscapeCtx, renderedPageWidthIn, renderedPageHeightIn);
     } catch (err) {
       console.error(`Error rendering element ${element.id} (${element.elementData}):`, err);
     }
