@@ -209,6 +209,23 @@ function resolveValue(
     }
   }
 
+  // Apply slice (e.g. long drug names split across two lines)
+  if (val && (element.sliceStart != null || element.sliceEnd != null)) {
+    const start = element.sliceStart ?? 0;
+    const end = element.sliceEnd ?? val.length;
+    val = val.slice(start, end).trim();
+  }
+
+  // Apply template string (e.g. "Use By: {{el}}", or static "Signature: ____")
+  if (element.template) {
+    if (element.template.includes("{{el}}")) {
+      val = val ? element.template.replace(/\{\{el\}\}/gi, val) : "";
+    } else {
+      // Static template text (no placeholder) — always show it
+      val = element.template;
+    }
+  }
+
   // Apply text transforms
   if (element.forceUpperCase && val) val = val.toUpperCase();
   if (element.forceLowerCase && val) val = val.toLowerCase();
