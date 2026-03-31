@@ -180,21 +180,6 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
 
   return (
     <div className="px-6 pb-6">
-      {/* KPI Strip */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <KPIPill label="Rx" value={data.rxToday} />
-        <KPIPill label="Patients" value={data.patientsToday} />
-        <KPIPill label="Revenue" value={formatCurrency(data.revenueToday)} />
-        <KPIPill label="Sales" value={data.salesToday} />
-        <KPIPill label="Active Items" value={data.activeItems.toLocaleString()} />
-        <KPIPill label="Prescribers" value={data.doctorsOnFile.toLocaleString()} />
-        <KPIPill label="Batches" value={data.pendingBatches} />
-        <KPIPill label="Low Stock" value={data.lowStockItems} alert={data.lowStockItems > 0} />
-        <KPIPill label="Rejected" value={data.rejectedClaims} alert={data.rejectedClaims > 0} />
-        <KPIPill label="Refills" value={data.pendingRefills} />
-        <KPIPill label="Expiring" value={data.expiringLots} />
-      </div>
-
       {/* Three Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Column 1: Workflow Queue — matches master QueueBar */}

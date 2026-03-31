@@ -231,62 +231,8 @@ export default function HeaderNew() {
         borderBottom: "1px solid var(--border)",
       }}
     >
-      {/* ── Left: Queue pills ── */}
-      <div className="flex items-center gap-1.5 overflow-x-auto flex-shrink-0 mobile-scroll-x">
-        {queues.map((q) => (
-          <Link
-            key={q.status}
-            href={q.href || `/queue?status=${q.status}`}
-            className={`
-              inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold no-underline whitespace-nowrap
-              transition-colors
-              ${
-                q.count > 0
-                  ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] dark:bg-[#6bb240]/15 dark:text-[#6bb240]"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-              }
-              hover:bg-[var(--color-primary)]/20 dark:hover:bg-[#6bb240]/25
-            `}
-            title={`${q.label}: ${q.count}`}
-          >
-            <span className="font-mono tabular-nums min-w-[14px] text-center">
-              {q.count}
-            </span>
-            <span className="hidden lg:inline">{q.label}</span>
-          </Link>
-        ))}
-      </div>
-
-      {/* ── Center: Search bar ── */}
-      <div className="flex-1 max-w-md mx-4 hidden sm:block">
-        <button
-          className="
-            w-full flex items-center gap-2 px-3 py-1.5 rounded-lg
-            bg-gray-100 dark:bg-gray-700
-            text-gray-400 dark:text-gray-500 text-sm
-            border border-gray-200 dark:border-gray-600
-            hover:border-gray-300 dark:hover:border-gray-500
-            hover:bg-gray-50 dark:hover:bg-gray-600
-            transition-colors cursor-pointer
-            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
-          "
-          onClick={() => {
-            // Trigger command palette via keyboard event
-            document.dispatchEvent(
-              new KeyboardEvent("keydown", { key: "k", metaKey: true })
-            );
-          }}
-          aria-label="Search"
-        >
-          <Search size={14} className="flex-shrink-0" />
-          <span className="truncate">
-            Search patients, Rx, inventory...
-          </span>
-          <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-600 text-[10px] font-mono text-gray-400 dark:text-gray-300 ml-auto flex-shrink-0">
-            <span className="text-xs">&#8984;</span>K
-          </kbd>
-        </button>
-      </div>
+      {/* ── Left: spacer ── */}
+      <div className="flex-1" />
 
       {/* ── Right: Actions ── */}
       <div className="flex items-center gap-2 flex-shrink-0">
