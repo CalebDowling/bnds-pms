@@ -635,6 +635,69 @@ export async function renderDRXTemplate(
       console.error(`Error rendering element ${element.id} (${element.elementData}):`, err);
     }
   }
+
+  // Render custom fields added by the user in the editor
+  if (layoutOverrides) {
+    for (const ovr of layoutOverrides) {
+      if (!ovr.id.startsWith("custom-")) continue;
+      const customOvr = ovr as LayoutOverride & { value?: string; label?: string; isBarcode?: boolean; isQrCode?: boolean; isCustom?: boolean; qrSize?: number };
+      if (!customOvr.value && !customOvr.isBarcode && !customOvr.isQrCode) continue;
+
+      const xIn = (customOvr.x || 0) / IN;
+      const yIn = (customOvr.y || 0) / IN;
+      const fontSize = customOvr.fontSize || 8;
+      const value = customOvr.value || "";
+
+      if (customOvr.isBarcode && value) {
+        try {
+          const heightPt = 22;
+          const widthPt = customOvr.barcodeWidth || 65;
+          const png = await generateBarcodePNG(value, Math.round(22 / 72 * 25.4));
+          doc.save();
+          doc.translate(xIn * IN, yIn * IN);
+          doc.image(png, 0, 0, { fit: [widthPt, heightPt] });
+          doc.restore();
+        } catch {
+          doc.save();
+          doc.font("Helvetica").fontSize(fontSize);
+          doc.text(`[BC] ${value}`, xIn * IN, yIn * IN);
+          doc.restore();
+        }
+      } else if (customOvr.isQrCode && value) {
+        try {
+          const sizePt = customOvr.qrSize || 54;
+          const png = await generateQRPNG(value, Math.round(sizePt));
+          if (png.length > 0) {
+            doc.save();
+            doc.translate(xIn * IN, yIn * IN);
+            doc.image(png, 0, 0, { width: sizePt, height: sizePt });
+            doc.restore();
+          }
+        } catch {
+          doc.save();
+          doc.font("Helvetica").fontSize(fontSize);
+          doc.text("[QR]", xIn * IN, yIn * IN);
+          doc.restore();
+        }
+      } else if (value) {
+        // Text field
+        const fontName = customOvr.bold ? "Helvetica-Bold" : "Helvetica";
+        doc.save();
+        doc.font(fontName).fontSize(fontSize).fillColor("#000000");
+        doc.translate(xIn * IN, yIn * IN);
+        const textOpts: PDFKit.Mixins.TextOptions = {};
+        if (customOvr.maxWidth) {
+          textOpts.width = customOvr.maxWidth;
+        } else {
+          textOpts.width = Math.max(36, (renderedPageWidthIn - xIn - 0.05) * IN);
+        }
+        textOpts.height = fontSize * 3;
+        textOpts.ellipsis = "…";
+        doc.text(value, 0, 0, textOpts);
+        doc.restore();
+      }
+    }
+  }
 }
 
 /**

@@ -14,6 +14,10 @@ import {
   Loader2,
   FileText,
   Save,
+  Plus,
+  Type,
+  Barcode,
+  QrCode,
 } from "lucide-react";
 import Link from "next/link";
 import InteractiveLabelCanvas, {
@@ -531,6 +535,36 @@ export default function TemplatePreviewPage() {
         }
         return f;
       });
+
+      // Restore custom fields that were added by the user
+      for (const saved of savedLayoutData) {
+        if (saved.isCustom && saved.id?.startsWith("custom-")) {
+          newFields.push({
+            id: saved.id,
+            label: saved.label || "Custom Field",
+            value: saved.value || "",
+            x: saved.x ?? 100,
+            y: saved.y ?? 100,
+            fontSize: saved.fontSize ?? 8,
+            bold: saved.bold ?? false,
+            isBarcode: saved.isBarcode ?? false,
+            isQrCode: saved.isQrCode ?? false,
+            maxWidth: saved.maxWidth,
+            rotation: saved.rotation ?? 0,
+            barcodeWidth: saved.barcodeWidth,
+            barcodeHeight: saved.barcodeHeight,
+            qrSize: saved.qrSize,
+          });
+          // Keep the counter ahead of restored custom fields
+          const numMatch = saved.id.match(/(\d+)$/);
+          if (numMatch) {
+            const num = parseInt(numMatch[1], 10);
+            if (num >= customFieldCounter.current) {
+              customFieldCounter.current = num + 1;
+            }
+          }
+        }
+      }
     }
 
     setCanvasFields(newFields);
@@ -624,6 +658,43 @@ export default function TemplatePreviewPage() {
     setHasLayoutChanges(true);
   }, []);
 
+  // Counter for generating unique custom field IDs
+  const customFieldCounter = useRef(0);
+
+  const handleAddField = useCallback(
+    (type: "text" | "barcode" | "qr") => {
+      customFieldCounter.current += 1;
+      const num = customFieldCounter.current;
+      const id = `custom-${type}-${num}`;
+
+      // Place new field near center of visible canvas
+      const centerX = Math.round(canvasWidth * 0.3);
+      const centerY = Math.round(canvasHeight * 0.3) + (num - 1) * 20;
+
+      const newField: LabelField = {
+        id,
+        label: type === "text" ? `Custom Text ${num}` : type === "barcode" ? `Barcode ${num}` : `QR Code ${num}`,
+        value: type === "text" ? "Custom Text" : type === "barcode" ? "123456789" : "https://example.com",
+        x: Math.min(centerX, canvasWidth - 60),
+        y: Math.min(centerY, canvasHeight - 20),
+        fontSize: type === "text" ? 8 : 6,
+        bold: false,
+        isBarcode: type === "barcode",
+        isQrCode: type === "qr",
+        maxWidth: type === "text" ? Math.round(canvasWidth * 0.4) : undefined,
+        barcodeWidth: type === "barcode" ? 65 : undefined,
+        barcodeHeight: type === "barcode" ? 22 : undefined,
+        qrSize: type === "qr" ? 54 : undefined,
+        rotation: 0,
+      };
+
+      setCanvasFields((prev) => [...prev, newField]);
+      setSelectedFieldId(id);
+      setHasLayoutChanges(true);
+    },
+    [canvasWidth, canvasHeight]
+  );
+
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSaveLayout = useCallback(async () => {
@@ -640,6 +711,15 @@ export default function TemplatePreviewPage() {
         rotation: f.rotation,
         barcodeWidth: f.barcodeWidth,
         barcodeHeight: f.barcodeHeight,
+        // Custom field data (for user-added fields)
+        ...(f.id.startsWith("custom-") ? {
+          label: f.label,
+          value: f.value,
+          isBarcode: f.isBarcode,
+          isQrCode: f.isQrCode,
+          qrSize: f.qrSize,
+          isCustom: true,
+        } : {}),
       }));
 
       // Also save to localStorage as backup
@@ -682,6 +762,7 @@ export default function TemplatePreviewPage() {
     setError(null);
     try {
       // Build layout overrides from current canvas field positions
+      // Include custom field data (value, type) for user-added fields
       const layout = canvasFields.length > 0
         ? canvasFields.map((f) => ({
             id: f.id,
@@ -693,6 +774,14 @@ export default function TemplatePreviewPage() {
             rotation: f.rotation,
             barcodeWidth: f.barcodeWidth,
             barcodeHeight: f.barcodeHeight,
+            ...(f.id.startsWith("custom-") ? {
+              value: f.value,
+              label: f.label,
+              isBarcode: f.isBarcode,
+              isQrCode: f.isQrCode,
+              qrSize: f.qrSize,
+              isCustom: true,
+            } : {}),
           }))
         : undefined;
 
@@ -1106,6 +1195,35 @@ export default function TemplatePreviewPage() {
                     <ChevronUp className="w-3.5 h-3.5 -rotate-90" />
                   </button>
                 </div>
+
+                {/* Add Field buttons */}
+                <div className="bg-white rounded-lg border border-[var(--border)] p-3">
+                  <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wide block mb-2">
+                    <Plus className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+                    Add Field
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAddField("text")}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium text-[var(--text-secondary)] border border-[var(--border)] rounded-md hover:bg-[var(--green-50)] hover:text-[var(--green-700)] hover:border-[var(--green-700)] transition-colors"
+                    >
+                      <Type className="w-3.5 h-3.5" /> Text
+                    </button>
+                    <button
+                      onClick={() => handleAddField("barcode")}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium text-[var(--text-secondary)] border border-[var(--border)] rounded-md hover:bg-[var(--green-50)] hover:text-[var(--green-700)] hover:border-[var(--green-700)] transition-colors"
+                    >
+                      <Barcode className="w-3.5 h-3.5" /> Barcode
+                    </button>
+                    <button
+                      onClick={() => handleAddField("qr")}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium text-[var(--text-secondary)] border border-[var(--border)] rounded-md hover:bg-[var(--green-50)] hover:text-[var(--green-700)] hover:border-[var(--green-700)] transition-colors"
+                    >
+                      <QrCode className="w-3.5 h-3.5" /> QR
+                    </button>
+                  </div>
+                </div>
+
                 {useSpecializedRenderer ? renderSpecializedEditor() : renderGenericEditor()}
               </div>
             )}
