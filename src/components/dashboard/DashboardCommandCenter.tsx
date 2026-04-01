@@ -45,7 +45,7 @@ function WorkflowItem({ label, count, href, statusColor, icon }: WorkflowItemPro
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 px-3 py-2 rounded-md transition-colors no-underline group"
+      className="flex items-center gap-2 px-3 py-1 rounded-md transition-colors no-underline group"
       style={{ color: "var(--text-primary)" }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)"; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
@@ -183,7 +183,7 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
               Open Queue
             </Link>
           </div>
-          <div className="py-1 max-h-[520px] overflow-y-auto">
+          <div className="py-1">
             {QUEUE_CONFIG.map((q) => (
               <WorkflowItem
                 key={q.status}
