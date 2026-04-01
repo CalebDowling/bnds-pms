@@ -324,20 +324,20 @@ async function renderElement(
     //   landscape_y = pageWidth - portrait_x  (x increases right in portrait → y increases downward in landscape, inverted)
     xIn = portraitY;
     yIn = landscape.pageWidthIn - portraitX;
-    // 3-tier vertical compression:
-    // Tier 1 (y < 0.5"): sparse aux labels — compress 30% to close top gap
-    // Tier 2 (0.5" - 2.0"): dense content — gentle 4% compression
-    // Tier 3 (>= 2.0"): bottom half — shift up by savings, no extra compression
+    // 3-tier vertical compression with continuous boundaries:
+    // Tier 1 (y < 0.5"): sparse aux labels — compress 40% to close top gap
+    // Tier 2 (0.5" - 2.0"): dense content — 5% compression
+    // Tier 3 (>= 2.0"): bottom half — shift up by accumulated savings
     if (yIn < 0.5) {
-      yIn = yIn * 0.70;
+      yIn = yIn * 0.60;
     } else if (yIn < 2.0) {
-      // Tier 1 saved: 0.5 * 0.30 = 0.15"
-      const t1Saved = 0.15;
-      yIn = (yIn - t1Saved) * 0.96;
+      // At boundary y=0.5: tier1 gives 0.30, so offset = 0.5 - 0.30 = 0.20
+      const t1Offset = 0.20;
+      yIn = (yIn - t1Offset) * 0.95;
     } else {
-      // Tier 1 saved 0.15", Tier 2 saved (2.0 - 0.5) * 0.04 = 0.06"
-      const totalSaved = 0.15 + 0.06;
-      yIn = yIn - totalSaved;
+      // At boundary y=2.0: tier2 gives (2.0 - 0.20) * 0.95 = 1.71
+      // So tier3 offset = 2.0 - 1.71 = 0.29
+      yIn = yIn - 0.29;
     }
     rotation = 0; // text rendered horizontal
   } else {
