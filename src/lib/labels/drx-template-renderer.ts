@@ -293,6 +293,22 @@ interface LandscapeCtx {
   pageWidthIn: number;  // portrait page width in inches (e.g. 4)
 }
 
+/**
+ * Layout override for a single element — positions in points (post-transform).
+ * Used when the user has repositioned/resized elements in the interactive editor.
+ */
+export interface LayoutOverride {
+  id: string;           // element id (matches `el-{drxElementId}`)
+  x: number;            // x position in points
+  y: number;            // y position in points
+  fontSize?: number;    // font size in points (already FONT_SCALE'd)
+  bold?: boolean;
+  maxWidth?: number;    // in points
+  rotation?: number;
+  barcodeWidth?: number;
+  barcodeHeight?: number;
+}
+
 async function renderElement(
   doc: InstanceType<typeof PDFDocument>,
   element: DRXElement,
@@ -301,23 +317,28 @@ async function renderElement(
   groupOffsetY: number,
   landscape?: LandscapeCtx,
   pageWidthIn?: number,
-  pageHeightIn?: number
+  pageHeightIn?: number,
+  layoutOverride?: LayoutOverride
 ): Promise<void> {
   if (!shouldDisplay(element, data)) return;
 
   const value = resolveValue(element, data);
   if (!value && !element.displayBase64Jpeg && !element.base64Image) return;
 
-  // Portrait coordinates (DRX native)
-  const portraitX = element.xPosition + groupOffsetX;
-  const portraitY = element.yPosition + groupOffsetY;
-
-  // Convert to final rendering coordinates
+  // If we have a layout override from the editor, use those positions directly
+  // (they're already in points, post-transform)
   let xIn: number;
   let yIn: number;
   let rotation: number;
 
-  if (landscape) {
+  if (layoutOverride) {
+    xIn = layoutOverride.x / IN;
+    yIn = layoutOverride.y / IN;
+    rotation = layoutOverride.rotation ?? 0;
+  } else if (landscape) {
+    // Portrait coordinates (DRX native)
+    const portraitX = element.xPosition + groupOffsetX;
+    const portraitY = element.yPosition + groupOffsetY;
     // DRX uses y-up (PDF-native) coordinates on a portrait page.
     // Convert to landscape (8×4) with PDFKit y-down:
     //   landscape_x = portrait_y   (y increases upward → x increases rightward)
@@ -341,10 +362,15 @@ async function renderElement(
     }
     rotation = 0; // text rendered horizontal
   } else {
+    const portraitX = element.xPosition + groupOffsetX;
+    const portraitY = element.yPosition + groupOffsetY;
     xIn = portraitX;
     yIn = portraitY;
     rotation = element.rotationAngle || 0;
   }
+
+  // fontSize override from layout editor (already scaled, use directly)
+  const fontSizeOvr = layoutOverride?.fontSize || undefined;
 
   // ── Barcode Code128 ──
   if (element.displayBarcodeCode128 && value) {
@@ -362,7 +388,7 @@ async function renderElement(
       doc.image(png, 0, 0, { fit: [widthPt, heightPt] });
       doc.restore();
     } catch {
-      renderTextElement(doc, `[BC] ${value}`, xIn, yIn, element, rotation, pageWidthIn, pageHeightIn);
+      renderTextElement(doc, `[BC] ${value}`, xIn, yIn, element, rotation, pageWidthIn, pageHeightIn, fontSizeOvr);
     }
     return;
   }
@@ -383,7 +409,7 @@ async function renderElement(
         doc.restore();
       }
     } catch {
-      renderTextElement(doc, "[QR]", xIn, yIn, element, rotation, pageWidthIn, pageHeightIn);
+      renderTextElement(doc, "[QR]", xIn, yIn, element, rotation, pageWidthIn, pageHeightIn, fontSizeOvr);
     }
     return;
   }
@@ -428,13 +454,13 @@ async function renderElement(
         doc.restore();
       }
     } catch {
-      renderTextElement(doc, value, xIn, yIn, element, rotation, pageWidthIn, pageHeightIn);
+      renderTextElement(doc, value, xIn, yIn, element, rotation, pageWidthIn, pageHeightIn, fontSizeOvr);
     }
     return;
   }
 
   // ── Text element (default) ──
-  renderTextElement(doc, value, xIn, yIn, element, rotation, pageWidthIn, pageHeightIn);
+  renderTextElement(doc, value, xIn, yIn, element, rotation, pageWidthIn, pageHeightIn, fontSizeOvr);
 }
 
 // DRX font sizes are calibrated for a different rendering engine.
@@ -451,12 +477,13 @@ function renderTextElement(
   element: DRXElement,
   rotation: number,
   pageWidthIn?: number,
-  pageHeightIn?: number
+  pageHeightIn?: number,
+  fontSizeOverride?: number
 ): void {
   if (!text) return;
 
   const rawFontSize = element.fontSize || 8;
-  const fontSize = Math.max(4, Math.round(rawFontSize * FONT_SCALE * 10) / 10);
+  const fontSize = fontSizeOverride || Math.max(4, Math.round(rawFontSize * FONT_SCALE * 10) / 10);
   const fontName = getPDFFont(element.fontName, element.fontStyle);
   const textColor = parseColor(element.textColor || element.color);
 
@@ -561,13 +588,26 @@ export async function renderDRXTemplate(
   doc: InstanceType<typeof PDFDocument>,
   template: DRXTemplate,
   data: Record<string, string>,
-  useLandscape: boolean = false
+  useLandscape: boolean = false,
+  layoutOverrides?: LayoutOverride[]
 ): Promise<void> {
   // Group elements by labelGroupId for offset application
   const groupMap = new Map<number, DRXLabelGroup>();
   for (const el of template.elements) {
     if (el.labelGroup && el.labelGroupId) {
       groupMap.set(el.labelGroupId, el.labelGroup);
+    }
+  }
+
+  // Build lookup map for layout overrides by element ID
+  const overrideMap = new Map<number, LayoutOverride>();
+  if (layoutOverrides) {
+    for (const ovr of layoutOverrides) {
+      // IDs from the editor are "el-{drxElementId}"
+      const match = ovr.id.match(/^el-(\d+)$/);
+      if (match) {
+        overrideMap.set(parseInt(match[1], 10), ovr);
+      }
     }
   }
 
@@ -587,8 +627,10 @@ export async function renderDRXTemplate(
     const gx = group?.xOffset || 0;
     const gy = group?.yOffset || 0;
 
+    const override = overrideMap.get(element.id);
+
     try {
-      await renderElement(doc, element, data, gx, gy, landscapeCtx, renderedPageWidthIn, renderedPageHeightIn);
+      await renderElement(doc, element, data, gx, gy, landscapeCtx, renderedPageWidthIn, renderedPageHeightIn, override);
     } catch (err) {
       console.error(`Error rendering element ${element.id} (${element.elementData}):`, err);
     }
@@ -608,7 +650,8 @@ export async function renderDRXTemplate(
  */
 export async function generateTemplatePreviewPDF(
   template: DRXTemplate,
-  data: Record<string, string>
+  data: Record<string, string>,
+  layoutOverrides?: LayoutOverride[]
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const useLandscape = needsLandscapeTransform(template);
@@ -646,7 +689,7 @@ export async function generateTemplatePreviewPDF(
 
     doc.on("error", reject);
 
-    renderDRXTemplate(doc, template, data, useLandscape)
+    renderDRXTemplate(doc, template, data, useLandscape, layoutOverrides)
       .then(() => {
         // Draw a thin black border around the label (matches DRX output)
         doc.save();

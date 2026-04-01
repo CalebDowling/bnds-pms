@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
   if (!storeId) return NextResponse.json({ error: "No store assigned" }, { status: 400 });
 
   const body = await request.json();
-  const { templateId, data } = body;
+  const { templateId, data, layout } = body;
 
   if (!templateId) {
     return NextResponse.json({ error: "Missing templateId" }, { status: 400 });
@@ -143,8 +143,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid template data" }, { status: 500 });
   }
 
+  // Load saved layout overrides if not provided in the request
+  let layoutOverrides = layout || null;
+  if (!layoutOverrides) {
+    try {
+      const layoutSetting = await prisma.storeSetting.findFirst({
+        where: { settingKey: `print_template_layout_${templateId}` },
+      });
+      if (layoutSetting) {
+        const savedLayout = JSON.parse(layoutSetting.settingValue);
+        layoutOverrides = savedLayout?.layout || null;
+      }
+    } catch { /* ignore */ }
+  }
+
   try {
-    const buffer = await generateTemplatePreviewPDF(template, data || {});
+    const buffer = await generateTemplatePreviewPDF(template, data || {}, layoutOverrides || undefined);
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {

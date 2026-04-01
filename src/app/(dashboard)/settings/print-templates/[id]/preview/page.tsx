@@ -675,16 +675,31 @@ export default function TemplatePreviewPage() {
     }
   }, [canvasFields, templateId, formData]);
 
-  // Generate PDF preview
+  // Generate PDF preview — includes current canvas layout so PDF matches editor
   const generatePreview = useCallback(async () => {
     if (!templateId || !templateMeta) return;
     setLoading(true);
     setError(null);
     try {
+      // Build layout overrides from current canvas field positions
+      const layout = canvasFields.length > 0
+        ? canvasFields.map((f) => ({
+            id: f.id,
+            x: f.x,
+            y: f.y,
+            fontSize: f.fontSize,
+            bold: f.bold,
+            maxWidth: f.maxWidth,
+            rotation: f.rotation,
+            barcodeWidth: f.barcodeWidth,
+            barcodeHeight: f.barcodeHeight,
+          }))
+        : undefined;
+
       const res = await fetch("/api/labels/template", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId: Number(templateId), data: formData }),
+        body: JSON.stringify({ templateId: Number(templateId), data: formData, layout }),
       });
 
       if (!res.ok) {
@@ -701,7 +716,7 @@ export default function TemplatePreviewPage() {
     } finally {
       setLoading(false);
     }
-  }, [templateId, templateMeta, formData, pdfUrl]);
+  }, [templateId, templateMeta, formData, pdfUrl, canvasFields]);
 
   // Load from Fill ID (Rx Label only)
   const generateFromFill = async () => {
