@@ -302,6 +302,9 @@ interface CanvasElementAPI {
   widthIn?: number;
   heightIn?: number;
   hasParagraphWidth: boolean;
+  barcodeWidthPt?: number;
+  barcodeHeightPt?: number;
+  qrSizePt?: number;
 }
 
 /**
@@ -329,6 +332,9 @@ function buildFieldsFromCanvasElements(
       isQrCode: el.isQR,
       maxWidth: el.maxWidthPt ? Math.round(el.maxWidthPt) : undefined,
       rotation: el.rotation,
+      barcodeWidth: el.barcodeWidthPt ? Math.round(el.barcodeWidthPt) : undefined,
+      barcodeHeight: el.barcodeHeightPt ? Math.round(el.barcodeHeightPt) : undefined,
+      qrSize: el.qrSizePt ? Math.round(el.qrSizePt) : undefined,
     };
   });
 }

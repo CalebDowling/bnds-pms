@@ -797,6 +797,9 @@ export interface CanvasElement {
   widthIn?: number;      // raw element width in inches
   heightIn?: number;     // raw element height in inches
   hasParagraphWidth: boolean;
+  barcodeWidthPt?: number;  // barcode render width in points (matching PDF)
+  barcodeHeightPt?: number; // barcode render height in points (matching PDF)
+  qrSizePt?: number;       // QR code size in points (matching PDF)
 }
 
 /**
@@ -892,6 +895,25 @@ export function extractCanvasElements(
       maxHeightPt = Math.min(fontSize * 1.4, remainingHeightPt);
     }
 
+    // Compute barcode dimensions matching PDF renderer formula
+    let barcodeWidthPt: number | undefined;
+    let barcodeHeightPt: number | undefined;
+    let qrSizePt: number | undefined;
+
+    if (element.displayBarcodeCode128) {
+      const barcodeHeightIn = (element.height && element.height > 1)
+        ? 0.3
+        : Math.min(element.height || 0.3, 0.4);
+      barcodeHeightPt = barcodeHeightIn * IN;
+      barcodeWidthPt = element.width ? element.width * IN * 0.8 : barcodeHeightPt * 3;
+    }
+
+    if (element.displayBarcodeQr) {
+      const qrW = element.width && element.width <= 2 ? element.width : 0.75;
+      const qrH = element.height && element.height <= 2 ? element.height : 0.75;
+      qrSizePt = Math.min(qrW * IN, qrH * IN);
+    }
+
     result.push({
       id: element.id,
       key: element.elementData || `element_${element.id}`,
@@ -911,6 +933,9 @@ export function extractCanvasElements(
       widthIn: element.width || undefined,
       heightIn: element.height || undefined,
       hasParagraphWidth: !!element.paragraphWidth,
+      barcodeWidthPt,
+      barcodeHeightPt,
+      qrSizePt,
     });
   }
 

@@ -45,18 +45,18 @@ function WorkflowItem({ label, count, href, statusColor, icon }: WorkflowItemPro
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 px-3 py-1 rounded-md transition-colors no-underline group"
+      className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors no-underline group"
       style={{ color: "var(--text-primary)" }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)"; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
     >
       <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
       <span style={{ color: "var(--text-muted)" }} className="flex-shrink-0">{icon}</span>
-      <span className="text-[14px] font-medium flex-1 truncate" style={{ color: "var(--text-primary)" }}>
+      <span className="text-[15px] font-medium flex-1 truncate" style={{ color: "var(--text-primary)" }}>
         {label}
       </span>
       <span
-        className="text-[13px] font-bold tabular-nums px-1.5 py-px rounded"
+        className="text-[14px] font-bold tabular-nums px-1.5 py-px rounded"
         style={{
           backgroundColor: count > 0 ? "var(--green-100)" : undefined,
           color: count > 0 ? "var(--green-700)" : "var(--text-muted)",
@@ -120,22 +120,22 @@ interface ReorderItem {
 
 // Queue definition matching master QueueBar exactly
 const QUEUE_CONFIG: { status: string; label: string; icon: React.ReactNode; color: string }[] = [
-  { status: "intake", label: "Intake", icon: <Inbox size={13} />, color: "#3b82f6" },
-  { status: "sync", label: "Sync", icon: <ArrowDownUp size={13} />, color: "#06b6d4" },
-  { status: "reject", label: "Reject", icon: <XCircle size={13} />, color: "#ef4444" },
-  { status: "print", label: "Print", icon: <Printer size={13} />, color: "#a855f7" },
-  { status: "scan", label: "Scan", icon: <ScanLine size={13} />, color: "#6366f1" },
-  { status: "verify", label: "Verify", icon: <CheckCircle2 size={13} />, color: "#10b981" },
-  { status: "oos", label: "Out of Stock", icon: <AlertTriangle size={13} />, color: "#f97316" },
-  { status: "waiting_bin", label: "Waiting Bin", icon: <Clock size={13} />, color: "#f59e0b" },
-  { status: "renewals", label: "Renewals", icon: <RefreshCw size={13} />, color: "#14b8a6" },
-  { status: "todo", label: "Todo", icon: <ListTodo size={13} />, color: "#8b5cf6" },
-  { status: "price_check", label: "Price Check", icon: <BadgeDollarSign size={13} />, color: "#ec4899" },
-  { status: "prepay", label: "Prepay", icon: <CreditCard size={13} />, color: "#0ea5e9" },
-  { status: "ok_to_charge", label: "OK to Charge", icon: <DollarSign size={13} />, color: "#22c55e" },
-  { status: "decline", label: "Decline", icon: <ThumbsDown size={13} />, color: "#dc2626" },
-  { status: "ok_to_charge_clinic", label: "OK to Charge Clinic", icon: <Building2 size={13} />, color: "#16a34a" },
-  { status: "mochi", label: "Mochi", icon: <Cherry size={13} />, color: "#d946ef" },
+  { status: "intake", label: "Intake", icon: <Inbox size={15} />, color: "#3b82f6" },
+  { status: "sync", label: "Sync", icon: <ArrowDownUp size={15} />, color: "#06b6d4" },
+  { status: "reject", label: "Reject", icon: <XCircle size={15} />, color: "#ef4444" },
+  { status: "print", label: "Print", icon: <Printer size={15} />, color: "#a855f7" },
+  { status: "scan", label: "Scan", icon: <ScanLine size={15} />, color: "#6366f1" },
+  { status: "verify", label: "Verify", icon: <CheckCircle2 size={15} />, color: "#10b981" },
+  { status: "oos", label: "Out of Stock", icon: <AlertTriangle size={15} />, color: "#f97316" },
+  { status: "waiting_bin", label: "Waiting Bin", icon: <Clock size={15} />, color: "#f59e0b" },
+  { status: "renewals", label: "Renewals", icon: <RefreshCw size={15} />, color: "#14b8a6" },
+  { status: "todo", label: "Todo", icon: <ListTodo size={15} />, color: "#8b5cf6" },
+  { status: "price_check", label: "Price Check", icon: <BadgeDollarSign size={15} />, color: "#ec4899" },
+  { status: "prepay", label: "Prepay", icon: <CreditCard size={15} />, color: "#0ea5e9" },
+  { status: "ok_to_charge", label: "OK to Charge", icon: <DollarSign size={15} />, color: "#22c55e" },
+  { status: "decline", label: "Decline", icon: <ThumbsDown size={15} />, color: "#dc2626" },
+  { status: "ok_to_charge_clinic", label: "OK to Charge Clinic", icon: <Building2 size={15} />, color: "#16a34a" },
+  { status: "mochi", label: "Mochi", icon: <Cherry size={15} />, color: "#d946ef" },
 ];
 
 export default function DashboardCommandCenter({ data }: { data: DashboardData }) {

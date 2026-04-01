@@ -16,8 +16,9 @@ export interface LabelField {
   isBarcode?: boolean;
   isQrCode?: boolean;
   rotation?: number;    // degrees (0=horizontal, 90=vertical CW, -90=vertical CCW)
-  barcodeWidth?: number;  // barcode bar thickness in px
-  barcodeHeight?: number; // barcode length in px
+  barcodeWidth?: number;  // barcode width in points (from PDF renderer)
+  barcodeHeight?: number; // barcode height in points (from PDF renderer)
+  qrSize?: number;        // QR code size in points (from PDF renderer)
 }
 
 export interface InteractiveLabelCanvasProps {
@@ -45,6 +46,90 @@ const ZOOM_LEVELS = [0.75, 1, 1.5] as const;
 const GRID_SPACING = 36; // 0.5" in points
 const SNAP_PX = 2;
 const PTS_PER_INCH = 72;
+
+// ─── Barcode / QR pattern components ──────────────────────────────
+
+/**
+ * Renders a realistic Code128-style barcode pattern using the value
+ * to seed variable-width bars (purely visual — not scannable).
+ */
+function BarcodePattern({ width, height, value }: { width: number; height: number; value: string }) {
+  // Generate deterministic bar widths from the value string
+  const bars: { x: number; w: number }[] = [];
+  let x = 1;
+  const seed = value || "barcode";
+  let i = 0;
+
+  // Start guard pattern
+  bars.push({ x, w: 1 }); x += 2;
+  bars.push({ x, w: 1 }); x += 2;
+
+  while (x < width - 4) {
+    const charCode = seed.charCodeAt(i % seed.length);
+    i++;
+    // Alternate between narrow (1px) and wide (2px) bars with variable gaps
+    const barW = ((charCode % 3) === 0) ? 2 : 1;
+    const gap = ((charCode % 5) < 2) ? 1 : 2;
+    bars.push({ x, w: barW });
+    x += barW + gap;
+  }
+
+  // End guard pattern
+  bars.push({ x: width - 3, w: 1 });
+  bars.push({ x: width - 1, w: 1 });
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width={width} height={height} fill="#fff" />
+      {bars.map((bar, idx) => (
+        <rect key={idx} x={bar.x} y={0} width={bar.w} height={height} fill="#000" />
+      ))}
+    </svg>
+  );
+}
+
+/**
+ * Renders a QR-code-like grid pattern (purely visual — not scannable).
+ */
+function QRPattern({ size }: { size: number }) {
+  const cellCount = 21; // Standard QR is 21×21 minimum
+  const cellSize = size / cellCount;
+  const cells: { x: number; y: number }[] = [];
+
+  // Finder patterns (3 corners)
+  const addFinder = (ox: number, oy: number) => {
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        if (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {
+          cells.push({ x: ox + c, y: oy + r });
+        }
+      }
+    }
+  };
+  addFinder(0, 0);
+  addFinder(cellCount - 7, 0);
+  addFinder(0, cellCount - 7);
+
+  // Fill some data cells with a pseudo-random pattern
+  for (let r = 0; r < cellCount; r++) {
+    for (let c = 0; c < cellCount; c++) {
+      // Skip finder areas
+      if ((r < 8 && c < 8) || (r < 8 && c >= cellCount - 8) || (r >= cellCount - 8 && c < 8)) continue;
+      if ((r + c * 3) % 5 < 2) {
+        cells.push({ x: c, y: r });
+      }
+    }
+  }
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${cellCount} ${cellCount}`} xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width={cellCount} height={cellCount} fill="#fff" />
+      {cells.map((cell, idx) => (
+        <rect key={idx} x={cell.x} y={cell.y} width={1} height={1} fill="#000" />
+      ))}
+    </svg>
+  );
+}
 
 // ─── Component ─────────────────────────────────────────────────────
 
@@ -230,12 +315,11 @@ export default function InteractiveLabelCanvas({
     if (isSelected) borderColor = "#16a34a"; // green-600
     else if (isHovered) borderColor = "#3b82f6"; // blue-500
 
-    // Barcode placeholder — supports horizontal (rot=0) and vertical (rot=90/-90)
+    // Barcode — render with PDF-matching dimensions
     if (field.isBarcode) {
-      const rot = field.rotation ?? 90; // default vertical
-      const bcW = field.barcodeWidth ?? 18;
-      const bcH = field.barcodeHeight ?? (field.maxWidth || 80);
-      const isVert = rot === 90 || rot === -90;
+      // Use PDF-computed dimensions when available, otherwise fallback
+      const bcWidth = field.barcodeWidth || 65;   // width of barcode in pts
+      const bcHeight = field.barcodeHeight || 22;  // height of barcode in pts
 
       return (
         <div
@@ -248,42 +332,37 @@ export default function InteractiveLabelCanvas({
             outlineOffset: 1,
             opacity: isDragging ? 0.7 : 1,
             zIndex: isSelected ? 20 : isDragging ? 15 : 10,
-            padding: "2px",
+            padding: "1px",
             background: isSelected ? "rgba(22,163,74,0.04)" : "transparent",
           }}
           onMouseDown={(e) => handleMouseDown(e, field)}
           onMouseEnter={() => setHoveredFieldId(field.id)}
           onMouseLeave={() => setHoveredFieldId(null)}
         >
-          {isVert ? (
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
-              <div style={{
-                width: bcW,
-                height: bcH,
-                background: "repeating-linear-gradient(180deg, #000 0px, #000 1.5px, #fff 1.5px, #fff 3px)",
-              }} />
-              <div style={{ fontSize: 4, color: "#666", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-                {field.value || field.label}
-              </div>
+          <div>
+            {/* Barcode bars — realistic variable-width pattern */}
+            <div style={{
+              width: bcWidth,
+              height: bcHeight,
+              background: "#fff",
+              position: "relative",
+              overflow: "hidden",
+            }}>
+              <BarcodePattern width={bcWidth} height={bcHeight} value={field.value || field.label} />
             </div>
-          ) : (
-            <div>
-              <div style={{
-                width: bcH,
-                height: bcW,
-                background: "repeating-linear-gradient(90deg, #000 0px, #000 1.5px, #fff 1.5px, #fff 3px)",
-              }} />
-              <div style={{ fontSize: 4, color: "#666", textAlign: "center", marginTop: 1 }}>
-                {field.value || field.label}
-              </div>
+            {/* Value text below barcode */}
+            <div style={{ fontSize: Math.min(5, bcHeight * 0.2), color: "#000", textAlign: "center", marginTop: 0.5, fontFamily: "monospace", letterSpacing: "0.5px" }}>
+              {field.value || field.label}
             </div>
-          )}
+          </div>
         </div>
       );
     }
 
-    // QR code placeholder
+    // QR code — render with PDF-matching dimensions
     if (field.isQrCode) {
+      const qrSize = field.qrSize || 54; // PDF default: 0.75" = 54pt
+
       return (
         <div
           key={field.id}
@@ -295,28 +374,14 @@ export default function InteractiveLabelCanvas({
             outlineOffset: 1,
             opacity: isDragging ? 0.7 : 1,
             zIndex: isSelected ? 20 : isDragging ? 15 : 10,
-            padding: "2px",
+            padding: "1px",
             background: isSelected ? "rgba(22,163,74,0.04)" : "transparent",
           }}
           onMouseDown={(e) => handleMouseDown(e, field)}
           onMouseEnter={() => setHoveredFieldId(field.id)}
           onMouseLeave={() => setHoveredFieldId(null)}
         >
-          <div
-            style={{
-              width: 24,
-              height: 24,
-              border: "1px solid #000",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 8,
-              fontWeight: "bold",
-              background: "#fff",
-            }}
-          >
-            QR
-          </div>
+          <QRPattern size={qrSize} />
         </div>
       );
     }
