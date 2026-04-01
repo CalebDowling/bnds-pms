@@ -9,7 +9,7 @@ import SidebarDark from "@/components/layout/SidebarDark";
 import HeaderNew from "@/components/layout/HeaderNew";
 import TopNavLayout from "@/components/layout/TopNavLayout";
 import IconRailLayout from "@/components/layout/IconRailLayout";
-import LayoutSwitcher, {
+import {
   useLayoutOption,
   type LayoutOption,
 } from "@/components/layout/LayoutSwitcher";
@@ -39,7 +39,6 @@ export default function SidebarLayoutShell({
           <SidebarContent layout={layout}>{children}</SidebarContent>
         </SidebarProvider>
       )}
-      <LayoutSwitcher current={layout} onChange={setLayout} />
     </>
   );
 }

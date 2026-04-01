@@ -771,3 +771,148 @@ export function extractTemplateVariables(template: DRXTemplate): TemplateVariabl
 export function buildDefaultData(_variables: TemplateVariable[]): Record<string, string> {
   return {};
 }
+
+// ─── Canvas element extraction ────────────────────────────────────
+
+/**
+ * Represents a single element positioned for the canvas editor,
+ * with the same coordinate transforms applied as the PDF renderer.
+ */
+export interface CanvasElement {
+  id: number;
+  key: string;           // elementData
+  label: string;
+  value: string;         // resolved display value
+  xPt: number;           // x position in points (72 per inch)
+  yPt: number;           // y position in points
+  fontSize: number;      // after FONT_SCALE
+  bold: boolean;
+  italic: boolean;
+  maxWidthPt?: number;   // text width constraint in points
+  maxHeightPt?: number;  // text height constraint in points
+  isBarcode: boolean;
+  isQR: boolean;
+  isImage: boolean;
+  rotation: number;
+  widthIn?: number;      // raw element width in inches
+  heightIn?: number;     // raw element height in inches
+  hasParagraphWidth: boolean;
+}
+
+/**
+ * Extract all elements from a DRX template with canvas-ready positions.
+ * Applies the same landscape transform, vertical compression, font scaling,
+ * and text bounding as the PDF renderer — so the canvas matches the PDF output.
+ */
+export function extractCanvasElements(
+  template: DRXTemplate,
+  data: Record<string, string>
+): { elements: CanvasElement[]; canvasWidthPt: number; canvasHeightPt: number; isLandscape: boolean } {
+  const useLandscape = needsLandscapeTransform(template);
+
+  const renderedPageWidthIn = useLandscape ? template.pageHeight : template.pageWidth;
+  const renderedPageHeightIn = useLandscape ? template.pageWidth : template.pageHeight;
+  const canvasWidthPt = Math.round(renderedPageWidthIn * IN);
+  const canvasHeightPt = Math.round(renderedPageHeightIn * IN);
+
+  // Group elements by labelGroupId for offset application
+  const groupMap = new Map<number, DRXLabelGroup>();
+  for (const el of template.elements) {
+    if (el.labelGroup && el.labelGroupId) {
+      groupMap.set(el.labelGroupId, el.labelGroup);
+    }
+  }
+
+  const result: CanvasElement[] = [];
+
+  for (const element of template.elements) {
+    if (element.subLabelTemplateId) continue;
+    if (!shouldDisplay(element, data)) continue;
+
+    const value = resolveValue(element, data);
+    if (!value && !element.displayBase64Jpeg && !element.base64Image) continue;
+
+    const group = element.labelGroupId ? groupMap.get(element.labelGroupId) : null;
+    const gx = group?.xOffset || 0;
+    const gy = group?.yOffset || 0;
+
+    const portraitX = element.xPosition + gx;
+    const portraitY = element.yPosition + gy;
+
+    let xIn: number;
+    let yIn: number;
+
+    if (useLandscape) {
+      xIn = portraitY;
+      yIn = template.pageWidth - portraitX;
+      // 3-tier vertical compression (same as PDF renderer)
+      if (yIn < 0.5) {
+        yIn = yIn * 0.60;
+      } else if (yIn < 2.0) {
+        const t1Offset = 0.20;
+        yIn = (yIn - t1Offset) * 0.95;
+      } else {
+        yIn = yIn - 0.29;
+      }
+    } else {
+      xIn = portraitX;
+      yIn = portraitY;
+    }
+
+    // Font scaling (same as PDF renderer)
+    const rawFontSize = element.fontSize || 8;
+    const fontSize = Math.max(4, Math.round(rawFontSize * FONT_SCALE * 10) / 10);
+
+    const isBold = (element.fontStyle || "").toLowerCase().includes("bold");
+    const isItalic = (element.fontStyle || "").toLowerCase().includes("italic");
+
+    // Compute width constraint (same logic as renderTextElement)
+    let maxWidthPt: number | undefined;
+    if (element.paragraphWidth) {
+      maxWidthPt = element.paragraphWidth * IN;
+    } else if (element.textAlign && element.width) {
+      maxWidthPt = element.width * IN;
+    } else if (element.width) {
+      maxWidthPt = element.width * IN;
+    } else if (renderedPageWidthIn) {
+      maxWidthPt = Math.max(0.5, renderedPageWidthIn - xIn - 0.05) * IN;
+    }
+
+    // Compute height constraint (same logic as renderTextElement)
+    const maxReasonableHeightIn = renderedPageHeightIn * 0.5;
+    const hasMultiLineIntent = !!element.paragraphWidth;
+    const remainingHeightPt = Math.max(fontSize * 1.2, (renderedPageHeightIn - yIn - 0.02) * IN);
+
+    let maxHeightPt: number | undefined;
+    if (element.height && element.height > 0.05 && element.height <= maxReasonableHeightIn) {
+      maxHeightPt = Math.min(element.height * IN, remainingHeightPt);
+    } else if (hasMultiLineIntent) {
+      maxHeightPt = Math.min(fontSize * 3.6, remainingHeightPt);
+    } else {
+      maxHeightPt = Math.min(fontSize * 1.4, remainingHeightPt);
+    }
+
+    result.push({
+      id: element.id,
+      key: element.elementData || `element_${element.id}`,
+      label: humanizeKey(element.elementData || `Element ${element.id}`),
+      value,
+      xPt: Math.round(xIn * IN * 10) / 10,
+      yPt: Math.round(yIn * IN * 10) / 10,
+      fontSize,
+      bold: isBold,
+      italic: isItalic,
+      maxWidthPt,
+      maxHeightPt,
+      isBarcode: !!element.displayBarcodeCode128,
+      isQR: !!element.displayBarcodeQr,
+      isImage: !!(element.displayBase64Jpeg && element.base64Image),
+      rotation: useLandscape ? 0 : (element.rotationAngle || 0),
+      widthIn: element.width || undefined,
+      heightIn: element.height || undefined,
+      hasParagraphWidth: !!element.paragraphWidth,
+    });
+  }
+
+  return { elements: result, canvasWidthPt, canvasHeightPt, isLandscape: useLandscape };
+}

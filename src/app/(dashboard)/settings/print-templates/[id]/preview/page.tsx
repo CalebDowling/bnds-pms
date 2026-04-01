@@ -281,8 +281,59 @@ function buildRxLabelFields(formData: Record<string, string>): LabelField[] {
   return fields;
 }
 
-// ─── Generic template → LabelField converter ─────────────────────
+// ─── Canvas element interface (from API) ─────────────────────────
 
+interface CanvasElementAPI {
+  id: number;
+  key: string;
+  label: string;
+  value: string;
+  xPt: number;
+  yPt: number;
+  fontSize: number;
+  bold: boolean;
+  italic: boolean;
+  maxWidthPt?: number;
+  maxHeightPt?: number;
+  isBarcode: boolean;
+  isQR: boolean;
+  isImage: boolean;
+  rotation: number;
+  widthIn?: number;
+  heightIn?: number;
+  hasParagraphWidth: boolean;
+}
+
+/**
+ * Convert API canvas elements to LabelField objects for InteractiveLabelCanvas.
+ * These positions already have landscape transform, vertical compression,
+ * and font scaling applied — matching the PDF output exactly.
+ */
+function buildFieldsFromCanvasElements(
+  canvasElements: CanvasElementAPI[],
+  formData: Record<string, string>,
+): LabelField[] {
+  return canvasElements.map((el) => {
+    // Use form data value if available, otherwise use pre-resolved value
+    const value = formData[el.key] || el.value;
+
+    return {
+      id: `el-${el.id}`,
+      label: el.label,
+      value,
+      x: Math.round(el.xPt),
+      y: Math.round(el.yPt),
+      fontSize: el.fontSize,
+      bold: el.bold,
+      isBarcode: el.isBarcode,
+      isQrCode: el.isQR,
+      maxWidth: el.maxWidthPt ? Math.round(el.maxWidthPt) : undefined,
+      rotation: el.rotation,
+    };
+  });
+}
+
+// Legacy fallback for templates without canvas elements
 function buildGenericLabelFields(
   variables: TemplateVariable[],
   formData: Record<string, string>,
@@ -290,13 +341,10 @@ function buildGenericLabelFields(
   pageHeight: number,
 ): LabelField[] {
   const fields: LabelField[] = [];
-  // DRX element positions are in inches — convert to points
   const PTS_PER_INCH = 72;
-  // Compute the actual canvas dims (landscape transform may swap)
   const canvasW = Math.max(pageWidth, pageHeight) * PTS_PER_INCH;
   const canvasH = Math.min(pageWidth, pageHeight) * PTS_PER_INCH;
 
-  // If we don't have position data, lay them out in a simple grid
   let autoY = 10;
   for (const v of variables) {
     const value = formData[v.key] || v.exampleText || v.key;
@@ -304,7 +352,7 @@ function buildGenericLabelFields(
 
     let xPt: number;
     let yPt: number;
-    let fontSize = v.fontSize || 8;
+    const fontSize = v.fontSize || 8;
     const bold = v.fontStyle ? v.fontStyle.toLowerCase().includes("bold") : false;
 
     if (hasPosition) {
@@ -316,7 +364,6 @@ function buildGenericLabelFields(
       autoY += fontSize + 6;
     }
 
-    // Clamp to canvas
     xPt = Math.max(0, Math.min(xPt, canvasW - 20));
     yPt = Math.max(0, Math.min(yPt, canvasH - 10));
 
@@ -353,6 +400,11 @@ export default function TemplatePreviewPage() {
   const [loadingTemplate, setLoadingTemplate] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Canvas elements from API (with PDF-matching transforms)
+  const [apiCanvasElements, setApiCanvasElements] = useState<CanvasElementAPI[] | null>(null);
+  const [apiCanvasWidth, setApiCanvasWidth] = useState<number | null>(null);
+  const [apiCanvasHeight, setApiCanvasHeight] = useState<number | null>(null);
+
   // PDF preview state
   const [loading, setLoading] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -377,13 +429,17 @@ export default function TemplatePreviewPage() {
   // Determine if this is an Rx Label template
   const isRxLabel = templateMeta?.type === "Rx Label";
 
-  // Canvas dimensions in points
-  const canvasWidth = templateMeta
-    ? Math.round(Math.max(templateMeta.pageWidth, templateMeta.pageHeight) * 72)
-    : 576;
-  const canvasHeight = templateMeta
-    ? Math.round(Math.min(templateMeta.pageWidth, templateMeta.pageHeight) * 72)
-    : 288;
+  // Canvas dimensions in points (prefer API-computed values that match PDF)
+  const canvasWidth = apiCanvasWidth
+    ? apiCanvasWidth
+    : templateMeta
+      ? Math.round(Math.max(templateMeta.pageWidth, templateMeta.pageHeight) * 72)
+      : 576;
+  const canvasHeight = apiCanvasHeight
+    ? apiCanvasHeight
+    : templateMeta
+      ? Math.round(Math.min(templateMeta.pageWidth, templateMeta.pageHeight) * 72)
+      : 288;
 
   // Load template metadata + variables on mount
   useEffect(() => {
@@ -401,6 +457,13 @@ export default function TemplatePreviewPage() {
         if (json.savedLayout) {
           setSavedLayoutData(json.savedLayout);
         }
+
+        // Store canvas elements from API (pre-transformed to match PDF)
+        if (json.canvasElements) {
+          setApiCanvasElements(json.canvasElements);
+        }
+        if (json.canvasWidth) setApiCanvasWidth(json.canvasWidth);
+        if (json.canvasHeight) setApiCanvasHeight(json.canvasHeight);
 
         if (json.fieldGroups && json.useSpecializedRenderer) {
           setFieldGroups(json.fieldGroups);
@@ -428,7 +491,10 @@ export default function TemplatePreviewPage() {
     if (!templateMeta || fieldsInitialized.current) return;
 
     let newFields: LabelField[];
-    if (isRxLabel && useSpecializedRenderer) {
+    if (apiCanvasElements && apiCanvasElements.length > 0 && !useSpecializedRenderer) {
+      // Use API canvas elements with PDF-matching transforms
+      newFields = buildFieldsFromCanvasElements(apiCanvasElements, formData);
+    } else if (isRxLabel && useSpecializedRenderer) {
       newFields = buildRxLabelFields(formData);
     } else {
       newFields = buildGenericLabelFields(
@@ -470,7 +536,7 @@ export default function TemplatePreviewPage() {
       posMap[f.id] = { x: f.x, y: f.y };
     }
     setOriginalPositions(posMap);
-  }, [templateMeta, isRxLabel, useSpecializedRenderer, variables, savedLayoutData]);
+  }, [templateMeta, isRxLabel, useSpecializedRenderer, variables, savedLayoutData, apiCanvasElements]);
 
   // Update field VALUES only when formData changes (preserve positions)
   useEffect(() => {
@@ -478,7 +544,9 @@ export default function TemplatePreviewPage() {
 
     // Rebuild values from formData but keep existing positions
     let freshFields: LabelField[];
-    if (isRxLabel && useSpecializedRenderer) {
+    if (apiCanvasElements && apiCanvasElements.length > 0 && !useSpecializedRenderer) {
+      freshFields = buildFieldsFromCanvasElements(apiCanvasElements, formData);
+    } else if (isRxLabel && useSpecializedRenderer) {
       freshFields = buildRxLabelFields(formData);
     } else {
       freshFields = buildGenericLabelFields(
@@ -711,8 +779,8 @@ export default function TemplatePreviewPage() {
     ? (fieldGroups || []).length
     : categories.length;
 
-  // Sections for canvas
-  const sections: SectionDef[] | undefined = isRxLabel ? RX_LABEL_SECTIONS : undefined;
+  // Sections for canvas (only for specialized Rx Label renderer)
+  const sections: SectionDef[] | undefined = (isRxLabel && useSpecializedRenderer) ? RX_LABEL_SECTIONS : undefined;
 
   // ── Loading state ──
   if (loadingTemplate) {

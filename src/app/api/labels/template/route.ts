@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   generateTemplatePreviewPDF,
   extractTemplateVariables,
+  extractCanvasElements,
   buildDefaultData,
   type DRXTemplate,
 } from "@/lib/labels/drx-template-renderer";
@@ -81,6 +82,9 @@ export async function GET(request: NextRequest) {
   const variables = extractTemplateVariables(template);
   const defaultData = savedLayout?.fieldValues || buildDefaultData(variables);
 
+  // Extract canvas-ready elements with same transforms as PDF renderer
+  const canvasData = extractCanvasElements(template, defaultData);
+
   return NextResponse.json({
     template: {
       id: template.id,
@@ -94,6 +98,10 @@ export async function GET(request: NextRequest) {
     variables,
     defaultData,
     savedLayout: savedLayout?.layout || null,
+    canvasElements: canvasData.elements,
+    canvasWidth: canvasData.canvasWidthPt,
+    canvasHeight: canvasData.canvasHeightPt,
+    isLandscape: canvasData.isLandscape,
   });
 }
 

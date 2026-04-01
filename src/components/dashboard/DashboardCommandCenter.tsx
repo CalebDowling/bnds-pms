@@ -52,11 +52,11 @@ function WorkflowItem({ label, count, href, statusColor, icon }: WorkflowItemPro
     >
       <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
       <span style={{ color: "var(--text-muted)" }} className="flex-shrink-0">{icon}</span>
-      <span className="text-[12px] font-medium flex-1 truncate" style={{ color: "var(--text-primary)" }}>
+      <span className="text-[14px] font-medium flex-1 truncate" style={{ color: "var(--text-primary)" }}>
         {label}
       </span>
       <span
-        className="text-[11px] font-bold tabular-nums px-1.5 py-px rounded"
+        className="text-[13px] font-bold tabular-nums px-1.5 py-px rounded"
         style={{
           backgroundColor: count > 0 ? "var(--green-100)" : undefined,
           color: count > 0 ? "var(--green-700)" : "var(--text-muted)",
@@ -81,7 +81,7 @@ function ModuleCardMini({ title, stat, icon, accentColor, href }: ModuleCardMini
   return (
     <Link
       href={href}
-      className="flex flex-col items-center justify-center gap-1 p-2.5 rounded-lg transition-all no-underline group"
+      className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg transition-all no-underline group"
       style={{ border: "1px solid var(--border)" }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = "var(--color-primary)";
@@ -93,15 +93,15 @@ function ModuleCardMini({ title, stat, icon, accentColor, href }: ModuleCardMini
       }}
     >
       <div
-        className="w-7 h-7 rounded-md flex items-center justify-center text-white mb-0.5"
+        className="w-9 h-9 rounded-md flex items-center justify-center text-white mb-0.5"
         style={{ backgroundColor: accentColor }}
       >
         {icon}
       </div>
-      <span className="text-[10px] font-semibold text-center leading-tight" style={{ color: "var(--text-secondary)" }}>
+      <span className="text-[12px] font-semibold text-center leading-tight" style={{ color: "var(--text-secondary)" }}>
         {title}
       </span>
-      <span className="text-[10px] font-bold tabular-nums" style={{ color: "var(--text-muted)" }}>
+      <span className="text-[11px] font-bold tabular-nums" style={{ color: "var(--text-muted)" }}>
         {stat}
       </span>
     </Link>
@@ -207,15 +207,15 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
               </span>
             </div>
             <div className="grid grid-cols-3 gap-2 p-3">
-              <ModuleCardMini title="Patient" stat={`${data.patientsToday} today`} icon={<Users size={13} />} accentColor="#10b981" href="/patients" />
-              <ModuleCardMini title="Rx" stat={`${data.rxToday} today`} icon={<Pill size={13} />} accentColor="#3b82f6" href="/prescriptions" />
-              <ModuleCardMini title="Item" stat={`${data.activeItems}`} icon={<Package size={13} />} accentColor="#a855f7" href="/inventory" />
-              <ModuleCardMini title="Prescriber" stat={`${data.doctorsOnFile}`} icon={<Cross size={13} />} accentColor="#f97316" href="/prescriptions/prescribers" />
-              <ModuleCardMini title="Compound" stat={`${data.pendingBatches} pend`} icon={<FlaskConical size={13} />} accentColor="#f43f5e" href="/compounding" />
-              <ModuleCardMini title="Inventory" stat={`${data.lowStockItems} low`} icon={<AlertTriangle size={13} />} accentColor="#f59e0b" href="/inventory" />
-              <ModuleCardMini title="Sales" stat={`${data.salesToday} today`} icon={<DollarSign size={13} />} accentColor="#40721d" href="/pos" />
-              <ModuleCardMini title="Claims" stat={`${data.rejectedClaims} rej`} icon={<ClipboardCheck size={13} />} accentColor="#6366f1" href="/billing/claims" />
-              <ModuleCardMini title="System" stat="Admin" icon={<Settings size={13} />} accentColor="#14b8a6" href="/settings" />
+              <ModuleCardMini title="Patient" stat={`${data.patientsToday} today`} icon={<Users size={16} />} accentColor="#10b981" href="/patients" />
+              <ModuleCardMini title="Rx" stat={`${data.rxToday} today`} icon={<Pill size={16} />} accentColor="#3b82f6" href="/prescriptions" />
+              <ModuleCardMini title="Item" stat={`${data.activeItems}`} icon={<Package size={16} />} accentColor="#a855f7" href="/inventory" />
+              <ModuleCardMini title="Prescriber" stat={`${data.doctorsOnFile}`} icon={<Cross size={16} />} accentColor="#f97316" href="/prescriptions/prescribers" />
+              <ModuleCardMini title="Compound" stat={`${data.pendingBatches} pend`} icon={<FlaskConical size={16} />} accentColor="#f43f5e" href="/compounding" />
+              <ModuleCardMini title="Inventory" stat={`${data.lowStockItems} low`} icon={<AlertTriangle size={16} />} accentColor="#f59e0b" href="/inventory" />
+              <ModuleCardMini title="Sales" stat={`${data.salesToday} today`} icon={<DollarSign size={16} />} accentColor="#40721d" href="/pos" />
+              <ModuleCardMini title="Claims" stat={`${data.rejectedClaims} rej`} icon={<ClipboardCheck size={16} />} accentColor="#6366f1" href="/billing/claims" />
+              <ModuleCardMini title="System" stat="Admin" icon={<Settings size={16} />} accentColor="#14b8a6" href="/settings" />
             </div>
           </div>
 
