@@ -89,6 +89,41 @@ function BarcodePattern({ width, height, value }: { width: number; height: numbe
 }
 
 /**
+ * Renders just the barcode bar <rect> elements (no wrapping <svg>),
+ * for use inside a rotated <g> group for vertical barcodes.
+ */
+function BarcodePatternBars({ width, height, value }: { width: number; height: number; value: string }) {
+  const bars: { x: number; w: number }[] = [];
+  let x = 1;
+  const seed = value || "barcode";
+  let i = 0;
+
+  bars.push({ x, w: 1 }); x += 2;
+  bars.push({ x, w: 1 }); x += 2;
+
+  while (x < width - 4) {
+    const charCode = seed.charCodeAt(i % seed.length);
+    i++;
+    const barW = ((charCode % 3) === 0) ? 2 : 1;
+    const gap = ((charCode % 5) < 2) ? 1 : 2;
+    bars.push({ x, w: barW });
+    x += barW + gap;
+  }
+
+  bars.push({ x: width - 3, w: 1 });
+  bars.push({ x: width - 1, w: 1 });
+
+  return (
+    <>
+      <rect x="0" y="0" width={width} height={height} fill="#fff" />
+      {bars.map((bar, idx) => (
+        <rect key={idx} x={bar.x} y={0} width={bar.w} height={height} fill="#000" />
+      ))}
+    </>
+  );
+}
+
+/**
  * Renders a QR-code-like grid pattern (purely visual — not scannable).
  */
 function QRPattern({ size }: { size: number }) {
@@ -315,11 +350,16 @@ export default function InteractiveLabelCanvas({
     if (isSelected) borderColor = "#16a34a"; // green-600
     else if (isHovered) borderColor = "#3b82f6"; // blue-500
 
-    // Barcode — render with PDF-matching dimensions
+    // Barcode — render with PDF-matching dimensions, supports rotation
     if (field.isBarcode) {
-      // Use PDF-computed dimensions when available, otherwise fallback
       const bcWidth = field.barcodeWidth || 65;   // width of barcode in pts
       const bcHeight = field.barcodeHeight || 22;  // height of barcode in pts
+      const rot = field.rotation ?? 0;
+      const isVert = rot === 90 || rot === -90;
+
+      // For vertical barcodes, swap displayed width/height
+      const displayW = isVert ? bcHeight : bcWidth;
+      const displayH = isVert ? bcWidth : bcHeight;
 
       return (
         <div
@@ -342,18 +382,33 @@ export default function InteractiveLabelCanvas({
           <div>
             {/* Barcode bars — realistic variable-width pattern */}
             <div style={{
-              width: bcWidth,
-              height: bcHeight,
+              width: displayW,
+              height: displayH,
               background: "#fff",
               position: "relative",
               overflow: "hidden",
             }}>
-              <BarcodePattern width={bcWidth} height={bcHeight} value={field.value || field.label} />
+              {isVert ? (
+                /* Render horizontal barcode rotated 90° via SVG transform */
+                <svg width={displayW} height={displayH} viewBox={`0 0 ${displayW} ${displayH}`} xmlns="http://www.w3.org/2000/svg">
+                  <g transform={`translate(${displayW}, 0) rotate(90)`}>
+                    <BarcodePatternBars width={displayH} height={displayW} value={field.value || field.label} />
+                  </g>
+                </svg>
+              ) : (
+                <BarcodePattern width={displayW} height={displayH} value={field.value || field.label} />
+              )}
             </div>
-            {/* Value text below barcode */}
-            <div style={{ fontSize: Math.min(5, bcHeight * 0.2), color: "#000", textAlign: "center", marginTop: 0.5, fontFamily: "monospace", letterSpacing: "0.5px" }}>
-              {field.value || field.label}
-            </div>
+            {/* Value text */}
+            {isVert ? (
+              <div style={{ fontSize: Math.min(4, bcHeight * 0.15), color: "#000", textAlign: "center", marginTop: 1, fontFamily: "monospace", writingMode: "vertical-rl", transform: "rotate(180deg)", height: displayH * 0.6, overflow: "hidden" }}>
+                {field.value || field.label}
+              </div>
+            ) : (
+              <div style={{ fontSize: Math.min(5, bcHeight * 0.2), color: "#000", textAlign: "center", marginTop: 0.5, fontFamily: "monospace", letterSpacing: "0.5px" }}>
+                {field.value || field.label}
+              </div>
+            )}
           </div>
         </div>
       );
