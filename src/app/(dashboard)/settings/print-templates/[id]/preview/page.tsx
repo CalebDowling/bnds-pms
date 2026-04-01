@@ -451,6 +451,9 @@ export default function TemplatePreviewPage() {
       ? Math.round(Math.min(templateMeta.pageWidth, templateMeta.pageHeight) * 72)
       : 288;
 
+  // Sections for canvas — show for all Rx Label templates
+  const sections: SectionDef[] | undefined = isRxLabel ? RX_LABEL_SECTIONS : undefined;
+
   // Load template metadata + variables on mount
   useEffect(() => {
     async function loadTemplate() {
@@ -661,27 +664,58 @@ export default function TemplatePreviewPage() {
   // Counter for generating unique custom field IDs
   const customFieldCounter = useRef(0);
 
+  // Track which section is selected for placing new fields
+  const [addFieldSection, setAddFieldSection] = useState<string | null>(null);
+
   const handleAddField = useCallback(
     (type: "text" | "barcode" | "qr") => {
       customFieldCounter.current += 1;
       const num = customFieldCounter.current;
       const id = `custom-${type}-${num}`;
 
-      // Place new field near center of visible canvas
-      const centerX = Math.round(canvasWidth * 0.3);
-      const centerY = Math.round(canvasHeight * 0.3) + (num - 1) * 20;
+      // Find the target section to place the field in
+      let targetX: number;
+      let targetY: number;
+      let sectionMaxWidth: number | undefined;
+
+      if (addFieldSection && sections) {
+        const sec = sections.find((s) => s.label === addFieldSection);
+        if (sec) {
+          // Place at an open spot within the section (offset by field count to avoid stacking)
+          const existingInSection = canvasFields.filter(
+            (f) => f.x >= sec.x && f.x < sec.x + sec.w && f.y >= sec.y && f.y < sec.y + sec.h
+          ).length;
+          targetX = sec.x + 4;
+          targetY = sec.y + 8 + existingInSection * 12;
+          // Clamp to section bounds
+          if (targetY > sec.y + sec.h - 14) {
+            targetY = sec.y + sec.h - 14;
+          }
+          sectionMaxWidth = sec.w - 8;
+        } else {
+          targetX = Math.round(canvasWidth * 0.1);
+          targetY = Math.round(canvasHeight * 0.1) + (num - 1) * 20;
+        }
+      } else {
+        targetX = Math.round(canvasWidth * 0.1);
+        targetY = Math.round(canvasHeight * 0.1) + (num - 1) * 20;
+      }
+
+      const textMaxWidth = sectionMaxWidth
+        ? Math.round(sectionMaxWidth)
+        : Math.round(canvasWidth * 0.4);
 
       const newField: LabelField = {
         id,
         label: type === "text" ? `Custom Text ${num}` : type === "barcode" ? `Barcode ${num}` : `QR Code ${num}`,
         value: type === "text" ? "Custom Text" : type === "barcode" ? "123456789" : "https://example.com",
-        x: Math.min(centerX, canvasWidth - 60),
-        y: Math.min(centerY, canvasHeight - 20),
+        x: Math.min(targetX, canvasWidth - 60),
+        y: Math.min(targetY, canvasHeight - 20),
         fontSize: type === "text" ? 8 : 6,
         bold: false,
         isBarcode: type === "barcode",
         isQrCode: type === "qr",
-        maxWidth: type === "text" ? Math.round(canvasWidth * 0.4) : undefined,
+        maxWidth: type === "text" ? textMaxWidth : undefined,
         barcodeWidth: type === "barcode" ? 65 : undefined,
         barcodeHeight: type === "barcode" ? 22 : undefined,
         qrSize: type === "qr" ? 54 : undefined,
@@ -692,7 +726,7 @@ export default function TemplatePreviewPage() {
       setSelectedFieldId(id);
       setHasLayoutChanges(true);
     },
-    [canvasWidth, canvasHeight]
+    [canvasWidth, canvasHeight, addFieldSection, sections, canvasFields]
   );
 
   const [isSaving, setIsSaving] = useState(false);
@@ -888,9 +922,6 @@ export default function TemplatePreviewPage() {
   const groupCount = useSpecializedRenderer
     ? (fieldGroups || []).length
     : categories.length;
-
-  // Sections for canvas (only for specialized Rx Label renderer)
-  const sections: SectionDef[] | undefined = (isRxLabel && useSpecializedRenderer) ? RX_LABEL_SECTIONS : undefined;
 
   // ── Loading state ──
   if (loadingTemplate) {
@@ -1202,6 +1233,29 @@ export default function TemplatePreviewPage() {
                     <Plus className="w-3 h-3 inline-block mr-1 -mt-0.5" />
                     Add Field
                   </span>
+
+                  {/* Section picker — choose where the field goes */}
+                  {sections && sections.length > 0 && (
+                    <div className="mb-2">
+                      <span className="text-[9px] text-[var(--text-muted)] block mb-1">Place in section:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {sections.map((sec) => (
+                          <button
+                            key={sec.label}
+                            onClick={() => setAddFieldSection(addFieldSection === sec.label ? null : sec.label)}
+                            className={`px-2 py-1 text-[10px] font-medium rounded border transition-colors ${
+                              addFieldSection === sec.label
+                                ? "bg-[var(--green-700)] text-white border-[var(--green-700)]"
+                                : "text-[var(--text-secondary)] border-[var(--border)] hover:bg-gray-50"
+                            }`}
+                          >
+                            {sec.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleAddField("text")}

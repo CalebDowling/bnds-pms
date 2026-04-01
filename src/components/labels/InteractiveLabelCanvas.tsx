@@ -441,7 +441,7 @@ export default function InteractiveLabelCanvas({
       );
     }
 
-    // Text field
+    // Text field — auto-wraps when maxWidth is set
     return (
       <div
         key={field.id}
@@ -453,10 +453,13 @@ export default function InteractiveLabelCanvas({
           fontWeight: field.bold ? 700 : 400,
           fontFamily: "Helvetica, Arial, sans-serif",
           lineHeight: 1.2,
-          whiteSpace: field.maxWidth ? "normal" : "nowrap",
+          whiteSpace: field.maxWidth ? "pre-wrap" : "nowrap",
+          wordBreak: field.maxWidth ? "break-word" : undefined,
+          overflowWrap: field.maxWidth ? "break-word" : undefined,
           maxWidth: field.maxWidth || undefined,
           width: field.maxWidth || undefined,
           overflow: "hidden",
+          textOverflow: field.maxWidth ? undefined : "ellipsis",
           outline: `1.5px solid ${borderColor}`,
           outlineOffset: 1,
           opacity: isDragging ? 0.7 : 1,
