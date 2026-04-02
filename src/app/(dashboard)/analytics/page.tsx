@@ -1,116 +1,440 @@
 import {
-  getDailyFills,
-  getRevenueTrend,
+  getAnalyticsDashboard,
+  getDispensingTrends,
+  getRevenueAnalytics,
+  getClaimsAnalytics,
+  getProductivityMetrics,
+  getPatientMetrics,
   getTopDrugs,
-  getStatusBreakdown,
-  getTurnaroundTrend,
-  getClaimsPerformance,
+  getPayerMix,
+  getCompoundingMetrics,
 } from "./actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import KPICard from "./components/KPICard";
+import TrendChart from "./components/TrendChart";
+import TopDrugsTable from "./TopDrugsClient";
+import PayerMixTable from "./PayerMixClient";
+import PatientTable from "./PatientTableClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function AnalyticsPage() {
+type Props = {
+  searchParams: Promise<{ range?: string }>;
+};
+
+export default async function AnalyticsPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const preset = params.range ?? "30d";
+
   try {
-    const [fills, revenue, topDrugs, statusBreakdown, turnaround, claims] =
+    const [dashboard, trends, revenue, claims, productivity, patients, topDrugs, payerMix, compounding] =
       await Promise.all([
-        getDailyFills(30),
-        getRevenueTrend(30),
-        getTopDrugs(10),
-        getStatusBreakdown(),
-        getTurnaroundTrend(30),
-        getClaimsPerformance(30),
+        getAnalyticsDashboard(preset),
+        getDispensingTrends(preset),
+        getRevenueAnalytics(preset),
+        getClaimsAnalytics(preset),
+        getProductivityMetrics(preset),
+        getPatientMetrics(preset),
+        getTopDrugs(preset, 10),
+        getPayerMix(preset),
+        getCompoundingMetrics(preset),
       ]);
 
-    const data = {
-      fills,
-      revenue,
-      topDrugs,
-      statusBreakdown,
-      turnaround,
-      claims,
+    const { kpis } = dashboard;
+
+    // Calculate change percentages
+    function pctChange(current: number, previous: number): number {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return ((current - previous) / previous) * 100;
+    }
+
+    const rangeLabels: Record<string, string> = {
+      "7d": "Last 7 Days",
+      "30d": "Last 30 Days",
+      "90d": "Last 90 Days",
+      "ytd": "Year to Date",
     };
 
     return (
       <PermissionGuard resource="reports" action="read">
-        <div className="space-y-6">
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-              <p className="text-sm text-gray-500 mt-1">Real-time pharmacy operations metrics</p>
+              <h1 style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary, #2D2416)", margin: 0 }}>
+                Analytics Dashboard
+              </h1>
+              <p style={{ fontSize: "14px", color: "var(--text-muted, #8B7E6A)", marginTop: "4px" }}>
+                Pharmacy operations intelligence and performance metrics
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px" }}>
+              <span style={{ color: "var(--text-muted, #8B7E6A)", marginRight: "8px", fontWeight: 500 }}>
+                Period:
+              </span>
+              {(["7d", "30d", "90d", "ytd"] as const).map((r) => (
+                <a
+                  key={r}
+                  href={`?range=${r}`}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "6px",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                    fontSize: "13px",
+                    backgroundColor: preset === r ? "var(--green-700, #40721D)" : "var(--card-bg, #F5F0E8)",
+                    color: preset === r ? "#fff" : "var(--text-secondary, #5C4F3C)",
+                    border: preset === r ? "none" : "1px solid var(--border, #D4C9B8)",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {rangeLabels[r]}
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* Date Range Picker */}
-          <div className="flex items-center gap-3 bg-white rounded-lg p-4 border border-gray-200">
-            <label className="text-sm font-medium text-gray-700">Date Range:</label>
-            <div className="flex gap-2">
-              <button className="px-3 py-1.5 text-sm rounded-md bg-[#40721D] text-white">
-                Last 30 Days
-              </button>
-              <button className="px-3 py-1.5 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
-                Last 7 Days
-              </button>
-              <button className="px-3 py-1.5 text-sm rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
-                Last 90 Days
-              </button>
-            </div>
+          {/* KPI Summary Cards */}
+          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+            <KPICard
+              title="Total Fills"
+              value={kpis.totalFills.toLocaleString()}
+              changePercent={pctChange(kpis.totalFills, kpis.prevTotalFills)}
+              changeLabel="vs prior period"
+            />
+            <KPICard
+              title="Revenue"
+              value={`$${kpis.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              changePercent={pctChange(kpis.totalRevenue, kpis.prevTotalRevenue)}
+              changeLabel="vs prior period"
+            />
+            <KPICard
+              title="Avg Fills/Day"
+              value={kpis.avgFillsPerDay.toFixed(1)}
+              changePercent={pctChange(kpis.avgFillsPerDay, kpis.prevAvgFillsPerDay)}
+              changeLabel="vs prior period"
+            />
+            <KPICard
+              title="Claim Acceptance"
+              value={`${kpis.claimAcceptanceRate}%`}
+              changePercent={pctChange(kpis.claimAcceptanceRate, kpis.prevClaimAcceptanceRate)}
+              changeLabel="vs prior period"
+            />
+            <KPICard
+              title="Active Patients"
+              value={kpis.activePatients.toLocaleString()}
+              changePercent={pctChange(kpis.activePatients, kpis.prevActivePatients)}
+              changeLabel="vs prior period"
+            />
           </div>
 
-          <div className="space-y-6">
-            {/* Daily Fills Chart */}
-            <ChartCard title="Daily Fills (Last 30 Days)" subtitle="Number of prescriptions filled per day">
-              <BarChart data={data.fills} height={200} barColor="#40721D" />
-            </ChartCard>
+          {/* Dispensing Trends */}
+          <Section title="Dispensing Trends" subtitle="Daily prescription fills over the selected period">
+            <TrendChart
+              data={trends}
+              height={240}
+              mode="bar"
+              color="var(--green-700, #40721D)"
+            />
+          </Section>
 
-            {/* Revenue Trend */}
-            <ChartCard title="Revenue Trend (Last 30 Days)" subtitle="Daily revenue in dollars">
-              <LineChart data={data.revenue} height={200} lineColor="#40721D" />
-            </ChartCard>
+          {/* Revenue Section */}
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px" }}>
+            <Section title="Revenue Trend" subtitle="Daily revenue from prescription fills">
+              <TrendChart
+                data={revenue.byDay}
+                height={220}
+                mode="line"
+                color="var(--green-700, #40721D)"
+                valuePrefix="$"
+              />
+            </Section>
+            <Section title="Revenue Breakdown" subtitle="By payment type">
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "8px 0" }}>
+                {revenue.byPayer.map((p) => (
+                  <div key={p.payerType} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-primary, #2D2416)" }}>
+                        {p.payerType}
+                      </span>
+                      <span style={{ fontSize: "13px", color: "var(--text-secondary, #5C4F3C)" }}>
+                        ${p.revenue.toLocaleString(undefined, { minimumFractionDigits: 2 })} ({p.percentage}%)
+                      </span>
+                    </div>
+                    <div style={{ height: "8px", borderRadius: "4px", backgroundColor: "var(--border, #D4C9B8)", overflow: "hidden" }}>
+                      <div
+                        style={{
+                          height: "100%",
+                          width: `${Math.min(p.percentage, 100)}%`,
+                          borderRadius: "4px",
+                          backgroundColor: p.payerType === "Insurance" ? "var(--green-700, #40721D)" : p.payerType === "Cash" ? "#2563EB" : "#D97706",
+                        }}
+                      />
+                    </div>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted, #8B7E6A)" }}>
+                      {p.fillCount} fills
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          </div>
 
-            {/* Top 10 Drugs */}
-            <ChartCard title="Top 10 Most Dispensed Drugs" subtitle="Prescription fills by drug">
-              <HorizontalBarChart data={data.topDrugs} height={250} barColor="#40721D" />
-            </ChartCard>
+          {/* Top 10 Drugs */}
+          <Section title="Top 10 Drugs" subtitle="Most dispensed drugs by fill count and revenue">
+            <TopDrugsTable data={topDrugs} />
+          </Section>
 
-            {/* Prescription Status Breakdown */}
-            <ChartCard title="Prescription Status Distribution" subtitle="Fill counts by status">
-              <PieChart data={data.statusBreakdown} height={220} />
-            </ChartCard>
-
-            {/* Turnaround Time */}
-            <ChartCard
-              title="Turnaround Time Trend"
-              subtitle="Average days from intake to dispensed"
-            >
-              <LineChart data={data.turnaround} height={200} lineColor="#2D5114" />
-            </ChartCard>
-
-            {/* Insurance Claims Performance */}
-            <ChartCard title="Insurance Claims Performance" subtitle="Approved vs rejected rates">
-              <div className="flex gap-6">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Approval Rate</p>
-                  <ProgressBar
-                    value={data.claims.approvalRate}
-                    color="bg-green-500"
-                    height={12}
-                  />
-                  <p className="text-sm text-gray-500 mt-1">{data.claims.approvalRate}%</p>
+          {/* Claims Performance */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+            <Section title="Claims Performance" subtitle="Insurance claim adjudication results">
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "8px 0" }}>
+                <div style={{ display: "flex", gap: "24px" }}>
+                  <StatBox label="Total Claims" value={claims.total.toLocaleString()} />
+                  <StatBox label="Acceptance Rate" value={`${claims.acceptanceRate}%`} color="var(--green-700, #40721D)" />
+                  <StatBox label="Rejection Rate" value={`${claims.rejectionRate}%`} color="#DC2626" />
+                  <StatBox label="Avg Adjudication" value={`${claims.avgAdjudicationMinutes} min`} />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Rejection Rate</p>
-                  <ProgressBar
-                    value={data.claims.rejectionRate}
-                    color="bg-red-500"
-                    height={12}
-                  />
-                  <p className="text-sm text-gray-500 mt-1">{data.claims.rejectionRate}%</p>
+                <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "12px", color: "var(--text-muted, #8B7E6A)" }}>Approved</span>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--green-700, #40721D)" }}>{claims.approved}</span>
+                    </div>
+                    <ProgressBar value={claims.acceptanceRate} color="var(--green-700, #40721D)" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "12px", color: "var(--text-muted, #8B7E6A)" }}>Rejected</span>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#DC2626" }}>{claims.rejected}</span>
+                    </div>
+                    <ProgressBar value={claims.rejectionRate} color="#DC2626" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "12px", color: "var(--text-muted, #8B7E6A)" }}>Pending</span>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#D97706" }}>{claims.pending}</span>
+                    </div>
+                    <ProgressBar value={claims.total > 0 ? (claims.pending / claims.total) * 100 : 0} color="#D97706" />
+                  </div>
                 </div>
               </div>
-            </ChartCard>
+            </Section>
+            <Section title="Top Rejection Codes" subtitle="Most frequent claim rejection reasons">
+              {claims.topRejectionReasons.length === 0 ? (
+                <p style={{ color: "var(--text-muted, #8B7E6A)", fontSize: "14px", textAlign: "center", padding: "24px 0" }}>
+                  No rejections in this period
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "8px 0" }}>
+                  {claims.topRejectionReasons.map((r, i) => (
+                    <div key={r.code} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <span style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "6px",
+                        backgroundColor: "var(--card-bg, #F5F0E8)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        color: "var(--text-secondary, #5C4F3C)",
+                      }}>
+                        {i + 1}
+                      </span>
+                      <span style={{ flex: 1, fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #2D2416)", fontFamily: "monospace" }}>
+                        {r.code}
+                      </span>
+                      <span style={{
+                        padding: "2px 10px",
+                        borderRadius: "12px",
+                        backgroundColor: "#FEE2E2",
+                        color: "#DC2626",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                      }}>
+                        {r.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
           </div>
+
+          {/* Payer Mix */}
+          <Section title="Payer Mix" subtitle="Fill volume and revenue by insurance plan">
+            <PayerMixTable data={payerMix} />
+          </Section>
+
+          {/* Productivity */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+            <Section title="Productivity" subtitle="Staff throughput and workflow timing">
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "8px 0" }}>
+                <div style={{ display: "flex", gap: "24px" }}>
+                  <StatBox label="Fills/Day" value={String(productivity.fillsPerDay)} color="var(--green-700, #40721D)" />
+                  <StatBox label="RPh Verification Rate" value={`${productivity.verificationRate}%`} />
+                </div>
+                <div>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-secondary, #5C4F3C)", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Average Queue Time (minutes)
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {Object.entries(productivity.avgTimeInQueue).map(([stage, minutes]) => (
+                      <div key={stage} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <span style={{ width: "140px", fontSize: "13px", color: "var(--text-primary, #2D2416)" }}>{stage}</span>
+                        <div style={{ flex: 1, height: "8px", borderRadius: "4px", backgroundColor: "var(--border, #D4C9B8)", overflow: "hidden" }}>
+                          <div
+                            style={{
+                              height: "100%",
+                              width: `${Math.min((minutes / Math.max(...Object.values(productivity.avgTimeInQueue), 1)) * 100, 100)}%`,
+                              borderRadius: "4px",
+                              backgroundColor: "var(--green-700, #40721D)",
+                              minWidth: minutes > 0 ? "4px" : "0px",
+                            }}
+                          />
+                        </div>
+                        <span style={{ width: "60px", textAlign: "right", fontSize: "13px", fontWeight: 600, color: "var(--text-primary, #2D2416)" }}>
+                          {minutes} min
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Section>
+            <Section title="Top Techs by Fill Count" subtitle="Technician productivity ranking">
+              {productivity.techFills.length === 0 ? (
+                <p style={{ color: "var(--text-muted, #8B7E6A)", fontSize: "14px", textAlign: "center", padding: "24px 0" }}>
+                  No fill data in this period
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "8px 0" }}>
+                  {productivity.techFills.map((tech, i) => {
+                    const maxFills = productivity.techFills[0]?.fills || 1;
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <span style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "6px",
+                          backgroundColor: i < 3 ? "var(--green-700, #40721D)" : "var(--card-bg, #F5F0E8)",
+                          color: i < 3 ? "#fff" : "var(--text-secondary, #5C4F3C)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                        }}>
+                          {i + 1}
+                        </span>
+                        <span style={{ width: "140px", fontSize: "13px", color: "var(--text-primary, #2D2416)", fontWeight: 500 }}>
+                          {tech.name}
+                        </span>
+                        <div style={{ flex: 1, height: "8px", borderRadius: "4px", backgroundColor: "var(--border, #D4C9B8)", overflow: "hidden" }}>
+                          <div
+                            style={{
+                              height: "100%",
+                              width: `${(tech.fills / maxFills) * 100}%`,
+                              borderRadius: "4px",
+                              backgroundColor: "var(--green-700, #40721D)",
+                              minWidth: "4px",
+                            }}
+                          />
+                        </div>
+                        <span style={{ width: "50px", textAlign: "right", fontSize: "13px", fontWeight: 600, color: "var(--text-primary, #2D2416)" }}>
+                          {tech.fills}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Section>
+          </div>
+
+          {/* Patients */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+            <Section title="Patient Metrics" subtitle="Patient population overview">
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "8px 0" }}>
+                <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                  <StatBox label="New Patients" value={patients.newPatientsThisPeriod.toLocaleString()} color="var(--green-700, #40721D)" />
+                  <StatBox label="Active" value={patients.activeCount.toLocaleString()} />
+                  <StatBox label="Inactive" value={patients.inactiveCount.toLocaleString()} />
+                  <StatBox label="Active Ratio" value={`${patients.activeRatio}%`} />
+                </div>
+              </div>
+            </Section>
+            <Section title="Top Patients by Rx Count" subtitle="Highest prescription volume patients">
+              <PatientTable data={patients.topPatients} />
+            </Section>
+          </div>
+
+          {/* Compounding */}
+          <Section title="Compounding" subtitle="Batch production and quality assurance metrics">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                  <StatBox label="Total Batches" value={compounding.totalBatches.toLocaleString()} color="var(--green-700, #40721D)" />
+                  <StatBox label="Avg Batch Time" value={`${compounding.avgBatchTimeMinutes} min`} />
+                  <StatBox label="QA Pass Rate" value={`${compounding.qaPassRate}%`} color={compounding.qaPassRate >= 95 ? "var(--green-700, #40721D)" : "#DC2626"} />
+                  <StatBox label="QA Checks" value={compounding.qaTotalChecks.toLocaleString()} />
+                </div>
+              </div>
+              <div>
+                <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-secondary, #5C4F3C)", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Top Formulas
+                </p>
+                {compounding.topFormulas.length === 0 ? (
+                  <p style={{ color: "var(--text-muted, #8B7E6A)", fontSize: "14px" }}>
+                    No batches in this period
+                  </p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {compounding.topFormulas.map((f, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <span style={{
+                          width: "24px",
+                          height: "24px",
+                          borderRadius: "6px",
+                          backgroundColor: "var(--card-bg, #F5F0E8)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          color: "var(--text-secondary, #5C4F3C)",
+                        }}>
+                          {i + 1}
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #2D2416)" }}>
+                            {f.name}
+                          </span>
+                          <span style={{ fontSize: "12px", color: "var(--text-muted, #8B7E6A)", marginLeft: "8px", fontFamily: "monospace" }}>
+                            {f.code}
+                          </span>
+                        </div>
+                        <span style={{
+                          padding: "2px 10px",
+                          borderRadius: "12px",
+                          backgroundColor: "rgba(64, 114, 29, 0.1)",
+                          color: "var(--green-700, #40721D)",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                        }}>
+                          {f.batchCount} batches
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Section>
+
         </div>
       </PermissionGuard>
     );
@@ -118,15 +442,24 @@ export default async function AnalyticsPage() {
     console.error("Analytics error:", error);
     return (
       <PermissionGuard resource="reports" action="read">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm text-red-700">Failed to load analytics dashboard</p>
+        <div style={{
+          backgroundColor: "#FEF2F2",
+          border: "1px solid #FECACA",
+          borderRadius: "12px",
+          padding: "24px",
+        }}>
+          <p style={{ fontSize: "14px", color: "#DC2626", fontWeight: 500 }}>
+            Failed to load analytics dashboard. Please try again or contact support.
+          </p>
         </div>
       </PermissionGuard>
     );
   }
 }
 
-function ChartCard({
+// ─── Helper Components ───────────────────────────────────────────────────────
+
+function Section({
   title,
   subtitle,
   children,
@@ -136,222 +469,60 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-        <p className="text-sm text-gray-500">{subtitle}</p>
+    <div
+      style={{
+        backgroundColor: "var(--card-bg, #F5F0E8)",
+        border: "1px solid var(--border, #D4C9B8)",
+        borderRadius: "12px",
+        padding: "24px",
+      }}
+    >
+      <div style={{ marginBottom: "16px" }}>
+        <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-primary, #2D2416)", margin: 0 }}>
+          {title}
+        </h2>
+        <p style={{ fontSize: "13px", color: "var(--text-muted, #8B7E6A)", marginTop: "2px" }}>
+          {subtitle}
+        </p>
       </div>
       {children}
     </div>
   );
 }
 
-function BarChart({
-  data,
-  height,
-  barColor,
-}: {
-  data: Array<{ date: string; count: number }>;
-  height: number;
-  barColor: string;
-}) {
-  if (!data || data.length === 0)
-    return <p className="text-sm text-gray-500 text-center py-8">No data available</p>;
-
-  const maxCount = Math.max(...data.map((d) => d.count), 1);
-
-  return (
-    <div style={{ height }} className="flex items-end gap-2">
-      {data.map((d, i) => {
-        const percentage = (d.count / maxCount) * 100;
-        return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1">
-            <span className="text-xs text-gray-600 font-medium">{d.count}</span>
-            <div
-              className={`w-full ${barColor} rounded-t transition-all`}
-              style={{ height: `${Math.max(percentage, 5)}%` }}
-            />
-            <span className="text-xs text-gray-400 truncate">{d.date.split("-")[2]}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function LineChart({
-  data,
-  height,
-  lineColor,
-}: {
-  data: Array<{ date: string; value: number }>;
-  height: number;
-  lineColor: string;
-}) {
-  if (!data || data.length === 0)
-    return <p className="text-sm text-gray-500 text-center py-8">No data available</p>;
-
-  const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const minValue = Math.min(...data.map((d) => d.value), 0);
-  const range = maxValue - minValue || 1;
-
-  const points = data
-    .map((d, i) => {
-      const normalizedValue = (d.value - minValue) / range;
-      const yPercent = normalizedValue * 100;
-      const xPercent = (i / (data.length - 1)) * 100;
-      return { x: xPercent, y: 100 - yPercent, date: d.date, value: d.value };
-    });
-
-  return (
-    <div style={{ height }} className="relative w-full">
-      <svg width="100%" height={height} className="absolute inset-0">
-        <polyline
-          points={points.map((p) => `${(p.x / 100) * 100},${(p.y / 100) * height}`).join(" ")}
-          fill="none"
-          stroke={lineColor}
-          strokeWidth="2"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-end gap-1">
-        {points.map((p, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1">
-            <span className="text-xs text-gray-400 truncate">{p.date.split("-")[2]}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function HorizontalBarChart({
-  data,
-  height,
-  barColor,
-}: {
-  data: Array<{ name: string; count: number }>;
-  height: number;
-  barColor: string;
-}) {
-  if (!data || data.length === 0)
-    return <p className="text-sm text-gray-500 text-center py-8">No data available</p>;
-
-  const maxCount = Math.max(...data.map((d) => d.count), 1);
-
-  return (
-    <div style={{ height }} className="space-y-2">
-      {data.map((d, i) => {
-        const percentage = (d.count / maxCount) * 100;
-        return (
-          <div key={i} className="flex items-center gap-2">
-            <span className="text-xs text-gray-600 font-medium w-48 truncate">{d.name}</span>
-            <div className="flex-1 flex items-center gap-2">
-              <div
-                className={`${barColor} rounded-r h-6`}
-                style={{ width: `${percentage}%`, minWidth: "4px" }}
-              />
-              <span className="text-xs text-gray-600 font-medium w-12 text-right">{d.count}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function PieChart({
-  data,
-  height,
-}: {
-  data: Array<{ status: string; count: number }>;
-  height: number;
-}) {
-  if (!data || data.length === 0)
-    return <p className="text-sm text-gray-500 text-center py-8">No data available</p>;
-
-  const total = data.reduce((sum, d) => sum + d.count, 0);
-  const colors = ["#40721D", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4"];
-
-  const segments = data.map((d) => ({
-    ...d,
-    percentage: (d.count / total) * 100,
-  }));
-
-  return (
-    <div className="flex items-center justify-center gap-8">
-      <svg width={height} height={height} className="flex-shrink-0">
-        {(() => {
-          let startAngle = -90;
-          return segments.map((seg, i) => {
-            const sliceAngle = (seg.percentage / 100) * 360;
-            const radius = height / 2 - 10;
-            const centerX = height / 2;
-            const centerY = height / 2;
-
-            const startRad = (startAngle * Math.PI) / 180;
-            const endRad = ((startAngle + sliceAngle) * Math.PI) / 180;
-
-            const x1 = centerX + radius * Math.cos(startRad);
-            const y1 = centerY + radius * Math.sin(startRad);
-            const x2 = centerX + radius * Math.cos(endRad);
-            const y2 = centerY + radius * Math.sin(endRad);
-
-            const largeArc = sliceAngle > 180 ? 1 : 0;
-            const pathData = [
-              `M ${centerX} ${centerY}`,
-              `L ${x1} ${y1}`,
-              `A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`,
-              "Z",
-            ].join(" ");
-
-            const result = (
-              <path
-                key={i}
-                d={pathData}
-                fill={colors[i % colors.length]}
-                stroke="white"
-                strokeWidth="2"
-              />
-            );
-
-            startAngle += sliceAngle;
-            return result;
-          });
-        })()}
-      </svg>
-
-      <div className="space-y-2">
-        {segments.map((seg, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: colors[i % colors.length] }}
-            />
-            <span className="text-sm text-gray-700 capitalize">{seg.status}</span>
-            <span className="text-sm font-medium text-gray-900">{seg.count}</span>
-            <span className="text-xs text-gray-500">({seg.percentage.toFixed(1)}%)</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ProgressBar({
+function StatBox({
+  label,
   value,
   color,
-  height,
 }: {
-  value: number;
-  color: string;
-  height: number;
+  label: string;
+  value: string;
+  color?: string;
 }) {
   return (
-    <div className="w-full bg-gray-200 rounded-full overflow-hidden" style={{ height }}>
+    <div>
+      <p style={{ fontSize: "12px", color: "var(--text-muted, #8B7E6A)", marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+        {label}
+      </p>
+      <p style={{ fontSize: "22px", fontWeight: 700, color: color ?? "var(--text-primary, #2D2416)", lineHeight: 1.2 }}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ProgressBar({ value, color }: { value: number; color: string }) {
+  return (
+    <div style={{ height: "8px", borderRadius: "4px", backgroundColor: "var(--border, #D4C9B8)", overflow: "hidden" }}>
       <div
-        className={`${color} h-full transition-all`}
-        style={{ width: `${Math.min(value, 100)}%` }}
+        style={{
+          height: "100%",
+          width: `${Math.min(value, 100)}%`,
+          borderRadius: "4px",
+          backgroundColor: color,
+          transition: "width 0.3s ease",
+          minWidth: value > 0 ? "4px" : "0px",
+        }}
       />
     </div>
   );
