@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, Fragment } from "react";
-import { Printer, ScanLine, Pencil, CheckCircle, UserPlus, X, MessageSquare } from "lucide-react";
+import { Printer, ScanLine, Pencil, CheckCircle, UserPlus, X, MessageSquare, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import type { QueueFill } from "./constants";
 
 function formatDate(dateStr: string | null): string {
@@ -214,6 +215,17 @@ function FillDetailPanel({ fill }: { fill: QueueFill }) {
               </div>
             </div>
           )}
+          {/* Process button */}
+          <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-2">
+            <Link
+              href={`/queue/process/${fill.fillId}`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white rounded-md no-underline transition-colors"
+              style={{ backgroundColor: "#40721D" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ArrowRight className="w-4 h-4" /> Process Fill
+            </Link>
+          </div>
         </div>
       </td>
     </tr>
