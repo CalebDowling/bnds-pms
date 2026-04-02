@@ -81,52 +81,35 @@ export async function getQueueCounts() {
   };
 
   try {
-    // Fetch live fill counts from DRX:
-    // - Standard statuses via external API (/external_api/v1/prescription-fills?status=X)
-    // - Custom queues via internal API (/api/v1/custom_workflow_queue)
-    const { fetchAllQueueCounts } = await import("@/lib/drx/client");
     const { prisma } = await import("@/lib/prisma");
+    const { QUEUE_TO_FILL_STATUS } = await import("@/lib/workflow/fill-status");
 
-    const [drxCounts, renewals] = await Promise.all([
-      fetchAllQueueCounts(),
-      // Renewals = pending refill requests (from our DB)
+    // Single query: group all fills by status and count
+    const [statusCounts, renewals] = await Promise.all([
+      prisma.prescriptionFill.groupBy({
+        by: ["status"],
+        _count: true,
+      }),
       prisma.refillRequest.count({ where: { status: "pending" } }).catch(() => 0),
     ]);
 
-    // Helper: DRX custom queue names may have trailing spaces or case differences
-    function findCount(name: string): number {
-      // Try exact match first
-      if (drxCounts[name] !== undefined) return drxCounts[name];
-      // Try trimmed case-insensitive match
-      const lower = name.toLowerCase().trim();
-      for (const [key, val] of Object.entries(drxCounts)) {
-        if (key.toLowerCase().trim() === lower) return val;
-      }
-      return 0;
+    // Build a status → count lookup
+    const countByStatus: Record<string, number> = {};
+    for (const row of statusCounts) {
+      countByStatus[row.status] = row._count;
     }
 
-    return {
-      // Standard DRX statuses (mapped to QueueBar keys)
-      intake: findCount("Pre-Check"),
-      sync: findCount("Adjudicating"),
-      reject: findCount("Rejected"),
-      print: findCount("Print"),
-      scan: findCount("Scan"),
-      verify: findCount("Verify"),
-      oos: findCount("OOS"),
-      waiting_bin: findCount("Waiting Bin"),
-      renewals,
-      todo: 0, // DRX-internal feature, not exposed via API
-      // Custom DRX queues (from /api/v1/custom_workflow_queue)
-      price_check: findCount("price check"),
-      prepay: findCount("prepay"),
-      ok_to_charge: findCount("ok to charge"),
-      decline: findCount("Decline"),
-      ok_to_charge_clinic: findCount("ok to charge clinic"),
-      mochi: findCount("mochi"),
-    };
+    // Map queue keys to fill status counts
+    const result: Record<string, number> = { ...fallback };
+    for (const [queueKey, statuses] of Object.entries(QUEUE_TO_FILL_STATUS)) {
+      result[queueKey] = statuses.reduce((sum, s) => sum + (countByStatus[s] || 0), 0);
+    }
+    result.renewals = renewals;
+    result.todo = 0; // Internal feature, not fill-status-based
+
+    return result as typeof fallback;
   } catch (e) {
-    console.error("[getQueueCounts] Error fetching from DRX:", e);
+    console.error("[getQueueCounts] Error:", e);
     return fallback;
   }
 }

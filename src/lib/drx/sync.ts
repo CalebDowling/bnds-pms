@@ -555,6 +555,11 @@ export async function syncActiveQueues(): Promise<{
   errors: number;
   duration: number;
 }> {
+  if (process.env.DRX_SYNC_ENABLED === "false") {
+    console.log("[DRX Queue Sync] Disabled via DRX_SYNC_ENABLED=false — skipping");
+    return { statusCounts: {}, totalUpdated: 0, errors: 0, duration: 0 };
+  }
+
   const { prisma } = await import("@/lib/prisma");
   syncStartedAt = Date.now();
 
@@ -623,6 +628,12 @@ export async function runSync(
   entities: SyncEntity = "all",
   fullResync = false
 ): Promise<SyncResult[]> {
+  // Check if DRX sync is disabled (for DRX independence mode)
+  if (process.env.DRX_SYNC_ENABLED === "false") {
+    console.log("[DRX Sync] Disabled via DRX_SYNC_ENABLED=false — skipping");
+    return [{ entity: "all" as SyncEntity, imported: 0, updated: 0, skipped: 0, errors: 0, duration: 0 }];
+  }
+
   const { prisma } = await import("@/lib/prisma");
 
   syncStartedAt = Date.now();

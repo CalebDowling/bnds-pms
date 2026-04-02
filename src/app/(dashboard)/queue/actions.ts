@@ -1,27 +1,12 @@
 "use server";
 
 /**
- * Queue Actions — fetches fills live from DRX API by status.
- * Used by the /queue page when clicking a queue item from the dashboard.
+ * Queue Actions — fetches fills from LOCAL database by status.
+ *
+ * This replaces the previous DRX API-dependent implementation.
+ * All queue data now comes from the prescription_fills table,
+ * using the canonical fill statuses defined in lib/workflow/fill-status.ts.
  */
-
-// Map QueueBar status keys → DRX API status filter values
-const STATUS_TO_DRX: Record<string, string> = {
-  intake: "Pre-Check",
-  sync: "Adjudicating",
-  reject: "Rejected",
-  print: "Print",
-  scan: "Scan",
-  verify: "Verify",
-  oos: "OOS",
-  waiting_bin: "Waiting Bin",
-  price_check: "price check",
-  prepay: "prepay",
-  ok_to_charge: "ok to charge",
-  decline: "Decline",
-  ok_to_charge_clinic: "ok to charge clinic",
-  mochi: "mochi",
-};
 
 import { QUEUE_LABELS, type QueueFill } from "./constants";
 
@@ -39,135 +24,98 @@ export async function getQueueFills({
   drxStatus: string;
   label: string;
 }> {
-  const drxStatus = STATUS_TO_DRX[status];
   const label = QUEUE_LABELS[status] || status;
 
-  // Renewals come from our DB, not DRX
+  // Renewals come from refill requests, not fills
   if (status === "renewals") {
     return getRefillRenewals(page, limit, label);
   }
 
-  // Todo is DRX-internal, not exposed via API
+  // Todo is not fill-status-based
   if (status === "todo") {
     return { fills: [], total: 0, drxStatus: "todo", label };
   }
 
-  if (!drxStatus) {
-    return { fills: [], total: 0, drxStatus: status, label };
-  }
-
   try {
-    const drxClient = await import("@/lib/drx/client");
-    const offset = (page - 1) * limit;
+    const { prisma } = await import("@/lib/prisma");
+    const { QUEUE_TO_FILL_STATUS } = await import("@/lib/workflow/fill-status");
 
-    // Custom queues (fill-tag-based) need different fetching than standard status queues
-    if (drxClient.isCustomQueue(drxStatus)) {
-      return await getCustomQueueFills(drxClient, drxStatus, offset, limit, label);
+    const fillStatuses = QUEUE_TO_FILL_STATUS[status];
+    if (!fillStatuses || fillStatuses.length === 0) {
+      return { fills: [], total: 0, drxStatus: status, label };
     }
 
-    // Standard status-based queue fetching
-    const fills: QueueFill[] = [];
+    const skip = (page - 1) * limit;
 
-    const [total] = await Promise.all([
-      drxClient.fetchFillCountByStatus(drxStatus),
-      drxClient.fetchAllPages(
-        "/prescription-fills",
-        limit,
-        async (batch: any[]) => {
-          for (const drx of batch) {
-            fills.push(parseDrxFillToQueueFill(drx, drxStatus));
-          }
+    const [dbFills, total] = await Promise.all([
+      prisma.prescriptionFill.findMany({
+        where: { status: { in: fillStatuses } },
+        include: {
+          prescription: {
+            include: {
+              patient: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  phoneNumbers: {
+                    where: { isPrimary: true },
+                    select: { number: true },
+                    take: 1,
+                  },
+                },
+              },
+              item: { select: { name: true, ndc: true } },
+              prescriber: { select: { firstName: true, lastName: true } },
+            },
+          },
+          item: { select: { name: true, ndc: true } },
+          verifier: { select: { firstName: true, lastName: true } },
         },
-        { status: drxStatus, offset },
-        // Stop after one page — we only need `limit` records
-        () => fills.length < limit
-      ),
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.prescriptionFill.count({
+        where: { status: { in: fillStatuses } },
+      }),
     ]);
 
-    return { fills, total, drxStatus, label };
+    const fills: QueueFill[] = dbFills.map((f: any) => {
+      const patient = f.prescription?.patient;
+      const patientName = patient
+        ? `${patient.firstName || ""} ${patient.lastName || ""}`.trim()
+        : "Unknown";
+
+      const phone = patient?.phoneNumbers?.[0]?.number || null;
+
+      const itemName =
+        f.item?.name || f.prescription?.item?.name || "Unknown";
+
+      const pharmacist = f.verifier
+        ? `${f.verifier.firstName || ""} ${f.verifier.lastName || ""}`.trim()
+        : null;
+
+      return {
+        fillId: f.id,
+        rxId: f.prescriptionId || "—",
+        patientName,
+        phone,
+        itemName,
+        status: f.status,
+        fillDate: f.filledAt?.toISOString() || f.createdAt?.toISOString() || null,
+        quantity: f.quantity ? Number(f.quantity) : 0,
+        daysSupply: f.daysSupply || null,
+        tags: [], // TODO: implement local tag support via entity_tags
+        method: (f.metadata as any)?.deliveryMethod || null,
+        pharmacist,
+        binLocation: f.binLocation || null,
+      };
+    });
+
+    return { fills, total, drxStatus: status, label };
   } catch (e) {
-    console.error(`[Queue] Error fetching ${drxStatus}:`, e);
-    return { fills: [], total: 0, drxStatus, label };
-  }
-}
-
-/**
- * Parse a DRX fill record into a QueueFill for the table.
- */
-function parseDrxFillToQueueFill(drx: any, drxStatus: string): QueueFill {
-  const fill = drx.fill;
-  if (!fill?.id) {
-    return {
-      fillId: "0", rxId: "—", patientName: "Unknown", phone: null,
-      itemName: "Unknown", status: drxStatus, fillDate: null,
-      quantity: 0, daysSupply: null, tags: [], method: null,
-      pharmacist: null, binLocation: null,
-    };
-  }
-
-  const patient = drx.patient as any;
-  const patientName = patient
-    ? `${patient.first_name || ""} ${patient.last_name || ""}`.trim()
-    : "Unknown";
-
-  let phone: string | null = null;
-  if (patient?.phone_numbers && Array.isArray(patient.phone_numbers) && patient.phone_numbers.length > 0) {
-    phone = patient.phone_numbers[0].number || null;
-  }
-
-  const rawTags =
-    (fill as any).prescription_fill_tags ||
-    (fill as any).tags ||
-    (drx as any).prescription_fill_tags ||
-    (drx as any).tags ||
-    [];
-  const tags: string[] = Array.isArray(rawTags)
-    ? rawTags.map((t: any) => (typeof t === "string" ? t : t?.name || t?.tag || t?.prescription_fill_tag?.name || "")).filter(Boolean)
-    : [];
-
-  const method: string | null =
-    (fill as any).delivery_method_override ||
-    (fill as any).delivery_method ||
-    patient?.delivery_method ||
-    null;
-
-  return {
-    fillId: String(fill.id),
-    rxId: drx.prescription?.id ? String(drx.prescription.id) : "—",
-    patientName,
-    phone,
-    itemName: drx.dispensed_item?.name || "Unknown",
-    status: fill.status || drxStatus,
-    fillDate: fill.fill_date || fill.created_at || null,
-    quantity: fill.dispensed_quantity || 0,
-    daysSupply: fill.days_supply || null,
-    tags,
-    method,
-    pharmacist: fill.pharmacist || null,
-    binLocation: fill.will_call_location || null,
-  };
-}
-
-/**
- * Fetch fills for a custom queue (fill-tag-based).
- * Custom queues use DRX fill tags, not the standard status filter.
- */
-async function getCustomQueueFills(
-  drxClient: any,
-  drxStatus: string,
-  offset: number,
-  limit: number,
-  label: string,
-): Promise<{ fills: QueueFill[]; total: number; drxStatus: string; label: string }> {
-  try {
-    const { total, fills: rawFills } = await drxClient.fetchFillsByTagName(drxStatus, limit, offset);
-
-    const fills: QueueFill[] = rawFills.map((drx: any) => parseDrxFillToQueueFill(drx, drxStatus));
-
-    return { fills, total, drxStatus, label };
-  } catch (e) {
-    console.error(`[Queue] Error fetching custom queue "${drxStatus}":`, e);
-    return { fills: [], total: 0, drxStatus, label };
+    console.error(`[Queue] Error fetching local fills for "${status}":`, e);
+    return { fills: [], total: 0, drxStatus: status, label };
   }
 }
 
