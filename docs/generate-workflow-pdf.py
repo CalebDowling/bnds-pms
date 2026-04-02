@@ -311,7 +311,13 @@ def build_pdf():
         "4. Billing Workflow - How We Charge",
         "5. Shipping Workflow - Getting Prescriptions to Patients",
         "6. Daily Operations Summary",
-        "7. Roles and Responsibilities",
+        "7. Hardware Integrations - Scales, Pill Counters, Payment Terminals",
+        "8. IVR Phone System - Automated Refills and Status",
+        "9. Inventory Optimization - Algorithmic Reorder Engine",
+        "10. Wholesale Ordering - Cardinal Health Integration",
+        "11. Advanced Analytics Dashboard",
+        "12. Controlled Substance Perpetual Inventory",
+        "13. Roles and Responsibilities",
     ]
     for item in toc_items:
         story.append(Paragraph(item, styles["TOCEntry"]))
@@ -610,22 +616,163 @@ def build_pdf():
     story.append(numbered(3, "Check that all compounding batches have been verified"))
     story.append(numbered(4, "Review shipping - all orders shipped?"))
     story.append(numbered(5, "Check queue counts - anything stuck?"))
+    story.append(numbered(6, "Review analytics dashboard for daily performance trends"))
+    story.append(numbered(7, "Run controlled substance reconciliation if discrepancies flagged"))
+
+    story.append(PageBreak())
 
     # ═══════════════════════════════════════════════════════════════
-    # SECTION 7: ROLES
+    # SECTION 7: HARDWARE INTEGRATIONS
+    # ═══════════════════════════════════════════════════════════════
+    story.append(section("7. Hardware Integrations"))
+    story.append(body("BNDS PMS connects directly to pharmacy hardware for accuracy and speed — no manual data entry for weights, pill counts, or payments."))
+    story.append(hr())
+
+    story.append(subsection("Pharmacy Scales (Sartorius / Ohaus)"))
+    story.append(body("During compounding, the scale connects via USB or serial using the <b>Web Serial API</b>. Supports Sartorius SBI and Ohaus protocols."))
+    story.append(bullet("<b>Auto-read weights</b>: Scale reading flows directly into the batch ingredient weighing form"))
+    story.append(bullet("<b>Tare and zero</b>: Commands sent from the software to the scale"))
+    story.append(bullet("<b>Stability detection</b>: Waits for the reading to stabilize before recording"))
+    story.append(bullet("Eliminates transcription errors in compounding records"))
+
+    story.append(subsection("Eyecon Pill Counter"))
+    story.append(body("The Eyecon visual pill counting system connects via its local REST API:"))
+    story.append(numbered(1, "Tech places pills on the Eyecon counting tray"))
+    story.append(numbered(2, "System sends the expected NDC to Eyecon"))
+    story.append(numbered(3, "Eyecon counts with 99.99% accuracy using visual recognition"))
+    story.append(numbered(4, "Count result feeds back into the fill record with NDC verification"))
+
+    story.append(subsection("Stripe Payment Terminals"))
+    story.append(body("The POS module connects to <b>Stripe Terminal</b> hardware for card-present payments:"))
+    story.append(bullet("<b>Tap, swipe, or insert</b>: Accepts all major card types"))
+    story.append(bullet("<b>FSA / HSA cards</b>: Supported with MCC 5912 (Drug Stores)"))
+    story.append(bullet("<b>Refunds</b>: Full and partial refunds through the terminal"))
+    story.append(bullet("<b>Reader management</b>: Register and discover readers from POS settings"))
+
+    story.append(PageBreak())
+
+    # ═══════════════════════════════════════════════════════════════
+    # SECTION 8: IVR
+    # ═══════════════════════════════════════════════════════════════
+    story.append(section("8. IVR Phone System"))
+    story.append(body("Patients call the pharmacy and use the automated IVR powered by <b>Twilio</b>."))
+    story.append(hr())
+
+    story.append(subsection("Main Menu"))
+    story.append(bullet("<b>Press 1</b>: Request a prescription refill"))
+    story.append(bullet("<b>Press 2</b>: Check the status of a prescription"))
+    story.append(bullet("<b>Press 3</b>: Speak with a pharmacist"))
+
+    story.append(subsection("Refill by Phone"))
+    story.append(numbered(1, "Patient enters RX number using the phone keypad"))
+    story.append(numbered(2, "System verifies refills remaining"))
+    story.append(numbered(3, "Creates a Refill Request (appears in the Refills queue)"))
+    story.append(numbered(4, "Patient hears confirmation and receives SMS"))
+
+    story.append(subsection("Status Check"))
+    story.append(body("Patient enters RX number and hears: 'Your prescription is <b>ready for pickup</b>' / 'being processed' / 'waiting for insurance approval'."))
+
+    story.append(PageBreak())
+
+    # ═══════════════════════════════════════════════════════════════
+    # SECTION 9: INVENTORY OPTIMIZATION
+    # ═══════════════════════════════════════════════════════════════
+    story.append(section("9. Inventory Optimization"))
+    story.append(body("Our algorithmic engine analyzes dispensing patterns to optimize ordering and reduce waste."))
+    story.append(hr())
+
+    story.append(subsection("What It Analyzes"))
+    story.append(bullet("<b>Dispensing velocity</b>: Units per day (30/60/90-day weighted average)"))
+    story.append(bullet("<b>Optimal reorder point</b>: Daily usage x lead time + safety stock (95% service level)"))
+    story.append(bullet("<b>EOQ</b>: Economic Order Quantity to minimize total ordering + carrying cost"))
+    story.append(bullet("<b>Dead stock</b>: Items on hand with no dispensing in 90+ days"))
+    story.append(bullet("<b>Fast movers</b>: Top 20% by volume, need close monitoring"))
+    story.append(bullet("<b>Seasonal patterns</b>: Same month this year vs last year"))
+
+    story.append(subsection("Dashboard"))
+    story.append(bullet("Reorder Recommendations with priority scoring (critical/urgent/standard)"))
+    story.append(bullet("Dead Stock and Fast Movers tables"))
+    story.append(bullet("One-click <b>Apply</b> to update reorder settings to optimized values"))
+    story.append(bullet("Estimated monthly cost savings"))
+
+    # ═══════════════════════════════════════════════════════════════
+    # SECTION 10: CARDINAL HEALTH
+    # ═══════════════════════════════════════════════════════════════
+    story.append(section("10. Wholesale Ordering"))
+    story.append(body("Order drugs directly from <b>Cardinal Health</b> without leaving the PMS."))
+    story.append(hr())
+    story.append(numbered(1, "Search Cardinal catalog by NDC or product name"))
+    story.append(numbered(2, "View pricing, availability, manufacturer, DEA schedule"))
+    story.append(numbered(3, "Add items to cart with quantities"))
+    story.append(numbered(4, "Submit order — PO created and transmitted to Cardinal"))
+    story.append(numbered(5, "Track order status: submitted, confirmed, shipped, delivered"))
+    story.append(bullet("Failed orders can be retried; draft orders can be cancelled"))
+
+    story.append(PageBreak())
+
+    # ═══════════════════════════════════════════════════════════════
+    # SECTION 11: ANALYTICS
+    # ═══════════════════════════════════════════════════════════════
+    story.append(section("11. Advanced Analytics Dashboard"))
+    story.append(body("Business intelligence dashboard providing deep operational insights."))
+    story.append(hr())
+
+    story.append(subsection("KPI Cards"))
+    story.append(bullet("Total Fills, Revenue, Avg Fills/Day, Claim Acceptance Rate, Active Patients"))
+    story.append(bullet("Each with period-over-period change arrows (green up / red down)"))
+
+    story.append(subsection("Analytics Sections"))
+    story.append(bullet("<b>Dispensing Trends</b>: Daily fill count chart over time"))
+    story.append(bullet("<b>Revenue</b>: By day + by payer type (insurance/cash/charge account)"))
+    story.append(bullet("<b>Top 10 Drugs</b>: By fill count and revenue"))
+    story.append(bullet("<b>Claims Performance</b>: Acceptance rate, top rejection codes"))
+    story.append(bullet("<b>Payer Mix</b>: Plan breakdown by volume and revenue"))
+    story.append(bullet("<b>Productivity</b>: Fills per day, queue stage times, tech rankings"))
+    story.append(bullet("<b>Compounding</b>: Batches per month, top formulas, QA pass rate"))
+    story.append(body("All analytics support <b>7-day, 30-day, 90-day, and YTD</b> date ranges."))
+
+    # ═══════════════════════════════════════════════════════════════
+    # SECTION 12: CONTROLLED SUBSTANCES
+    # ═══════════════════════════════════════════════════════════════
+    story.append(PageBreak())
+    story.append(section("12. Controlled Substance Perpetual Inventory"))
+    story.append(body("DEA compliance module maintaining a running balance of every Schedule II-V drug."))
+    story.append(hr())
+
+    story.append(subsection("Transaction Tracking"))
+    story.append(body("Every unit tracked from receipt through dispensing:"))
+    story.append(bullet("<b>Receipt</b>: Shipment arrives, quantity added to balance"))
+    story.append(bullet("<b>Dispense</b>: Fill dispensed, quantity subtracted"))
+    story.append(bullet("<b>Destruction</b>: Expired/damaged product destroyed (witnessed)"))
+    story.append(bullet("<b>Loss / Theft</b>: Recorded for DEA reporting (Form 106)"))
+    story.append(bullet("<b>Adjustment</b>: Manual corrections with required notes"))
+
+    story.append(subsection("Dashboard"))
+    story.append(bullet("Color-coded by schedule: <font color='#dc2626'><b>C-II red</b></font>, <font color='#f97316'><b>C-III orange</b></font>, <font color='#ca8a04'><b>C-IV yellow</b></font>, <font color='#2563eb'><b>C-V blue</b></font>"))
+    story.append(bullet("Each item: balance, last physical count, discrepancy flag"))
+    story.append(bullet("<b>Record Count</b>: Enter physical count, system flags if calculated != physical"))
+    story.append(bullet("Item ledger with full transaction history and running balance chart"))
+
+    story.append(subsection("Biennial Inventory Report"))
+    story.append(bullet("DEA-required complete inventory of all controlled substances"))
+    story.append(bullet("Signature block for Pharmacist-in-Charge with DEA registration number"))
+    story.append(bullet("Print and CSV export for filing"))
+
+    # ═══════════════════════════════════════════════════════════════
+    # SECTION 13: ROLES
     # ═══════════════════════════════════════════════════════════════
     story.append(Spacer(1, 20))
-    story.append(section("7. Roles and Responsibilities"))
+    story.append(section("13. Roles and Responsibilities"))
     story.append(hr())
 
     story.append(make_table(
         ["Role", "What They Do", "Key Screens"],
         [
-            ["Pharmacy Technician", "Process intake, fill Rx, print/scan, compound, ship", "Queue, Intake, Compounding, Shipping"],
-            ["Pharmacist (RPh)", "Verify fills, DUR review, counsel patients, sign off batches", "Queue (Verify), Compounding, Pickup"],
-            ["Billing Specialist", "Submit claims, resolve rejections, manage charge accounts", "Billing, Claims, AR Aging, Direct Fees"],
-            ["Shipping Clerk", "Pack orders, print shipping labels, track deliveries", "Shipping, Packing Lists"],
-            ["Admin / Manager", "System settings, user management, reporting, audit logs", "Settings, Users, Analytics, Compliance"],
+            ["Pharmacy Technician", "Process intake, fill Rx, print/scan, compound, ship, weigh ingredients, count pills", "Queue, Intake, Compounding, Shipping, Eyecon, Scale"],
+            ["Pharmacist (RPh)", "Verify fills, DUR review, counsel, sign off batches, CS reconciliation", "Queue (Verify), Compounding, Pickup, Controlled Substances"],
+            ["Billing Specialist", "Submit claims, resolve rejections, manage charge accounts, review analytics", "Billing, Claims, AR Aging, Analytics"],
+            ["Shipping Clerk", "Pack orders, print shipping labels, track deliveries, create Cardinal POs", "Shipping, Inventory Orders"],
+            ["Admin / Manager", "System settings, analytics, CS compliance, inventory optimization", "Settings, Analytics, Controlled Substances, Optimization"],
         ],
         col_widths=[1.5*inch, 2.5*inch, 2.5*inch],
     ))
