@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "rm -rf .next && npx prisma generate && npm run build",
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/drx-sync?entity=all",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(where python:*)",
+      "Bash(where python3:*)",
+      "Read(//c/Users/cdowling/OneDrive - Boudreaux's New Drug Store/Cursor Projects/bnds-pms/$USERPROFILE/.claude/skills/ui-ux-pro-max/**)",
+      "Read(//c/Users/cdowling/OneDrive - Boudreaux's New Drug Store/Cursor Projects/bnds-pms/$USERPROFILE/.claude/skills/**)",
+      "Read(//c/Users/cdowling/OneDrive - Boudreaux's New Drug Store/Cursor Projects/bnds-pms/$USERPROFILE/.claude/**)",
+      "Bash(/c/Python314/python.exe \"$USERPROFILE/.claude/skills/ui-ux-pro-max/scripts/search.py\" \"pharmacy healthcare SaaS dashboard professional\" --design-system -p \"BNDS PMS\")",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where npm.cmd)",
+      "Bash(find . -path \"*/app/\\(dashboard\\)/*\" -name \"page.tsx\")",
+      "Bash(find . -path \"*/app/\\(dashboard\\)/*\" -name \"actions.ts\")",
+      "Bash(find . -path \"*/app/\\(dashboard\\)/dashboard/*\" -name \"actions.ts\")",
+      "Bash(find . -path \"*/app/\\(dashboard\\)/queue/*\" -name \"actions.ts\")"
+    ]
+  }
+}

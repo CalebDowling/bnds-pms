@@ -1,0 +1,42 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# prisma - migrations ARE version controlled (do not ignore)
+
+# ghost files — OneDrive/Windows creates dirs with U+F05C chars around parens
+# These corrupt paths cause duplicate route files on Vercel (Linux)
+**/\357\201\234*
+fix.js
+
+# agent-generated docs (not for version control)
+REORDER_ALERTS_*.md
