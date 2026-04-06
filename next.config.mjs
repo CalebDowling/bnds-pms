@@ -12,7 +12,6 @@ const nextConfig = {
 
   // Skip type/lint errors during Vercel builds to prevent stale cache issues
   typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
 
   experimental: {
     serverActions: {

@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck -- TODO: add proper types to replace this flag
 /**
  * BNDS PMS — Outbound Calling Engine
  * Automated call campaigns for prescription ready, refill reminders,

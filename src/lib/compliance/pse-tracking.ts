@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck -- TODO: add proper types to replace this flag
 /**
  * PSE (Pseudoephedrine) Tracking Module
  * Combat Methamphetamine Epidemic Act (CMEA) Compliance
@@ -7,7 +7,7 @@
  * manages NPLEx block list checks, and generates submission data.
  */
 
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
 // ---------------------------------------------------------------------------

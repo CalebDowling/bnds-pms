@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck -- TODO: add proper types to replace this flag
 /**
  * BNDS PMS — Telepharmacy Session Manager
  * Video consultation sessions for remote RPh verification, counseling,

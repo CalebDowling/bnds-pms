@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck -- TODO: add proper types to replace this flag
 /**
  * Compliance Packaging — Sync List Engine
  *
@@ -12,7 +12,7 @@
  *   "cp-pack-history"        → PackRecord[]
  */
 
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 // ---------------------------------------------------------------------------
 // Types

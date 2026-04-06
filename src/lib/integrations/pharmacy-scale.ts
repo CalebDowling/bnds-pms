@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck -- TODO: add proper types to replace this flag
 /**
  * Pharmacy Scale Integration — Sartorius / Ohaus
  *

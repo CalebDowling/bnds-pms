@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck -- TODO: add proper types to replace this flag
 /**
  * IVR (Interactive Voice Response) System for Automated Prescription Services
  *
@@ -17,6 +17,7 @@
 
 // @ts-ignore -- twilio types installed separately
 const twilio = require('twilio');
+const VoiceResponse = twilio.twiml.VoiceResponse;
 
 import { prisma } from '@/lib/prisma';
 
