@@ -7,9 +7,19 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { buildTransferToPharmacist } from '@/lib/integrations/ivr-system';
+import { verifyTwilioSignature } from '@/lib/integrations/twilio-verify';
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
+    const twilioSig = request.headers.get('x-twilio-signature');
+    const formData = await request.formData();
+    const params: Record<string, string> = {};
+    formData.forEach((value, key) => { params[key] = value.toString(); });
+
+    if (!verifyTwilioSignature(request.url, params, twilioSig)) {
+      return new Response('Unauthorized', { status: 403 });
+    }
+
     const twimlResponse = buildTransferToPharmacist();
 
     return new NextResponse(twimlResponse, {

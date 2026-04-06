@@ -73,7 +73,7 @@ export async function getPatients({
 // ─── GET SINGLE PATIENT ─────────────────────
 
 export async function getPatient(id: string) {
-  return prisma.patient.findUnique({
+  const patient = await prisma.patient.findUnique({
     where: { id },
     include: {
       phoneNumbers: true,
@@ -99,6 +99,18 @@ export async function getPatient(id: string) {
       room: true,
     },
   });
+
+  // Audit PHI access
+  try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const user = await getCurrentUser();
+    if (user) {
+      const { logAudit } = await import("@/lib/audit");
+      await logAudit({ userId: user.id, action: "VIEW", resource: "patient", resourceId: id, details: { source: "getPatient" } });
+    }
+  } catch {}
+
+  return patient;
 }
 
 // ─── CREATE PATIENT ─────────────────────────

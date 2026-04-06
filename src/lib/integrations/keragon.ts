@@ -258,8 +258,11 @@ export function verifyKeragonSignature(
   signature: string | null
 ): boolean {
   if (!KERAGON_WEBHOOK_SECRET || !signature) {
-    // If no secret configured, skip verification (dev mode)
-    logger.warn("[Keragon] No webhook secret configured — skipping signature verification");
+    if (process.env.NODE_ENV === "production") {
+      logger.warn("[Keragon] No webhook secret configured — rejecting in production");
+      return false;
+    }
+    logger.warn("[Keragon] No webhook secret configured — allowing in dev mode");
     return true;
   }
 

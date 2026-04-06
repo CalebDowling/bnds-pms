@@ -133,6 +133,15 @@ export async function getPrescription(id: string) {
     },
   });
 
+  // Audit PHI access
+  try {
+    const user = await getCurrentUser();
+    if (user) {
+      const { logAudit } = await import("@/lib/audit");
+      await logAudit({ userId: user.id, action: "VIEW", resource: "prescription", resourceId: id, details: { source: "getPrescription" } });
+    }
+  } catch {}
+
   // Convert Decimal objects to numbers for React serialization
   return rx ? JSON.parse(JSON.stringify(rx, (_, v) =>
     typeof v === "object" && v !== null && "toFixed" in v ? Number(v) : v

@@ -14,13 +14,22 @@ import {
   buildRefillMenu,
   processRefillRequest,
 } from '@/lib/integrations/ivr-system';
+import { verifyTwilioSignature } from '@/lib/integrations/twilio-verify';
 
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const step = searchParams.get('step');
 
+    const twilioSig = request.headers.get('x-twilio-signature');
     const formData = await request.formData();
+    const params: Record<string, string> = {};
+    formData.forEach((value, key) => { params[key] = value.toString(); });
+
+    if (!verifyTwilioSignature(request.url, params, twilioSig)) {
+      return new Response('Unauthorized', { status: 403 });
+    }
+
     const digits = formData.get('Digits')?.toString() ?? '';
     const callerPhone = formData.get('From')?.toString() ?? formData.get('Caller')?.toString() ?? '';
 

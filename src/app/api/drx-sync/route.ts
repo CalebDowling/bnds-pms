@@ -66,9 +66,10 @@ export async function POST(req: NextRequest) {
   const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
 
   if (!isCron) {
-    const cookieHeader = req.headers.get("cookie") || "";
-    if (!cookieHeader.includes("sb-")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { getCurrentUser } = await import("@/lib/auth");
+    const user = await getCurrentUser();
+    if (!user || !(user as any).isAdmin) {
+      return NextResponse.json({ error: "Unauthorized — admin only" }, { status: 403 });
     }
   }
 

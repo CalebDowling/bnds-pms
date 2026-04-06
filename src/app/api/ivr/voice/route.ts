@@ -16,6 +16,7 @@ import {
   handleIncomingCall,
   routeMainMenuSelection,
 } from '@/lib/integrations/ivr-system';
+import { verifyTwilioSignature } from '@/lib/integrations/twilio-verify';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,7 +24,15 @@ export async function POST(request: NextRequest) {
     const step = searchParams.get('step');
 
     // Parse the form-encoded body Twilio sends
+    const twilioSig = request.headers.get('x-twilio-signature');
     const formData = await request.formData();
+    const params: Record<string, string> = {};
+    formData.forEach((value, key) => { params[key] = value.toString(); });
+
+    if (!verifyTwilioSignature(request.url, params, twilioSig)) {
+      return new Response('Unauthorized', { status: 403 });
+    }
+
     const digits = formData.get('Digits')?.toString() ?? '';
 
     let twimlResponse: string;

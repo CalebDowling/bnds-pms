@@ -1,8 +1,10 @@
 import { getRealTimeStats } from "@/app/(dashboard)/dashboard/stats-actions";
+import { requireUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    const user = await requireUser();
     const stats = await getRealTimeStats();
     return NextResponse.json(stats);
   } catch (error) {
