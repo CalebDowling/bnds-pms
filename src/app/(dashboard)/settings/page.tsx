@@ -1,162 +1,218 @@
-import Link from "next/link";
-import PermissionGuard from "@/components/auth/PermissionGuard";
+"use client";
 
-function SettingsPageContent() {
+import { useState } from "react";
+import Link from "next/link";
+import {
+  Building2, Users, Shield, Printer, Cpu, Bell, Link2, QrCode, CreditCard,
+  ClipboardList, Phone, Mail, ChevronRight,
+} from "lucide-react";
+
+// ─── Section definitions ──────────────────────────────────────────
+
+const SECTIONS = [
+  { id: "pharmacy", label: "Pharmacy Info", icon: Building2, href: null },
+  { id: "system", label: "System Config", icon: Cpu, href: null },
+  { id: "users", label: "Users & Roles", icon: Users, href: "/users" },
+  { id: "security", label: "Security", icon: Shield, href: "/settings/security" },
+  { id: "print", label: "Print Templates", icon: Printer, href: "/settings/print-templates" },
+  { id: "hardware", label: "Hardware", icon: Cpu, href: "/settings/hardware" },
+  { id: "alerts", label: "Alerts", icon: Bell, href: "/settings/alerts" },
+  { id: "integrations", label: "Integrations", icon: Link2, href: "/settings/integrations" },
+  { id: "widget", label: "Web Widget", icon: QrCode, href: "/settings/widget" },
+  { id: "fsa", label: "FSA / HSA", icon: CreditCard, href: "/settings/fsa-hsa" },
+  { id: "audit", label: "Audit Log", icon: ClipboardList, href: "/settings/audit-log" },
+  { id: "blocked", label: "Blocked Numbers", icon: Phone, href: "/settings/blocked-numbers" },
+  { id: "notifications", label: "Notifications", icon: Mail, href: "/settings/notifications" },
+] as const;
+
+// ─── Inline section content ───────────────────────────────────────
+
+function PharmacyInfoSection() {
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500 mt-1">Pharmacy configuration, users, and system settings</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pharmacy Info */}
-        {/* Audit Log */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Audit Log</h2>
-          <p className="text-sm text-gray-500 mb-4">View system activity and user actions</p>
-          <Link
-            href="/settings/audit-log"
-            className="inline-flex items-center px-4 py-2 rounded-lg bg-[#40721D] text-white text-sm font-medium hover:bg-[#2D5114] transition-colors"
-          >
-            View Audit Log →
-          </Link>
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Pharmacy Information</h2>
-          <dl className="space-y-3">
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">Name</dt>
-              <dd className="text-sm text-gray-900 font-medium">Boudreaux&apos;s Compounding Pharmacy</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">NPI</dt>
-              <dd className="text-sm text-gray-900 font-mono">1234567890</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">NCPDP</dt>
-              <dd className="text-sm text-gray-900 font-mono">—</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">DEA</dt>
-              <dd className="text-sm text-gray-900 font-mono">—</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">State License</dt>
-              <dd className="text-sm text-gray-900">LA</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">Phone</dt>
-              <dd className="text-sm text-gray-900">(337) 000-0000</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">Fax</dt>
-              <dd className="text-sm text-gray-900">(337) 000-0001</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-sm text-gray-500">Address</dt>
-              <dd className="text-sm text-gray-900 text-right">404 E Prien Lake Rd<br />Lake Charles, LA 70601</dd>
-            </div>
-          </dl>
-        </div>
-
-        {/* System Config */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">System Configuration</h2>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <div>
-                <p className="text-sm font-medium text-gray-900">MRN Format</p>
-                <p className="text-xs text-gray-400">Patient MRN prefix and numbering</p>
-              </div>
-              <span className="text-sm text-gray-600 font-mono">BNDS-XXXXXXX</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Rx Number Start</p>
-                <p className="text-xs text-gray-400">Starting prescription number</p>
-              </div>
-              <span className="text-sm text-gray-600 font-mono">100001</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Batch Number Format</p>
-                <p className="text-xs text-gray-400">Compounding batch numbering</p>
-              </div>
-              <span className="text-sm text-gray-600 font-mono">BYYYYMMDD-###</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Default BUD Days</p>
-                <p className="text-xs text-gray-400">Non-sterile compounds</p>
-              </div>
-              <span className="text-sm text-gray-600">180 days</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Time Zone</p>
-                <p className="text-xs text-gray-400">System time zone</p>
-              </div>
-              <span className="text-sm text-gray-600">America/Chicago (CST)</span>
-            </div>
+      <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>Pharmacy Information</h2>
+      <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Store details and contact information</p>
+      <dl className="space-y-0">
+        {[
+          { label: "Name", value: "Boudreaux's Compounding Pharmacy" },
+          { label: "NPI", value: "1234567890", mono: true },
+          { label: "NCPDP", value: "—", mono: true },
+          { label: "DEA", value: "—", mono: true },
+          { label: "State License", value: "LA" },
+          { label: "Phone", value: "(337) 000-0000" },
+          { label: "Fax", value: "(337) 000-0001" },
+          { label: "Address", value: "404 E Prien Lake Rd, Lake Charles, LA 70601" },
+        ].map((item) => (
+          <div key={item.label} className="flex items-center justify-between py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+            <dt className="text-sm" style={{ color: "var(--text-muted)" }}>{item.label}</dt>
+            <dd className={`text-sm font-medium ${item.mono ? "font-mono" : ""}`} style={{ color: "var(--text-primary)" }}>{item.value}</dd>
           </div>
-        </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
 
-        {/* Users & Roles */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Users & Roles</h2>
-          <p className="text-sm text-gray-500 mb-4">Manage staff accounts, roles, and permissions.</p>
-          <div className="space-y-3">
-            {[
-              { role: "Pharmacist (RPh)", desc: "Full system access, verification, clinical decisions", color: "bg-purple-50 text-purple-700" },
-              { role: "Pharmacy Tech", desc: "Fill prescriptions, compound, manage inventory", color: "bg-blue-50 text-blue-700" },
-              { role: "Shipping Clerk", desc: "Pack and ship orders, manage deliveries", color: "bg-cyan-50 text-cyan-700" },
-              { role: "Billing Specialist", desc: "Claims processing, payments, insurance", color: "bg-green-50 text-green-700" },
-              { role: "Cashier", desc: "POS transactions, patient pickup", color: "bg-orange-50 text-orange-700" },
-              { role: "Admin", desc: "System configuration, user management", color: "bg-red-50 text-red-700" },
-            ].map((r) => (
-              <div key={r.role} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <div>
-                  <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${r.color}`}>{r.role}</span>
-                  <p className="text-xs text-gray-400 mt-1">{r.desc}</p>
-                </div>
-              </div>
-            ))}
+function SystemConfigSection() {
+  return (
+    <div>
+      <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>System Configuration</h2>
+      <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Numbering formats, defaults, and system settings</p>
+      <div className="space-y-0">
+        {[
+          { label: "MRN Format", desc: "Patient MRN prefix and numbering", value: "BNDS-XXXXXXX" },
+          { label: "Rx Number Start", desc: "Starting prescription number", value: "100001" },
+          { label: "Batch Number Format", desc: "Compounding batch numbering", value: "BYYYYMMDD-###" },
+          { label: "Default BUD Days", desc: "Non-sterile compounds", value: "180 days" },
+          { label: "Time Zone", desc: "System time zone", value: "America/Chicago (CST)" },
+        ].map((item) => (
+          <div key={item.label} className="flex items-center justify-between py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+            <div>
+              <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{item.label}</p>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item.desc}</p>
+            </div>
+            <span className="text-sm font-mono" style={{ color: "var(--text-secondary)" }}>{item.value}</span>
           </div>
-        </div>
-
-        {/* Print Templates */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Print Templates</h2>
-          <p className="text-sm text-gray-500 mb-4">Configure Rx labels, receipts, batch labels, and reports</p>
-          <Link
-            href="/settings/print-templates"
-            className="inline-flex items-center px-4 py-2 rounded-lg bg-[#40721D] text-white text-sm font-medium hover:bg-[#2D5114] transition-colors"
-          >
-            Manage Templates →
-          </Link>
-        </div>
-
-        {/* Integrations */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Integrations</h2>
-          <p className="text-sm text-gray-500 mb-4">Manage external service connections</p>
-          <Link
-            href="/settings/integrations"
-            className="inline-flex items-center px-4 py-2 rounded-lg bg-[#40721D] text-white text-sm font-medium hover:bg-[#2D5114] transition-colors"
-          >
-            Manage Integrations →
-          </Link>
-        </div>
+        ))}
       </div>
     </div>
   );
 }
-export default function SettingsPage() {
+
+function LinkedSection({ title, description, href }: { title: string; description: string; href: string }) {
   return (
-    <PermissionGuard resource="settings" action="read">
-      <SettingsPageContent />
-    </PermissionGuard>
+    <div>
+      <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>{title}</h2>
+      <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>{description}</p>
+      <Link
+        href={href}
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white no-underline transition-colors"
+        style={{ backgroundColor: "var(--color-primary, #40721D)" }}
+      >
+        Open {title} <ChevronRight size={16} />
+      </Link>
+    </div>
+  );
+}
+
+function UsersSection() {
+  const roles = [
+    { role: "Pharmacist (RPh)", desc: "Full system access, verification, clinical decisions", color: "#7c3aed", bg: "#ede9fe" },
+    { role: "Pharmacy Tech", desc: "Fill prescriptions, compound, manage inventory", color: "#2563eb", bg: "#dbeafe" },
+    { role: "Shipping Clerk", desc: "Pack and ship orders, manage deliveries", color: "#0891b2", bg: "#cffafe" },
+    { role: "Billing Specialist", desc: "Claims processing, payments, insurance", color: "#16a34a", bg: "#dcfce7" },
+    { role: "Cashier", desc: "POS transactions, patient pickup", color: "#ea580c", bg: "#fff7ed" },
+    { role: "Admin", desc: "System configuration, user management", color: "#dc2626", bg: "#fef2f2" },
+  ];
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Users & Roles</h2>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Manage staff accounts, roles, and permissions</p>
+        </div>
+        <Link
+          href="/users"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white no-underline"
+          style={{ backgroundColor: "var(--color-primary, #40721D)" }}
+        >
+          Manage Users <ChevronRight size={14} />
+        </Link>
+      </div>
+      <div className="space-y-0">
+        {roles.map((r) => (
+          <div key={r.role} className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+            <span
+              className="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full"
+              style={{ backgroundColor: r.bg, color: r.color }}
+            >
+              {r.role}
+            </span>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>{r.desc}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main settings page ───────────────────────────────────────────
+
+export default function SettingsPage() {
+  const [active, setActive] = useState("pharmacy");
+
+  const renderContent = () => {
+    switch (active) {
+      case "pharmacy":
+        return <PharmacyInfoSection />;
+      case "system":
+        return <SystemConfigSection />;
+      case "users":
+        return <UsersSection />;
+      case "security":
+        return <LinkedSection title="Security" description="Two-factor authentication, IP allowlist, session settings, and access controls" href="/settings/security" />;
+      case "print":
+        return <LinkedSection title="Print Templates" description="Configure Rx labels, receipts, batch labels, shipping labels, and reports" href="/settings/print-templates" />;
+      case "hardware":
+        return <LinkedSection title="Hardware" description="Barcode scanners, label printers, scales, payment terminals, and Eyecon counters" href="/settings/hardware" />;
+      case "alerts":
+        return <LinkedSection title="Alerts" description="Low stock alerts, expiring lots, claim rejections, and business rule notifications" href="/settings/alerts" />;
+      case "integrations":
+        return <LinkedSection title="Integrations" description="SureScripts, Change Healthcare, Keragon, Cardinal Health, and other service connections" href="/settings/integrations" />;
+      case "widget":
+        return <LinkedSection title="Web Widget" description="Embeddable refill widget, API key management, pharmacy branding, and embed code" href="/settings/widget" />;
+      case "fsa":
+        return <LinkedSection title="FSA / HSA" description="Item eligibility categories, IIAS compliance, MCC code, and transaction reporting" href="/settings/fsa-hsa" />;
+      case "audit":
+        return <LinkedSection title="Audit Log" description="System activity, user actions, PHI access tracking, and compliance reporting" href="/settings/audit-log" />;
+      case "blocked":
+        return <LinkedSection title="Blocked Numbers" description="Phone screening, unwanted callers, and auto-reject rules" href="/settings/blocked-numbers" />;
+      case "notifications":
+        return <LinkedSection title="Notifications" description="Email, SMS, and in-app notification preferences and delivery settings" href="/settings/notifications" />;
+      default:
+        return <PharmacyInfoSection />;
+    }
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Settings</h1>
+        <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>Pharmacy configuration, users, and system settings</p>
+      </div>
+
+      {/* Sidebar + Content */}
+      <div className="flex gap-0 rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)", minHeight: "calc(100vh - 200px)" }}>
+        {/* Sidebar */}
+        <nav className="w-56 flex-shrink-0 border-r p-2" style={{ backgroundColor: "var(--card-bg)", borderColor: "var(--border)" }}>
+          {SECTIONS.map((s) => {
+            const Icon = s.icon;
+            const isActive = s.id === active;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setActive(s.id)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm transition-all mb-0.5"
+                style={{
+                  backgroundColor: isActive ? "var(--color-primary, #40721D)" : "transparent",
+                  color: isActive ? "#fff" : "var(--text-secondary)",
+                  fontWeight: isActive ? 600 : 400,
+                }}
+              >
+                <Icon size={16} style={{ opacity: isActive ? 1 : 0.7 }} />
+                {s.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Content */}
+        <div className="flex-1 p-6" style={{ backgroundColor: "#fff" }}>
+          {renderContent()}
+        </div>
+      </div>
+    </div>
   );
 }
