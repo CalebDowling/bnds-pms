@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Building2, Users, Shield, Printer, Cpu, Bell, Link2, QrCode, CreditCard,
   ClipboardList, Phone, Mail, ChevronRight,
@@ -141,6 +142,17 @@ function UsersSection() {
 
 export default function SettingsPage() {
   const [active, setActive] = useState("pharmacy");
+  const router = useRouter();
+
+  const handleSectionClick = (section: typeof SECTIONS[number]) => {
+    // Sections with their own page navigate directly
+    if (section.href) {
+      router.push(section.href);
+      return;
+    }
+    // Inline sections show content in the right panel
+    setActive(section.id);
+  };
 
   const renderContent = () => {
     switch (active) {
@@ -150,26 +162,6 @@ export default function SettingsPage() {
         return <SystemConfigSection />;
       case "users":
         return <UsersSection />;
-      case "security":
-        return <LinkedSection title="Security" description="Two-factor authentication, IP allowlist, session settings, and access controls" href="/settings/security" />;
-      case "print":
-        return <LinkedSection title="Print Templates" description="Configure Rx labels, receipts, batch labels, shipping labels, and reports" href="/settings/print-templates" />;
-      case "hardware":
-        return <LinkedSection title="Hardware" description="Barcode scanners, label printers, scales, payment terminals, and Eyecon counters" href="/settings/hardware" />;
-      case "alerts":
-        return <LinkedSection title="Alerts" description="Low stock alerts, expiring lots, claim rejections, and business rule notifications" href="/settings/alerts" />;
-      case "integrations":
-        return <LinkedSection title="Integrations" description="SureScripts, Change Healthcare, Keragon, Cardinal Health, and other service connections" href="/settings/integrations" />;
-      case "widget":
-        return <LinkedSection title="Web Widget" description="Embeddable refill widget, API key management, pharmacy branding, and embed code" href="/settings/widget" />;
-      case "fsa":
-        return <LinkedSection title="FSA / HSA" description="Item eligibility categories, IIAS compliance, MCC code, and transaction reporting" href="/settings/fsa-hsa" />;
-      case "audit":
-        return <LinkedSection title="Audit Log" description="System activity, user actions, PHI access tracking, and compliance reporting" href="/settings/audit-log" />;
-      case "blocked":
-        return <LinkedSection title="Blocked Numbers" description="Phone screening, unwanted callers, and auto-reject rules" href="/settings/blocked-numbers" />;
-      case "notifications":
-        return <LinkedSection title="Notifications" description="Email, SMS, and in-app notification preferences and delivery settings" href="/settings/notifications" />;
       default:
         return <PharmacyInfoSection />;
     }
@@ -189,11 +181,11 @@ export default function SettingsPage() {
         <nav className="w-56 flex-shrink-0 border-r p-2" style={{ backgroundColor: "var(--card-bg)", borderColor: "var(--border)" }}>
           {SECTIONS.map((s) => {
             const Icon = s.icon;
-            const isActive = s.id === active;
+            const isActive = s.id === active && !s.href;
             return (
               <button
                 key={s.id}
-                onClick={() => setActive(s.id)}
+                onClick={() => handleSectionClick(s)}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm transition-all mb-0.5"
                 style={{
                   backgroundColor: isActive ? "var(--color-primary, #40721D)" : "transparent",
