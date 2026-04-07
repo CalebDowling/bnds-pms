@@ -31,7 +31,7 @@ import {
 import { getReorderStatus } from "@/lib/inventory/reorder-check";
 import { getQueueCounts } from "@/app/(dashboard)/dashboard/actions";
 import type { DashboardData } from "@/components/dashboard/CardGrid";
-import PhoneDialer from "@/components/dashboard/PhoneDialer";
+import DashboardPhoneWidget from "@/components/dashboard/DashboardPhoneWidget";
 
 interface WorkflowItemProps {
   label: string;
@@ -197,7 +197,7 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
           </div>
         </div>
 
-        {/* Column 2: Quick Access + Phone Dialer */}
+        {/* Column 2: Quick Access + Phone System */}
         <div className="space-y-4">
           {/* Quick Access Modules */}
           <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
@@ -219,8 +219,8 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
             </div>
           </div>
 
-          {/* Phone Dialer */}
-          <PhoneDialer />
+          {/* Live Phone System */}
+          <DashboardPhoneWidget />
         </div>
 
         {/* Column 3: Activity & Alerts */}
