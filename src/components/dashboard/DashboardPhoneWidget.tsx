@@ -6,10 +6,13 @@ import {
   Phone,
   PhoneOff,
   PhoneForwarded,
+  PhoneIncoming,
   Pause,
   Play,
   ChevronRight,
   History,
+  Clock,
+  Users,
 } from "lucide-react";
 import {
   getPhoneDashboard,
@@ -48,7 +51,7 @@ function formatPhone(phone: string): string {
 // Live Timer — ticks every second from a given start time
 // ---------------------------------------------------------------------------
 
-function LiveTimer({ startedAt }: { startedAt: string }) {
+function LiveTimer({ startedAt, className }: { startedAt: string; className?: string }) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -59,7 +62,7 @@ function LiveTimer({ startedAt }: { startedAt: string }) {
     return () => clearInterval(interval);
   }, [startedAt]);
 
-  return <span className="font-mono text-xs tabular-nums">{formatDuration(elapsed)}</span>;
+  return <span className={className ?? "font-mono text-[11px] tabular-nums"}>{formatDuration(elapsed)}</span>;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,11 +77,20 @@ const TRANSFER_TARGETS: { value: TransferTarget; label: string }[] = [
   { value: "voicemail", label: "Voicemail" },
 ];
 
+// Department status labels for the bottom strip
+const DEPARTMENTS = [
+  { label: "Pharmacy", color: "#22c55e" },
+  { label: "Pharmacist", color: "#22c55e" },
+  { label: "Billing", color: "#22c55e" },
+  { label: "Shipping", color: "#eab308" },
+  { label: "Voicemail", color: "#22c55e" },
+];
+
 // ---------------------------------------------------------------------------
-// Compact Active Call Row
+// Active Call Card (compact but full-featured)
 // ---------------------------------------------------------------------------
 
-function ActiveCallRow({
+function ActiveCallCard({
   call,
   onHold,
   onTransfer,
@@ -92,87 +104,89 @@ function ActiveCallRow({
   busy: boolean;
 }) {
   const [showTransfer, setShowTransfer] = useState(false);
-
   const isOnHold = call.status === "on-hold";
   const isRinging = call.status === "ringing";
 
+  const borderColor = isOnHold ? "#eab308" : isRinging ? "#f97316" : "#22c55e";
+
   return (
     <div
-      className={`px-3 py-2 transition-all ${
-        isRinging ? "animate-pulse" : ""
-      }`}
+      className={`rounded-lg p-2.5 transition-all ${isRinging ? "animate-pulse" : ""}`}
       style={{
-        borderLeft: `3px solid ${
-          isOnHold ? "#eab308" : isRinging ? "#f97316" : "#22c55e"
-        }`,
+        border: `1px solid ${borderColor}30`,
+        borderLeft: `3px solid ${borderColor}`,
         backgroundColor: isOnHold
-          ? "rgba(234,179,8,0.04)"
+          ? "rgba(234,179,8,0.05)"
           : isRinging
-          ? "rgba(249,115,22,0.04)"
-          : "transparent",
+          ? "rgba(249,115,22,0.05)"
+          : "rgba(34,197,94,0.04)",
       }}
     >
-      {/* Row 1: caller info + duration */}
-      <div className="flex items-center justify-between gap-2">
+      {/* Row 1: Name + status */}
+      <div className="flex items-center justify-between gap-2 mb-1">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[12px] font-semibold truncate" style={{ color: "var(--text-primary)" }}>
               {call.callerName ?? formatPhone(call.callerPhone)}
             </span>
             {call.patientMrn && (
-              <span className="text-[10px] font-medium px-1 py-px rounded" style={{ color: "var(--green-700)", backgroundColor: "var(--green-100)" }}>
+              <span
+                className="text-[9px] font-semibold px-1.5 py-px rounded"
+                style={{ color: "var(--green-700)", backgroundColor: "var(--green-100)" }}
+              >
                 {call.patientMrn}
               </span>
             )}
           </div>
           {call.callerName && (
-            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+            <span className="text-[10px] block" style={{ color: "var(--text-muted)" }}>
               {formatPhone(call.callerPhone)}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span
-            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
             style={{
               backgroundColor: isOnHold ? "#fef9c3" : isRinging ? "#fff7ed" : "#dcfce7",
               color: isOnHold ? "#a16207" : isRinging ? "#c2410c" : "#15803d",
             }}
           >
-            {isOnHold ? "Hold" : isRinging ? "Ring" : "Live"}
+            {isOnHold ? "HOLD" : isRinging ? "RING" : "LIVE"}
           </span>
-          <LiveTimer startedAt={call.startedAt} />
+          <LiveTimer
+            startedAt={call.startedAt}
+            className={`font-mono text-[11px] tabular-nums font-semibold ${
+              isOnHold ? "text-yellow-600" : isRinging ? "text-orange-600" : "text-green-700"
+            }`}
+          />
         </div>
       </div>
 
-      {/* Row 2: action buttons */}
-      <div className="flex items-center gap-1.5 mt-1.5">
-        {/* Hold / Retrieve */}
+      {/* Row 2: Action buttons */}
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => onHold(call.callSid)}
           disabled={busy}
-          className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-md border transition-colors disabled:opacity-40"
+          className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-md border transition-colors disabled:opacity-40"
           style={{
-            borderColor: isOnHold ? "var(--green-600)" : "#eab308",
-            color: isOnHold ? "var(--green-700)" : "#a16207",
-            backgroundColor: isOnHold ? "var(--green-50)" : "#fefce8",
+            borderColor: isOnHold ? "#22c55e50" : "#eab30850",
+            color: isOnHold ? "#15803d" : "#a16207",
+            backgroundColor: isOnHold ? "#f0fdf4" : "#fefce8",
           }}
-          title={isOnHold ? "Retrieve from hold" : "Place on hold"}
         >
           {isOnHold ? <Play size={10} /> : <Pause size={10} />}
           {isOnHold ? "Pick Up" : "Hold"}
         </button>
 
-        {/* Transfer (dropdown) */}
         <div className="relative">
           <button
             onClick={() => setShowTransfer(!showTransfer)}
             disabled={busy}
-            className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-md border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-40"
-            title="Transfer call"
+            className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-md border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-40"
           >
             <PhoneForwarded size={10} />
-            Xfer
+            Transfer
           </button>
           {showTransfer && (
             <div
@@ -195,12 +209,10 @@ function ActiveCallRow({
           )}
         </div>
 
-        {/* End Call */}
         <button
           onClick={() => onEnd(call.callSid)}
           disabled={busy}
-          className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-md border border-red-300 text-red-600 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-40 ml-auto"
-          title="End call"
+          className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-md border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors disabled:opacity-40 ml-auto"
         >
           <PhoneOff size={10} />
           End
@@ -211,10 +223,10 @@ function ActiveCallRow({
 }
 
 // ---------------------------------------------------------------------------
-// Hold Queue Row (compact)
+// Hold Queue Entry (compact card style)
 // ---------------------------------------------------------------------------
 
-function HoldRow({
+function HoldCard({
   entry,
   onRetrieve,
   busy,
@@ -227,40 +239,52 @@ function HoldRow({
 
   return (
     <div
-      className="flex items-center justify-between px-3 py-1.5"
+      className="rounded-lg p-2.5 transition-all"
       style={{
+        border: `1px solid ${isLongWait ? "#ef444430" : "#eab30830"}`,
         borderLeft: `3px solid ${isLongWait ? "#ef4444" : "#eab308"}`,
-        backgroundColor: isLongWait ? "rgba(239,68,68,0.04)" : "transparent",
+        backgroundColor: isLongWait ? "rgba(239,68,68,0.04)" : "rgba(234,179,8,0.04)",
       }}
     >
-      <div className="min-w-0 flex-1">
-        <span className="text-[11px] font-medium truncate block" style={{ color: "var(--text-primary)" }}>
-          {entry.callerName ?? formatPhone(entry.callerPhone)}
-        </span>
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <div className="min-w-0 flex-1">
+          <span className="text-[12px] font-semibold truncate block" style={{ color: "var(--text-primary)" }}>
+            {entry.callerName ?? formatPhone(entry.callerPhone)}
+          </span>
+          {entry.patientMrn && (
+            <span className="text-[9px] font-semibold" style={{ color: "var(--green-700)" }}>
+              MRN: {entry.patientMrn}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+          <span
+            className={`font-mono text-[12px] tabular-nums font-bold ${
+              isLongWait ? "text-red-600" : "text-yellow-600"
+            }`}
+          >
+            {formatDuration(entry.waitSeconds)}
+          </span>
+          {isLongWait && (
+            <span className="text-[8px] font-bold text-red-500 uppercase tracking-wide">Long wait</span>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <span
-          className={`text-[10px] font-mono tabular-nums font-semibold ${
-            isLongWait ? "text-red-600" : "text-yellow-600"
-          }`}
-        >
-          {formatDuration(entry.waitSeconds)}
-        </span>
-        <button
-          onClick={() => onRetrieve(entry.callSid)}
-          disabled={busy}
-          className="px-2 py-0.5 text-[10px] font-semibold rounded text-white transition-colors disabled:opacity-40"
-          style={{ backgroundColor: "var(--color-primary, #40721D)" }}
-        >
-          Pick Up
-        </button>
-      </div>
+      <button
+        onClick={() => onRetrieve(entry.callSid)}
+        disabled={busy}
+        className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold rounded-md text-white transition-colors disabled:opacity-40"
+        style={{ backgroundColor: "var(--color-primary, #40721D)" }}
+      >
+        <Play size={10} />
+        Pick Up Call
+      </button>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Main Widget
+// Main Widget — Split Panel Layout
 // ---------------------------------------------------------------------------
 
 export default function DashboardPhoneWidget() {
@@ -338,146 +362,202 @@ export default function DashboardPhoneWidget() {
   const activeCalls = data?.activeCalls ?? [];
   const holdQueue = data?.holdQueue ?? [];
   const stats = data?.stats ?? { activeCalls: 0, onHoldCount: 0, callsToday: 0, avgWaitTimeSeconds: 0, missedCalls: 0 };
-  const hasActivity = activeCalls.length > 0 || holdQueue.length > 0;
 
   return (
     <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
-      {/* Header */}
+      {/* ─── Header ─── */}
       <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-light)" }}>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+          <div
+            className="w-6 h-6 rounded-md flex items-center justify-center"
+            style={{ backgroundColor: "var(--color-primary)", color: "white" }}
+          >
+            <Phone size={12} />
+          </div>
+          <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Phone System
           </span>
           {/* Live indicator */}
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "var(--green-400)" }} />
-            <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: "var(--green-500)" }} />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "#22c55e" }} />
+            <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: "#22c55e" }} />
           </span>
         </div>
         <Link href="/phone" className="text-[9px] font-semibold hover:underline" style={{ color: "var(--green-700)" }}>
-          Full Dashboard
+          Full Dashboard →
         </Link>
       </div>
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-4 divide-x" style={{ borderBottom: "1px solid var(--border-light)", borderColor: "var(--border-light)" }}>
+      {/* ─── Stats Strip ─── */}
+      <div
+        className="grid grid-cols-4"
+        style={{ borderBottom: "1px solid var(--border-light)" }}
+      >
         {[
-          { label: "Active", value: stats.activeCalls, color: stats.activeCalls > 0 ? "#22c55e" : undefined },
-          { label: "Hold", value: stats.onHoldCount, color: stats.onHoldCount > 0 ? "#eab308" : undefined },
-          { label: "Today", value: stats.callsToday, color: undefined },
-          { label: "Missed", value: stats.missedCalls, color: stats.missedCalls > 0 ? "#ef4444" : undefined },
-        ].map((s) => (
-          <div key={s.label} className="py-2 text-center" style={{ borderColor: "var(--border-light)" }}>
+          { label: "Active", value: stats.activeCalls, icon: <Phone size={10} />, color: stats.activeCalls > 0 ? "#22c55e" : undefined, pulse: stats.activeCalls > 0 },
+          { label: "On Hold", value: stats.onHoldCount, icon: <Pause size={10} />, color: stats.onHoldCount > 0 ? "#eab308" : undefined, pulse: stats.onHoldCount > 0 },
+          { label: "Today", value: stats.callsToday, icon: <PhoneIncoming size={10} />, color: undefined, pulse: false },
+          { label: "Missed", value: stats.missedCalls, icon: <PhoneOff size={10} />, color: stats.missedCalls > 0 ? "#ef4444" : undefined, pulse: false },
+        ].map((s, i) => (
+          <div
+            key={s.label}
+            className="py-2.5 text-center"
+            style={{ borderLeft: i > 0 ? "1px solid var(--border-light)" : undefined }}
+          >
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <span style={{ color: s.color ?? "var(--text-muted)" }}>{s.icon}</span>
+              {s.pulse && (
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: s.color }} />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: s.color }} />
+                </span>
+              )}
+            </div>
             <div
-              className="text-[16px] font-bold tabular-nums"
+              className="text-[18px] font-extrabold tabular-nums leading-none"
               style={{ color: s.color ?? "var(--text-primary)" }}
             >
               {loading ? "—" : s.value}
             </div>
-            <div className="text-[9px] font-medium uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+            <div className="text-[8px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-muted)" }}>
               {s.label}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Active Calls */}
-      {activeCalls.length > 0 && (
-        <div>
-          <div className="px-3 pt-2 pb-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+      {/* ─── Two-Column Split: Active Calls | Hold Queue ─── */}
+      <div className="grid grid-cols-2" style={{ minHeight: "100px" }}>
+        {/* Left: Active Calls */}
+        <div style={{ borderRight: "1px solid var(--border-light)" }}>
+          <div className="px-2.5 pt-2 pb-1 flex items-center justify-between">
+            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
               Active Calls
             </span>
+            <span
+              className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full"
+              style={{
+                backgroundColor: activeCalls.length > 0 ? "#dcfce7" : "var(--green-50)",
+                color: activeCalls.length > 0 ? "#15803d" : "var(--text-muted)",
+              }}
+            >
+              {activeCalls.length}
+            </span>
           </div>
-          <div className="divide-y" style={{ borderColor: "var(--border-light)" }}>
-            {activeCalls.slice(0, 4).map((call) => (
-              <ActiveCallRow
-                key={call.callSid}
-                call={call}
-                onHold={handleHold}
-                onTransfer={handleTransfer}
-                onEnd={handleEnd}
-                busy={actionPending === call.callSid}
-              />
-            ))}
+          <div className="px-2 pb-2 space-y-1.5">
+            {activeCalls.length === 0 ? (
+              <div className="py-4 text-center">
+                <Phone size={16} style={{ color: "var(--text-muted)", margin: "0 auto" }} strokeWidth={1.5} />
+                <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>No active calls</p>
+              </div>
+            ) : (
+              activeCalls.slice(0, 3).map((call) => (
+                <ActiveCallCard
+                  key={call.callSid}
+                  call={call}
+                  onHold={handleHold}
+                  onTransfer={handleTransfer}
+                  onEnd={handleEnd}
+                  busy={actionPending === call.callSid}
+                />
+              ))
+            )}
+            {activeCalls.length > 3 && (
+              <p className="text-[9px] font-medium text-center" style={{ color: "var(--text-muted)" }}>
+                +{activeCalls.length - 3} more
+              </p>
+            )}
           </div>
-          {activeCalls.length > 4 && (
-            <div className="px-3 py-1 text-center">
-              <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
-                +{activeCalls.length - 4} more calls
-              </span>
-            </div>
-          )}
         </div>
-      )}
 
-      {/* Hold Queue */}
-      {holdQueue.length > 0 && (
-        <div style={{ borderTop: "1px solid var(--border-light)" }}>
-          <div className="px-3 pt-2 pb-1 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+        {/* Right: Hold Queue */}
+        <div>
+          <div className="px-2.5 pt-2 pb-1 flex items-center justify-between">
+            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
               On Hold
             </span>
             <span
-              className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+              className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full"
               style={{
-                backgroundColor: holdQueue.some((h) => h.waitSeconds > 120) ? "#fef2f2" : "#fefce8",
-                color: holdQueue.some((h) => h.waitSeconds > 120) ? "#dc2626" : "#a16207",
+                backgroundColor: holdQueue.length > 0
+                  ? holdQueue.some((h) => h.waitSeconds > 120) ? "#fef2f2" : "#fefce8"
+                  : "transparent",
+                color: holdQueue.length > 0
+                  ? holdQueue.some((h) => h.waitSeconds > 120) ? "#dc2626" : "#a16207"
+                  : "var(--text-muted)",
               }}
             >
               {holdQueue.length}
             </span>
           </div>
-          <div className="divide-y" style={{ borderColor: "var(--border-light)" }}>
-            {holdQueue.slice(0, 3).map((entry) => (
-              <HoldRow
-                key={entry.callSid}
-                entry={entry}
-                onRetrieve={handleRetrieve}
-                busy={actionPending === entry.callSid}
-              />
-            ))}
-          </div>
-          {holdQueue.length > 3 && (
-            <div className="px-3 py-1 text-center">
-              <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>
+          <div className="px-2 pb-2 space-y-1.5">
+            {holdQueue.length === 0 ? (
+              <div className="py-4 text-center">
+                <Pause size={16} style={{ color: "var(--text-muted)", margin: "0 auto" }} strokeWidth={1.5} />
+                <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>No callers on hold</p>
+              </div>
+            ) : (
+              holdQueue.slice(0, 3).map((entry) => (
+                <HoldCard
+                  key={entry.callSid}
+                  entry={entry}
+                  onRetrieve={handleRetrieve}
+                  busy={actionPending === entry.callSid}
+                />
+              ))
+            )}
+            {holdQueue.length > 3 && (
+              <p className="text-[9px] font-medium text-center" style={{ color: "var(--text-muted)" }}>
                 +{holdQueue.length - 3} more on hold
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Department Status Strip ─── */}
+      <div style={{ borderTop: "1px solid var(--border-light)" }}>
+        <div className="px-3 pt-2 pb-1">
+          <span className="text-[8px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+            Departments
+          </span>
+        </div>
+        <div className="px-3 pb-2 flex items-center gap-2 flex-wrap">
+          {DEPARTMENTS.map((dept) => (
+            <div
+              key={dept.label}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md"
+              style={{ backgroundColor: "rgba(0,0,0,0.02)", border: "1px solid var(--border-light)" }}
+            >
+              <span
+                className="inline-flex h-1.5 w-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: dept.color }}
+              />
+              <span className="text-[10px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                {dept.label}
               </span>
             </div>
-          )}
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* Empty state */}
-      {!loading && !hasActivity && (
-        <div className="py-4 text-center">
-          <Phone size={20} style={{ color: "var(--text-muted)", margin: "0 auto" }} strokeWidth={1.5} />
-          <p className="text-[11px] font-medium mt-1.5" style={{ color: "var(--text-muted)" }}>
-            No active calls
-          </p>
-          <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-            Incoming calls appear here automatically
-          </p>
-        </div>
-      )}
-
-      {/* Footer — quick links */}
+      {/* ─── Footer: Quick Actions ─── */}
       <div className="px-3 py-2 flex items-center gap-2" style={{ borderTop: "1px solid var(--border-light)" }}>
         <Link
           href="/phone"
-          className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-semibold rounded-md text-white no-underline transition-colors"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold rounded-md text-white no-underline transition-all hover:shadow-md"
           style={{ backgroundColor: "var(--color-primary, #40721D)" }}
         >
-          <Phone size={11} />
-          Call Center
-          <ChevronRight size={10} />
+          <Phone size={12} />
+          Open Call Center
+          <ChevronRight size={11} />
         </Link>
         <Link
           href="/phone/history"
-          className="flex items-center justify-center gap-1 px-3 py-1.5 text-[10px] font-semibold rounded-md no-underline transition-colors"
+          className="flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold rounded-md no-underline transition-colors"
           style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
         >
-          <History size={11} />
+          <History size={12} />
           History
         </Link>
       </div>
