@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { TrendingDown, FileText, Clock, Settings } from "lucide-react";
 import type { ReorderAlert, ReorderHistoryItem } from "./actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import PageShell from "@/components/layout/PageShell";
+import StatsRow from "@/components/layout/StatsRow";
 
 export const dynamic = "force-dynamic";
 
@@ -106,90 +109,72 @@ export function ReorderPage({
 
   return (
     <PermissionGuard resource="inventory" action="write">
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Inventory Reorder</h1>
-          <p className="text-gray-500 mt-1">Automated stock replenishment</p>
-        </div>
-
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase">
-                  Below Threshold
-                </p>
-                <p className="text-3xl font-bold text-red-600 mt-2">
-                  {belowThreshold}
-                </p>
-              </div>
-              <div className="text-4xl opacity-20">📉</div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase">
-                  Draft POs
-                </p>
-                <p className="text-3xl font-bold text-amber-600 mt-2">
-                  {draftPOs}
-                </p>
-              </div>
-              <div className="text-4xl opacity-20">📝</div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase">
-                  Pending Orders
-                </p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">
-                  {pendingOrders}
-                </p>
-              </div>
-              <div className="text-4xl opacity-20">⏳</div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase">
-                  Auto-Reorder
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      defaultChecked={false}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[#40721D]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#40721D]"></div>
-                  </label>
-                </div>
-              </div>
-              <div className="text-4xl opacity-20">⚙️</div>
-            </div>
-          </div>
-        </div>
-
+      <PageShell
+        title="Inventory Reorder"
+        subtitle="Automated stock replenishment"
+        actions={
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+              Auto-Reorder
+            </span>
+            <span className="relative inline-flex items-center">
+              <input
+                type="checkbox"
+                defaultChecked={false}
+                className="sr-only peer"
+              />
+              <span className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all" style={{ backgroundColor: "var(--border)" }}></span>
+            </span>
+          </label>
+        }
+        stats={
+          <StatsRow
+            stats={[
+              {
+                label: "Below Threshold",
+                value: belowThreshold,
+                icon: <TrendingDown size={12} />,
+                accent: belowThreshold > 0 ? "#dc2626" : undefined,
+              },
+              {
+                label: "Draft POs",
+                value: draftPOs,
+                icon: <FileText size={12} />,
+                accent: draftPOs > 0 ? "#d97706" : undefined,
+              },
+              {
+                label: "Pending Orders",
+                value: pendingOrders,
+                icon: <Clock size={12} />,
+                accent: pendingOrders > 0 ? "#2563eb" : undefined,
+              },
+              {
+                label: "Reorder Points Set",
+                value: alerts.length + history.length,
+                icon: <Settings size={12} />,
+              },
+            ]}
+          />
+        }
+      >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Table */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="font-semibold text-gray-900">Items Below Reorder Point</h2>
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+            >
+              <div
+                className="px-6 py-4 flex items-center justify-between"
+                style={{ borderBottom: "1px solid var(--border-light)" }}
+              >
+                <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Items Below Reorder Point</h2>
                 <div className="flex items-center gap-2">
                   {selectedItems.size > 0 && (
                     <button
                       onClick={handleAddToPO}
-                      className="px-3 py-1.5 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg text-white transition-colors"
+                      style={{ backgroundColor: "var(--color-primary)" }}
                     >
                       Add {selectedItems.size} to PO
                     </button>
@@ -197,7 +182,8 @@ export function ReorderPage({
                   <button
                     onClick={handleAutoGenerate}
                     disabled={generating || alerts.length === 0}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: "#2563eb" }}
                   >
                     {generating ? "Generating..." : "Generate All POs"}
                   </button>
@@ -296,38 +282,50 @@ export function ReorderPage({
           </div>
 
           {/* Sidebar: Recent POs */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 h-fit">
-            <h3 className="font-semibold text-gray-900 mb-4">Recent Orders</h3>
+          <div
+            className="rounded-xl p-6 h-fit"
+            style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+          >
+            <h3 className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Recent Orders</h3>
 
             {history.length === 0 ? (
-              <p className="text-sm text-gray-400">No orders yet</p>
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No orders yet</p>
             ) : (
               <div className="space-y-3">
                 {history.map((order) => (
                   <div
                     key={order.id}
-                    className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition-colors"
+                    className="rounded-lg p-3 transition-colors"
+                    style={{ border: "1px solid var(--border)" }}
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-semibold font-mono" style={{ color: "var(--text-primary)" }}>
                           {order.poNumber}
                         </p>
-                        <p className="text-xs text-gray-500">{order.supplier}</p>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{order.supplier}</p>
                       </div>
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                          order.status === "draft"
-                            ? "bg-amber-50 text-amber-700"
-                            : order.status === "approved"
-                              ? "bg-blue-50 text-blue-700"
-                              : "bg-green-50 text-green-700"
-                        }`}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap"
+                        style={{
+                          backgroundColor:
+                            order.status === "draft"
+                              ? "#fef3c7"
+                              : order.status === "approved"
+                              ? "#dbeafe"
+                              : "var(--green-100)",
+                          color:
+                            order.status === "draft"
+                              ? "#92400e"
+                              : order.status === "approved"
+                              ? "#1e40af"
+                              : "var(--green-700)",
+                        }}
                       >
                         {order.status}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center justify-between text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                       <span>{order.itemCount} items</span>
                       <span>{new Date(order.createdAt).toLocaleDateString()}</span>
                     </div>
@@ -337,7 +335,7 @@ export function ReorderPage({
             )}
           </div>
         </div>
-      </div>
+      </PageShell>
     </PermissionGuard>
   );
 }

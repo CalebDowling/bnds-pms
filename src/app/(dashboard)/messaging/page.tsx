@@ -7,8 +7,10 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getMessagingStats, getNotificationHistory } from "./actions";
-import { sendManualNotification } from "./actions";
+import { Send, Mail, MessageSquare, Clock, Info } from "lucide-react";
+import { getMessagingStats, sendManualNotification } from "./actions";
+import PageShell from "@/components/layout/PageShell";
+import StatsRow from "@/components/layout/StatsRow";
 
 interface MessageStats {
   totalSent: number;
@@ -95,48 +97,43 @@ export default function MessagingPage() {
   };
 
   return (
-    <div className="p-8 space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Patient Messaging</h1>
-        <p className="mt-2 text-gray-600">Send notifications to patients via email and SMS</p>
-      </div>
-
-      {/* Stats Grid */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="text-sm text-gray-600">Total Sent</div>
-            <div className="text-3xl font-bold text-gray-900 mt-2">{stats.totalSent}</div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="text-sm text-gray-600">Emails</div>
-            <div className="text-3xl font-bold text-blue-600 mt-2">{stats.emailsSent}</div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="text-sm text-gray-600">SMS</div>
-            <div className="text-3xl font-bold text-green-600 mt-2">{stats.smsSent}</div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="text-sm text-gray-600">Last Sent</div>
-            <div className="text-sm text-gray-900 mt-2">
-              {stats.lastSentAt ? new Date(stats.lastSentAt).toLocaleDateString() : "Never"}
-            </div>
-          </div>
-        </div>
-      )}
-
+    <PageShell
+      title="Patient Messaging"
+      subtitle="Send notifications to patients via email and SMS"
+      stats={
+        stats ? (
+          <StatsRow
+            stats={[
+              { label: "Total Sent", value: stats.totalSent, icon: <Send size={12} /> },
+              { label: "Emails", value: stats.emailsSent, icon: <Mail size={12} />, accent: "#2563eb" },
+              { label: "SMS", value: stats.smsSent, icon: <MessageSquare size={12} />, accent: "var(--color-primary)" },
+              {
+                label: "Last Sent",
+                value: stats.lastSentAt
+                  ? new Date(stats.lastSentAt).toLocaleDateString()
+                  : "Never",
+                icon: <Clock size={12} />,
+              },
+            ]}
+          />
+        ) : undefined
+      }
+    >
       {/* Quick Send Form */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Send Notification</h2>
+      <div
+        className="rounded-xl p-6"
+        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+      >
+        <h2 className="mb-6">Send Notification</h2>
 
         {message && (
           <div
-            className={`mb-6 p-4 rounded-lg ${
-              message.type === "success"
-                ? "bg-green-50 border border-green-200 text-green-800"
-                : "bg-red-50 border border-red-200 text-red-800"
-            }`}
+            className="mb-6 p-4 rounded-lg text-sm font-semibold"
+            style={{
+              backgroundColor: message.type === "success" ? "var(--green-100)" : "#fef2f2",
+              border: `1px solid ${message.type === "success" ? "var(--border)" : "#fecaca"}`,
+              color: message.type === "success" ? "var(--green-700)" : "#b91c1c",
+            }}
           >
             {message.text}
           </div>
@@ -146,7 +143,10 @@ export default function MessagingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Patient ID */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                className="block text-xs font-bold uppercase tracking-wider mb-2"
+                style={{ color: "var(--text-muted)" }}
+              >
                 Patient ID
               </label>
               <input
@@ -154,13 +154,21 @@ export default function MessagingPage() {
                 value={formData.patientId}
                 onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
                 placeholder="Enter patient ID or MRN"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 transition-colors"
+                style={{
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--page-bg)",
+                  color: "var(--text-primary)",
+                }}
               />
             </div>
 
             {/* Template */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                className="block text-xs font-bold uppercase tracking-wider mb-2"
+                style={{ color: "var(--text-muted)" }}
+              >
                 Template
               </label>
               <select
@@ -171,7 +179,12 @@ export default function MessagingPage() {
                     template: e.target.value as any,
                   })
                 }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
+                className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 transition-colors"
+                style={{
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--page-bg)",
+                  color: "var(--text-primary)",
+                }}
               >
                 <option value="readyForPickup">Ready for Pickup</option>
                 <option value="refillDue">Refill Due</option>
@@ -184,7 +197,10 @@ export default function MessagingPage() {
 
           {/* Channels */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label
+              className="block text-xs font-bold uppercase tracking-wider mb-3"
+              style={{ color: "var(--text-muted)" }}
+            >
               Send Via
             </label>
             <div className="flex gap-6">
@@ -193,18 +209,22 @@ export default function MessagingPage() {
                   type="checkbox"
                   checked={formData.channels.includes("email")}
                   onChange={() => handleChannelToggle("email")}
-                  className="w-4 h-4 rounded border-gray-300"
+                  className="w-4 h-4 rounded"
+                  style={{ accentColor: "var(--color-primary)" }}
                 />
-                <span className="text-gray-700">Email</span>
+                <Mail size={14} style={{ color: "var(--text-muted)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Email</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={formData.channels.includes("sms")}
                   onChange={() => handleChannelToggle("sms")}
-                  className="w-4 h-4 rounded border-gray-300"
+                  className="w-4 h-4 rounded"
+                  style={{ accentColor: "var(--color-primary)" }}
                 />
-                <span className="text-gray-700">SMS</span>
+                <MessageSquare size={14} style={{ color: "var(--text-muted)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>SMS</span>
               </label>
             </div>
           </div>
@@ -213,27 +233,39 @@ export default function MessagingPage() {
           <button
             type="submit"
             disabled={isLoading || !formData.patientId}
-            className="w-full bg-[#40721D] text-white py-2 rounded-lg font-medium hover:bg-[#2d5018] disabled:bg-gray-400 transition-colors"
+            className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+            style={{ backgroundColor: "var(--color-primary)" }}
           >
+            <Send size={14} />
             {isLoading ? "Sending..." : "Send Notification"}
           </button>
         </form>
       </div>
 
       {/* Help Text */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="font-bold text-blue-900 mb-2">About Patient Notifications</h3>
-        <ul className="text-sm text-blue-800 space-y-2">
-          <li>
-            • <strong>Email</strong>: Sent to patient email address if available
-          </li>
-          <li>
-            • <strong>SMS</strong>: Sent to patient phone if they have opted in
-          </li>
-          <li>• All notifications are logged in the Communication Log for compliance</li>
-          <li>• Templates are pre-formatted with pharmacy branding</li>
-        </ul>
+      <div
+        className="rounded-xl p-6"
+        style={{ backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" }}
+      >
+        <div className="flex items-start gap-3">
+          <Info size={16} className="flex-shrink-0 mt-0.5" style={{ color: "#1d4ed8" }} />
+          <div>
+            <h3 className="text-sm font-bold mb-2" style={{ color: "#1e40af" }}>
+              About Patient Notifications
+            </h3>
+            <ul className="text-xs space-y-1.5" style={{ color: "#1e3a8a" }}>
+              <li>
+                • <strong>Email</strong>: Sent to patient email address if available
+              </li>
+              <li>
+                • <strong>SMS</strong>: Sent to patient phone if they have opted in
+              </li>
+              <li>• All notifications are logged in the Communication Log for compliance</li>
+              <li>• Templates are pre-formatted with pharmacy branding</li>
+            </ul>
+          </div>
+        </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

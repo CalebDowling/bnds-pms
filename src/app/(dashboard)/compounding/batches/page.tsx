@@ -1,160 +1,145 @@
 import Link from "next/link";
+import { Plus, FlaskConical, Clock, CheckCircle2, ShieldCheck, PackageCheck } from "lucide-react";
 import { getBatches } from "@/app/(dashboard)/compounding/actions";
 import { formatDate } from "@/lib/utils";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import PageShell from "@/components/layout/PageShell";
+import StatsRow from "@/components/layout/StatsRow";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  in_progress: { label: "In Progress", color: "bg-yellow-50 text-yellow-700" },
-  completed: { label: "Completed", color: "bg-blue-50 text-blue-700" },
-  verified: { label: "Verified", color: "bg-green-50 text-green-700" },
-  released: { label: "Released", color: "bg-emerald-50 text-emerald-700" },
-  failed: { label: "Failed", color: "bg-red-50 text-red-700" },
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
+  in_progress: { label: "In Progress", bg: "#fefce8", color: "#a16207" },
+  completed: { label: "Completed", bg: "#eff6ff", color: "#1d4ed8" },
+  verified: { label: "Verified", bg: "var(--green-100)", color: "var(--green-700)" },
+  released: { label: "Released", bg: "#ecfdf5", color: "#047857" },
+  failed: { label: "Failed", bg: "#fef2f2", color: "#b91c1c" },
 };
 
 async function BatchListContent() {
   const batches = await getBatches({ limit: 100 });
+  const batchList = batches.batches || [];
+
+  const inProgressCount = batchList.filter((b: any) => b.status === "in_progress").length;
+  const completedCount = batchList.filter((b: any) => b.status === "completed").length;
+  const verifiedCount = batchList.filter((b: any) => b.status === "verified").length;
+  const releasedCount = batchList.filter((b: any) => b.status === "released").length;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Batch Records</h1>
+    <PageShell
+      title="Batch Records"
+      subtitle="Compounding batch log and quality assurance"
+      actions={
         <Link
           href="/compounding/batches/new"
-          className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#305817] transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white no-underline transition-colors"
+          style={{ backgroundColor: "var(--color-primary)" }}
         >
-          + New Batch
+          <Plus size={14} /> New Batch
         </Link>
-      </div>
+      }
+      stats={
+        <StatsRow
+          stats={[
+            { label: "Total", value: batches.total || 0, icon: <FlaskConical size={12} /> },
+            { label: "In Progress", value: inProgressCount, icon: <Clock size={12} />, accent: inProgressCount > 0 ? "#eab308" : undefined },
+            { label: "Completed", value: completedCount, icon: <CheckCircle2 size={12} />, accent: "#3b82f6" },
+            { label: "Verified", value: verifiedCount, icon: <ShieldCheck size={12} />, accent: "var(--color-primary)" },
+            { label: "Released", value: releasedCount, icon: <PackageCheck size={12} />, accent: "#10b981" },
+          ]}
+        />
+      }
+    >
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+      >
+        {batchList.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--green-50)" }}>
+                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Batch #</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Formula</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Quantity</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Created</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Compounder</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Verifier</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batchList.map((batch: any, idx: number) => {
+                  const statusConfig =
+                    STATUS_CONFIG[batch.status] || {
+                      label: batch.status,
+                      bg: "rgba(0,0,0,0.05)",
+                      color: "#6b7280",
+                    };
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Total</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{batches.total || 0}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">In Progress</p>
-          <p className="text-2xl font-bold text-yellow-600 mt-1">
-            {batches.batches?.filter((b: any) => b.status === "in_progress").length || 0}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Completed</p>
-          <p className="text-2xl font-bold text-blue-600 mt-1">
-            {batches.batches?.filter((b: any) => b.status === "completed").length || 0}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Verified</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">
-            {batches.batches?.filter((b: any) => b.status === "verified").length || 0}
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Released</p>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">
-            {batches.batches?.filter((b: any) => b.status === "released").length || 0}
-          </p>
-        </div>
-      </div>
-
-      {/* Batches Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {batches.batches && batches.batches.length > 0 ? (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Batch #
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Formula
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Quantity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Compounder
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Verifier
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {batches.batches.map((batch: any) => {
-                const statusConfig =
-                  STATUS_CONFIG[batch.status] || {
-                    label: batch.status,
-                    color: "bg-gray-100 text-gray-700",
-                  };
-
-                return (
-                  <tr
-                    key={batch.id}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <Link
-                        href={`/compounding/batches/${batch.id}`}
-                        className="font-mono text-sm font-semibold text-[#40721D] hover:underline"
-                      >
-                        {batch.batchNumber}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-medium text-gray-900">
-                        {batch.formulaVersion.formula.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {batch.formulaVersion.formula.formulaCode}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {Number(batch.quantityPrepared)} {batch.unit}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${statusConfig.color}`}
-                      >
-                        {statusConfig.label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {formatDate(batch.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {batch.compounder.firstName} {batch.compounder.lastName}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {batch.verifier
-                        ? `${batch.verifier.firstName} ${batch.verifier.lastName}`
-                        : "—"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  return (
+                    <tr
+                      key={batch.id}
+                      className="transition-colors"
+                      style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
+                    >
+                      <td className="px-6 py-4">
+                        <Link
+                          href={`/compounding/batches/${batch.id}`}
+                          className="font-mono text-sm font-semibold hover:underline no-underline"
+                          style={{ color: "var(--color-primary)" }}
+                        >
+                          {batch.batchNumber}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                          {batch.formulaVersion.formula.name}
+                        </p>
+                        <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                          {batch.formulaVersion.formula.formulaCode}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                        {Number(batch.quantityPrepared)} {batch.unit}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className="inline-flex items-center px-2.5 py-0.5 text-xs font-semibold rounded-full"
+                          style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}
+                        >
+                          {statusConfig.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                        {formatDate(batch.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                        {batch.compounder.firstName} {batch.compounder.lastName}
+                      </td>
+                      <td className="px-6 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                        {batch.verifier
+                          ? `${batch.verifier.firstName} ${batch.verifier.lastName}`
+                          : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="px-6 py-12 text-center">
-            <p className="text-gray-500 mb-4">No batch records found</p>
+            <p className="mb-4" style={{ color: "var(--text-muted)" }}>No batch records found</p>
             <Link
               href="/compounding/batches/new"
-              className="text-[#40721D] hover:underline text-sm font-medium"
+              className="text-sm font-semibold hover:underline no-underline"
+              style={{ color: "var(--color-primary)" }}
             >
               Create the first batch →
             </Link>
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }
 
