@@ -3,34 +3,37 @@ import { getIntakeQueue, getIntakeStats, getIntakeStatsBySource } from "./action
 import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
+import StatsRow from "@/components/layout/StatsRow";
 import { Suspense } from "react";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  pending: { label: "Pending", color: "bg-yellow-50 text-yellow-700" },
-  matched: { label: "Matched", color: "bg-blue-50 text-blue-700" },
-  processing: { label: "Processing", color: "bg-purple-50 text-purple-700" },
-  complete: { label: "Complete", color: "bg-green-50 text-green-700" },
-  error: { label: "Error", color: "bg-red-50 text-red-700" },
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
+  pending: { label: "Pending", bg: "#fefce8", color: "#a16207" },
+  matched: { label: "Matched", bg: "#eff6ff", color: "#1d4ed8" },
+  processing: { label: "Processing", bg: "#faf5ff", color: "#7e22ce" },
+  complete: { label: "Complete", bg: "var(--green-100)", color: "var(--green-700)" },
+  error: { label: "Error", bg: "#fef2f2", color: "#b91c1c" },
 };
 
-const PRIORITY_CONFIG: Record<string, { label: string; color: string; badgeColor: string }> = {
-  stat: { label: "STAT", color: "text-red-600 font-bold", badgeColor: "bg-red-100 text-red-800 border-red-300" },
-  urgent: { label: "Urgent", color: "text-orange-600", badgeColor: "bg-orange-100 text-orange-800 border-orange-300" },
-  normal: { label: "Normal", color: "text-gray-500", badgeColor: "bg-gray-100 text-gray-700 border-gray-300" },
+const PRIORITY_CONFIG: Record<string, { label: string; badgeBg: string; badgeColor: string; badgeBorder: string }> = {
+  stat: { label: "STAT", badgeBg: "#fee2e2", badgeColor: "#991b1b", badgeBorder: "#fca5a5" },
+  urgent: { label: "Urgent", badgeBg: "#ffedd5", badgeColor: "#9a3412", badgeBorder: "#fdba74" },
+  normal: { label: "Normal", badgeBg: "rgba(0,0,0,0.05)", badgeColor: "#6b7280", badgeBorder: "var(--border)" },
 };
 
-const SOURCE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  prescriber_portal: { label: "Prescriber Portal", icon: "🏥", color: "bg-green-50 text-green-700 border-green-200" },
-  walk_in: { label: "Walk-in", icon: "🚶", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  phone: { label: "Phone/Fax", icon: "☎️", color: "bg-purple-50 text-purple-700 border-purple-200" },
-  fax: { label: "Fax", icon: "📠", color: "bg-purple-50 text-purple-700 border-purple-200" },
-  erx: { label: "eRx (SureScripts)", icon: "📱", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  surescripts: { label: "eRx (SureScripts)", icon: "📱", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  patient_portal: { label: "Patient Portal", icon: "👤", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  ncpdp: { label: "NCPDP", icon: "📱", color: "bg-gray-50 text-gray-700 border-gray-200" },
-  epcs: { label: "EPCS", icon: "🔐", color: "bg-gray-50 text-gray-700 border-gray-200" },
-  manual: { label: "Manual", icon: "✋", color: "bg-gray-50 text-gray-700 border-gray-200" },
-  fhir: { label: "FHIR", icon: "🔗", color: "bg-gray-50 text-gray-700 border-gray-200" },
+const SOURCE_CONFIG: Record<string, { label: string }> = {
+  prescriber_portal: { label: "Prescriber Portal" },
+  walk_in: { label: "Walk-in" },
+  phone: { label: "Phone/Fax" },
+  fax: { label: "Fax" },
+  erx: { label: "eRx (SureScripts)" },
+  surescripts: { label: "eRx (SureScripts)" },
+  patient_portal: { label: "Patient Portal" },
+  ncpdp: { label: "NCPDP" },
+  epcs: { label: "EPCS" },
+  manual: { label: "Manual" },
+  fhir: { label: "FHIR" },
 };
 
 const SOURCE_FILTERS = [
@@ -38,7 +41,7 @@ const SOURCE_FILTERS = [
   { value: "prescriber_portal", label: "Prescriber Portal" },
   { value: "walk_in", label: "Walk-in" },
   { value: "phone", label: "Phone/Fax" },
-  { value: "erx", label: "eRx (SureScripts)" },
+  { value: "erx", label: "eRx" },
 ];
 
 const STATUS_FILTERS = [
@@ -51,9 +54,9 @@ const STATUS_FILTERS = [
 ];
 
 const SORT_OPTIONS = [
-  { value: "received", label: "Date Received (Newest)" },
+  { value: "received", label: "Newest" },
   { value: "priority", label: "Priority" },
-  { value: "patient", label: "Patient Name" },
+  { value: "patient", label: "Patient" },
 ];
 
 export default async function IntakeQueueContent({
@@ -68,249 +71,214 @@ export default async function IntakeQueueContent({
   const source = params.source || "all";
   const sort = params.sort || "received";
 
-  const [{ items, total, pages }, stats, sourceStats] = await Promise.all([
+  const [{ items, total, pages }, stats] = await Promise.all([
     getIntakeQueue({ search, status, source, page, sort }),
     getIntakeStats(),
     getIntakeStatsBySource(),
   ]);
 
+  const buildHref = (overrides: { source?: string; status?: string; sort?: string }) => {
+    const src = overrides.source ?? source;
+    const st = overrides.status ?? status;
+    const sr = overrides.sort ?? sort;
+    const parts: string[] = [];
+    if (src !== "all") parts.push(`source=${src}`);
+    if (st !== "all") parts.push(`status=${st}`);
+    if (sr !== "received") parts.push(`sort=${sr}`);
+    if (search) parts.push(`search=${search}`);
+    return `/intake${parts.length ? `?${parts.join("&")}` : ""}`;
+  };
+
   return (
-    <div>
-      {/* Breadcrumb */}
-      <div className="px-6 py-2.5 text-xs text-[var(--text-muted)] flex items-center gap-1.5">
-        <a href="/dashboard" className="text-[var(--green-700)] no-underline font-medium hover:underline">Home</a>
-        <span className="text-[#c5d5c9]">&rsaquo;</span>
-        <span className="text-[var(--text-secondary)] font-semibold">eRx Intake</span>
-      </div>
-
-      <div className="px-6 pb-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">E-Prescribing Intake Queue</h1>
-            <p className="text-sm text-gray-500 mt-1">{total} items total</p>
-          </div>
-        </div>
-
-        {/* Quick Stats by Source */}
-        <div className="mb-6">
-          <div className="text-xs font-semibold text-gray-600 uppercase mb-3 tracking-wide">Intake by Source</div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {SOURCE_FILTERS.map((src) => {
-              const count = src.value === "all"
-                ? total
-                : sourceStats[src.value as keyof typeof sourceStats] || 0;
-              const config = src.value !== "all" ? SOURCE_CONFIG[src.value] : null;
-
-              return (
-                <div
-                  key={src.value}
-                  className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm transition-shadow"
-                >
-                  {config && <p className="text-lg mb-1">{config.icon}</p>}
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
-                    {src.label === "All Sources" ? "All" : src.label}
-                  </p>
-                  <p className="text-xl font-bold text-gray-900 tabular-nums">{count}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Status Stats */}
-        <div className="grid grid-cols-5 gap-3 mb-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Pending</p>
-            <p className="text-2xl font-bold text-yellow-600 tabular-nums">{stats.pending}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Matched</p>
-            <p className="text-2xl font-bold text-blue-600 tabular-nums">{stats.matched}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Processing</p>
-            <p className="text-2xl font-bold text-purple-600 tabular-nums">{stats.processing}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Complete</p>
-            <p className="text-2xl font-bold text-green-600 tabular-nums">{stats.complete}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Errors</p>
-            <p className="text-2xl font-bold text-red-600 tabular-nums">{stats.error}</p>
-          </div>
-        </div>
-
-        {/* Source Filters */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-          <div className="text-xs font-semibold text-gray-600 uppercase mb-3 tracking-wide">Filter by Source</div>
-          <div className="flex flex-wrap gap-2">
-            {SOURCE_FILTERS.map((f) => (
-              <Link
-                key={f.value}
-                href={`/intake?source=${f.value}${status !== "all" ? `&status=${status}` : ""}${search ? `&search=${search}` : ""}${sort !== "received" ? `&sort=${sort}` : ""}`}
-                className={`px-3.5 py-1.5 text-xs rounded-full border font-medium transition-all ${
-                  source === f.value
-                    ? "bg-[#40721D] text-white border-[#40721D] shadow-sm"
-                    : "border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400"
-                }`}
-              >
-                {f.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Search, Status Filters & Sort */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-          <div className="flex flex-col gap-4">
-            <div>
-              <Suspense fallback={null}>
-                <SearchBar
-                  placeholder="Search by patient, prescriber, or medication..."
-                  basePath="/intake"
-                />
-              </Suspense>
-            </div>
-
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="flex-1 min-w-max">
-                <div className="text-xs font-semibold text-gray-600 uppercase mb-2 tracking-wide">Status</div>
-                <div className="flex flex-wrap gap-2">
-                  {STATUS_FILTERS.map((f) => (
-                    <Link
-                      key={f.value}
-                      href={`/intake?status=${f.value}${source !== "all" ? `&source=${source}` : ""}${search ? `&search=${search}` : ""}${sort !== "received" ? `&sort=${sort}` : ""}`}
-                      className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                        status === f.value
-                          ? "bg-[#40721D] text-white border-[#40721D]"
-                          : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      {f.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
-              <div className="w-full sm:w-auto">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide block mb-2">
-                  Sort By
-                </label>
-                <div className="flex gap-1">
-                  {SORT_OPTIONS.map((opt) => (
-                    <Link
-                      key={opt.value}
-                      href={`/intake?sort=${opt.value}${source !== "all" ? `&source=${source}` : ""}${status !== "all" ? `&status=${status}` : ""}${search ? `&search=${search}` : ""}`}
-                      className={`px-3 py-1 text-xs rounded-lg border transition-colors ${
-                        sort === opt.value
-                          ? "bg-[#40721D] text-white border-[#40721D]"
-                          : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                      }`}
-                      title={opt.label}
-                    >
-                      {opt.label.split("(")[0].trim()}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200">
-          {items.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-gray-400 text-lg mb-2">
-                {search ? "No intake items match your search" : "No intake items in queue"}
-              </p>
-              <p className="text-sm text-gray-400">
-                E-prescriptions will appear here as they are received.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Received</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Prescriber</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Medication</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Assigned To</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {items.map((item) => {
-                    const statusConfig = STATUS_CONFIG[item.status] || { label: item.status, color: "bg-gray-100 text-gray-700" };
-                    const priorityConfig = PRIORITY_CONFIG[item.priority || "normal"] || PRIORITY_CONFIG.normal;
-                    const sourceConfig = SOURCE_CONFIG[item.source] || { label: item.source, icon: "📋", color: "bg-gray-50 text-gray-700 border-gray-200" };
-
-                    return (
-                      <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <Link href={`/intake/${item.id}`} className="text-sm font-mono text-[#40721D] hover:underline">
-                            {formatDate(item.receivedAt)}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm flex items-center gap-1.5">
-                              <span>{sourceConfig.icon}</span>
-                              <span className="text-gray-600">{sourceConfig.label}</span>
-                            </span>
-                            {item.source === "prescriber_portal" && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-300">
-                                Portal
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-gray-900">{item.patientName || "—"}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-gray-600">{item.prescriberName || "—"}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-gray-600">{item.drugName || "—"}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full border ${priorityConfig.badgeColor}`}>
-                            {priorityConfig.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${statusConfig.color}`}>
-                            {statusConfig.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <p className="text-sm text-gray-600">
-                            {item.assignee
-                              ? `${item.assignee.firstName} ${item.assignee.lastName}`
-                              : "—"}
-                          </p>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div className="px-4 pb-4">
+    <PageShell
+      title="eRx Intake Queue"
+      subtitle={`${total.toLocaleString()} prescription${total === 1 ? "" : "s"} waiting for intake`}
+      stats={
+        <StatsRow
+          stats={[
+            { label: "Pending", value: stats.pending, accent: "#eab308" },
+            { label: "Matched", value: stats.matched, accent: "#3b82f6" },
+            { label: "Processing", value: stats.processing, accent: "#a855f7" },
+            { label: "Complete", value: stats.complete, accent: "var(--color-primary)" },
+            { label: "Errors", value: stats.error, accent: stats.error > 0 ? "#ef4444" : undefined },
+          ]}
+        />
+      }
+      toolbar={
+        <FilterBar
+          search={
             <Suspense fallback={null}>
-              <Pagination total={total} pages={pages} page={page} basePath="/intake" />
+              <SearchBar
+                placeholder="Search by patient, prescriber, or medication..."
+                basePath="/intake"
+              />
             </Suspense>
+          }
+          filters={
+            <>
+              {SOURCE_FILTERS.map((f) => (
+                <Link
+                  key={f.value}
+                  href={buildHref({ source: f.value })}
+                  className="px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
+                  style={{
+                    backgroundColor: source === f.value ? "var(--color-primary)" : "transparent",
+                    color: source === f.value ? "#fff" : "var(--text-secondary)",
+                    borderColor: source === f.value ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {f.label}
+                </Link>
+              ))}
+              <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
+              {STATUS_FILTERS.map((f) => (
+                <Link
+                  key={f.value}
+                  href={buildHref({ status: f.value })}
+                  className="px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
+                  style={{
+                    backgroundColor: status === f.value ? "var(--color-primary)" : "transparent",
+                    color: status === f.value ? "#fff" : "var(--text-secondary)",
+                    borderColor: status === f.value ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {f.label}
+                </Link>
+              ))}
+            </>
+          }
+          right={
+            <>
+              <span
+                className="text-[11px] font-bold uppercase tracking-wider"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Sort
+              </span>
+              {SORT_OPTIONS.map((opt) => (
+                <Link
+                  key={opt.value}
+                  href={buildHref({ sort: opt.value })}
+                  className="px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
+                  style={{
+                    backgroundColor: sort === opt.value ? "var(--color-primary)" : "transparent",
+                    color: sort === opt.value ? "#fff" : "var(--text-secondary)",
+                    borderColor: sort === opt.value ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {opt.label}
+                </Link>
+              ))}
+            </>
+          }
+        />
+      }
+    >
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+      >
+        {items.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-lg mb-2" style={{ color: "var(--text-muted)" }}>
+              {search ? "No intake items match your search" : "No intake items in queue"}
+            </p>
+            <p className="text-sm" style={{ color: "var(--text-muted)", opacity: 0.75 }}>
+              E-prescriptions will appear here as they are received.
+            </p>
           </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--green-50)" }}>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Received</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Source</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Patient</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Prescriber</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Medication</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Priority</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Assigned To</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, idx) => {
+                  const statusConfig = STATUS_CONFIG[item.status] || { label: item.status, bg: "rgba(0,0,0,0.05)", color: "#6b7280" };
+                  const priorityConfig = PRIORITY_CONFIG[item.priority || "normal"] || PRIORITY_CONFIG.normal;
+                  const sourceConfig = SOURCE_CONFIG[item.source] || { label: item.source };
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className="transition-colors"
+                      style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
+                    >
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/intake/${item.id}`}
+                          className="text-sm font-mono font-semibold hover:underline"
+                          style={{ color: "var(--color-primary)" }}
+                        >
+                          {formatDate(item.receivedAt)}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                          {sourceConfig.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                          {item.patientName || "—"}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{item.prescriberName || "—"}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{item.drugName || "—"}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full border"
+                          style={{
+                            backgroundColor: priorityConfig.badgeBg,
+                            color: priorityConfig.badgeColor,
+                            borderColor: priorityConfig.badgeBorder,
+                          }}
+                        >
+                          {priorityConfig.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full"
+                          style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}
+                        >
+                          {statusConfig.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                          {item.assignee
+                            ? `${item.assignee.firstName} ${item.assignee.lastName}`
+                            : "—"}
+                        </p>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="px-4 pb-4">
+          <Suspense fallback={null}>
+            <Pagination total={total} pages={pages} page={page} basePath="/intake" />
+          </Suspense>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

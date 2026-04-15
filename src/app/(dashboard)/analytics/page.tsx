@@ -10,6 +10,8 @@ import {
   getCompoundingMetrics,
 } from "./actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
 import KPICard from "./components/KPICard";
 import TrendChart from "./components/TrendChart";
 import TopDrugsTable from "./TopDrugsClient";
@@ -57,36 +59,38 @@ export default async function AnalyticsPage({ searchParams }: Props) {
 
     return (
       <PermissionGuard resource="reports" action="read">
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-
-          {/* Header */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <h1 className="page-title">Analytics Dashboard</h1>
-              <p className="page-subtitle">
-                Pharmacy operations intelligence and performance metrics
-              </p>
-            </div>
-            <div className="flex items-center gap-1 text-[13px]">
-              <span className="text-[12px] font-semibold uppercase tracking-wider mr-2" style={{ color: "var(--text-muted)" }}>
-                Period:
-              </span>
-              {(["7d", "30d", "90d", "ytd"] as const).map((r) => (
-                <a
-                  key={r}
-                  href={`?range=${r}`}
-                  className="px-3.5 py-1.5 rounded-md text-[12px] font-semibold no-underline transition-colors"
-                  style={{
-                    backgroundColor: preset === r ? "var(--green-700)" : "var(--card-bg)",
-                    color: preset === r ? "#fff" : "var(--text-secondary)",
-                    border: preset === r ? "none" : "1px solid var(--border)",
-                  }}
-                >
-                  {rangeLabels[r]}
-                </a>
-              ))}
-            </div>
-          </div>
+        <PageShell
+          title="Analytics"
+          subtitle="Pharmacy operations intelligence and performance metrics"
+          toolbar={
+            <FilterBar
+              filters={
+                <>
+                  <span
+                    className="text-[11px] font-bold uppercase tracking-wider mr-1"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Period
+                  </span>
+                  {(["7d", "30d", "90d", "ytd"] as const).map((r) => (
+                    <a
+                      key={r}
+                      href={`?range=${r}`}
+                      className="px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
+                      style={{
+                        backgroundColor: preset === r ? "var(--color-primary)" : "transparent",
+                        color: preset === r ? "#fff" : "var(--text-secondary)",
+                        borderColor: preset === r ? "var(--color-primary)" : "var(--border)",
+                      }}
+                    >
+                      {rangeLabels[r]}
+                    </a>
+                  ))}
+                </>
+              }
+            />
+          }
+        ><div className="space-y-6">
 
           {/* KPI Summary Cards */}
           <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
@@ -429,22 +433,26 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           </Section>
 
         </div>
+        </PageShell>
       </PermissionGuard>
     );
   } catch (error) {
     console.error("Analytics error:", error);
     return (
       <PermissionGuard resource="reports" action="read">
-        <div style={{
-          backgroundColor: "#FEF2F2",
-          border: "1px solid #FECACA",
-          borderRadius: "12px",
-          padding: "24px",
-        }}>
-          <p style={{ fontSize: "14px", color: "#DC2626", fontWeight: 500 }}>
-            Failed to load analytics dashboard. Please try again or contact support.
-          </p>
-        </div>
+        <PageShell title="Analytics" subtitle="Pharmacy operations intelligence and performance metrics">
+          <div
+            className="rounded-xl p-6"
+            style={{
+              backgroundColor: "#fef2f2",
+              border: "1px solid #fecaca",
+            }}
+          >
+            <p className="text-sm font-semibold text-red-600">
+              Failed to load analytics dashboard. Please try again or contact support.
+            </p>
+          </div>
+        </PageShell>
       </PermissionGuard>
     );
   }

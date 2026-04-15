@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 import {
   getRefillRequests,
   getRefillStats,
   approveRefill,
   rejectRefill,
 } from "./actions";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
+import StatsRow from "@/components/layout/StatsRow";
 
 interface RefillRequest {
   id: string;
@@ -106,68 +110,60 @@ export default function RefillsClient({
   });
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
-      <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Refill Request Queue
-            </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Manage and process refill requests
-            </p>
-          </div>
-          <div className="flex gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-orange-500">{stats.pending}</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Pending</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-500">{stats.approved}</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Approved</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-red-500">{stats.rejected}</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">Rejected</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-6 py-4 space-y-3 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex gap-3 flex-wrap">
-          {(["all", "pending", "approved", "rejected"] as const).map((status) => (
-            <button
-              key={status}
-              onClick={() => setSelectedStatus(status)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                selectedStatus === status
-                  ? "bg-[#40721d] text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-gray-400"
-              }`}
-            >
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-3 flex-wrap">
-          {(["all", "internal", "prescriber_portal"] as const).map((source) => (
-            <button
-              key={source}
-              onClick={() => setSourceFilter(source)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all text-xs ${
-                sourceFilter === source
-                  ? "bg-blue-600 text-white"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-gray-400"
-              }`}
-            >
-              {source === "all" ? "All Sources" : source === "prescriber_portal" ? "Prescriber Portal" : "Internal"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-auto">
+    <PageShell
+      title="Refill Request Queue"
+      subtitle="Manage and process refill requests"
+      stats={
+        <StatsRow
+          stats={[
+            { label: "Pending", value: stats.pending, icon: <RefreshCw size={12} />, accent: "#f97316" },
+            { label: "Approved", value: stats.approved, icon: <CheckCircle2 size={12} />, accent: "var(--color-primary)" },
+            { label: "Rejected", value: stats.rejected, icon: <XCircle size={12} />, accent: stats.rejected > 0 ? "#dc2626" : undefined },
+          ]}
+        />
+      }
+      toolbar={
+        <FilterBar
+          filters={
+            <>
+              {(["all", "pending", "approved", "rejected"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSelectedStatus(s)}
+                  className="px-3 py-1 text-xs font-semibold rounded-full border transition-colors"
+                  style={{
+                    backgroundColor: selectedStatus === s ? "var(--color-primary)" : "transparent",
+                    color: selectedStatus === s ? "#fff" : "var(--text-secondary)",
+                    borderColor: selectedStatus === s ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+              <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
+              {(["all", "internal", "prescriber_portal"] as const).map((src) => (
+                <button
+                  key={src}
+                  onClick={() => setSourceFilter(src)}
+                  className="px-3 py-1 text-xs font-semibold rounded-full border transition-colors"
+                  style={{
+                    backgroundColor: sourceFilter === src ? "var(--color-primary)" : "transparent",
+                    color: sourceFilter === src ? "#fff" : "var(--text-secondary)",
+                    borderColor: sourceFilter === src ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {src === "all" ? "All Sources" : src === "prescriber_portal" ? "Prescriber Portal" : "Internal"}
+                </button>
+              ))}
+            </>
+          }
+        />
+      }
+    >
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+      >
         <table className="w-full">
           <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <tr className="text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -296,6 +292,6 @@ export default function RefillsClient({
           </tbody>
         </table>
       </div>
-    </div>
+    </PageShell>
   );
 }

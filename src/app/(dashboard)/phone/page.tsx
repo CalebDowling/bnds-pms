@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { Phone, Pause, Clock, PhoneOff } from "lucide-react";
 import {
   getPhoneDashboard,
   holdCallAction,
@@ -16,6 +17,8 @@ import type {
   TransferTarget,
   PhoneDashboard,
 } from "./actions";
+import PageShell from "@/components/layout/PageShell";
+import StatsRow from "@/components/layout/StatsRow";
 
 // Extension labels (duplicated here to avoid importing server-only module in client component)
 const EXTENSION_LABELS: Record<TransferTarget, string> = {
@@ -535,40 +538,75 @@ export default function PhoneDashboardPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Phone Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Live call management and monitoring
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+    <PageShell
+      title="Phone Dashboard"
+      subtitle="Live call management and monitoring"
+      actions={
+        <>
           {error && (
-            <span className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded-lg">
+            <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-lg">
               {error}
             </span>
           )}
-          <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+          <span
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full"
+            style={{ color: "var(--green-700)", backgroundColor: "var(--green-100)" }}
+          >
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+              <span
+                className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                style={{ backgroundColor: "var(--green-500)" }}
+              />
+              <span
+                className="relative inline-flex rounded-full h-2 w-2"
+                style={{ backgroundColor: "var(--green-500)" }}
+              />
             </span>
             Live
           </span>
           <Link
             href="/phone/history"
-            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+            className="px-3 py-2 text-xs font-semibold rounded-lg no-underline transition-colors"
+            style={{
+              border: "1px solid var(--border)",
+              color: "var(--text-secondary)",
+              backgroundColor: "var(--card-bg)",
+            }}
           >
             Call History
           </Link>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <StatsCards stats={stats} />
-
+        </>
+      }
+      stats={
+        <StatsRow
+          stats={[
+            {
+              label: "Active Calls",
+              value: stats.activeCalls,
+              icon: <Phone size={12} />,
+              accent: stats.activeCalls > 0 ? "var(--color-primary)" : undefined,
+            },
+            {
+              label: "On Hold",
+              value: stats.onHoldCount,
+              icon: <Pause size={12} />,
+              accent: stats.onHoldCount > 0 ? "#eab308" : undefined,
+            },
+            {
+              label: "Calls Today",
+              value: stats.callsToday,
+              icon: <Clock size={12} />,
+            },
+            {
+              label: "Missed",
+              value: stats.missedCalls,
+              icon: <PhoneOff size={12} />,
+              accent: stats.missedCalls > 0 ? "#ef4444" : undefined,
+            },
+          ]}
+        />
+      }
+    >
       {/* Three-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: Active Calls */}
@@ -647,14 +685,23 @@ export default function PhoneDashboardPage() {
 
       {/* Action overlay */}
       {actionPending && (
-        <div className="fixed bottom-4 right-4 bg-white rounded-lg border border-gray-200 shadow-lg px-4 py-2 flex items-center gap-2 z-50">
-          <svg className="w-4 h-4 animate-spin text-[#40721D]" fill="none" viewBox="0 0 24 24">
+        <div
+          className="fixed bottom-4 right-4 rounded-lg px-4 py-2 flex items-center gap-2 z-50"
+          style={{
+            backgroundColor: "var(--card-bg)",
+            border: "1px solid var(--border)",
+            boxShadow: "var(--shadow-lg)",
+          }}
+        >
+          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" style={{ color: "var(--color-primary)" }}>
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          <span className="text-xs text-gray-600">Processing call action...</span>
+          <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+            Processing call action...
+          </span>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
