@@ -1,11 +1,15 @@
 import Link from "next/link";
+import { Plus, Package, Boxes, CalendarClock, AlertTriangle } from "lucide-react";
 import { getItems, getInventoryStats } from "./actions";
 import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import ExportButton from "@/components/ui/ExportButton";
-import { Suspense } from "react";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
+import StatsRow from "@/components/layout/StatsRow";
+import { Suspense } from "react";
 
 const CATEGORY_FILTERS = [
   { value: "all", label: "All Items" },
@@ -30,89 +34,89 @@ async function InventoryPageContent({
   ]);
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-sm text-gray-500 mt-1">{stats.totalItems} items in catalog</p>
-        </div>
-        <div className="flex items-center gap-3">
+    <PageShell
+      title="Inventory"
+      subtitle={`${stats.totalItems.toLocaleString()} items in catalog`}
+      actions={
+        <>
           <ExportButton
             endpoint="/api/export/inventory"
             filename={`inventory_${new Date().toISOString().split("T")[0]}`}
             sheetName="Inventory"
-            params={{
-              category,
-              search,
-            }}
+            params={{ category, search }}
           />
           <Link
             href="/inventory/new"
-            className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white no-underline transition-colors"
+            style={{ backgroundColor: "var(--color-primary)" }}
           >
-            + Add Item
+            <Plus size={14} /> Add Item
           </Link>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="glass-stat rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Total Items</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalItems}</p>
-        </div>
-        <div className="glass-stat rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Active Lots</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalLots}</p>
-        </div>
-        <div className="glass-stat rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Expiring (90 days)</p>
-          <p className={`text-2xl font-bold mt-1 ${stats.expiringSoon > 0 ? "text-orange-600" : "text-gray-900"}`}>
-            {stats.expiringSoon}
-          </p>
-        </div>
-        <div className="glass-stat rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Low Stock Items</p>
-          <p className={`text-2xl font-bold mt-1 ${stats.lowStockItems > 0 ? "text-red-600" : "text-gray-900"}`}>
-            {stats.lowStockItems}
-          </p>
-        </div>
-      </div>
-
-      {/* Search & Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-        <div className="flex items-center gap-4 mb-3">
-          <Suspense fallback={null}>
-            <SearchBar placeholder="Search by name, NDC, or manufacturer..." basePath="/inventory" />
-          </Suspense>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {CATEGORY_FILTERS.map((f) => (
-            <Link
-              key={f.value}
-              href={`/inventory?category=${f.value}${search ? `&search=${search}` : ""}`}
-              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                category === f.value
-                  ? "bg-[#40721D] text-white border-[#40721D]"
-                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              {f.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Item Table */}
-      <div className="bg-white rounded-xl border border-gray-200">
+        </>
+      }
+      stats={
+        <StatsRow
+          stats={[
+            { label: "Total Items", value: stats.totalItems, icon: <Package size={12} /> },
+            { label: "Active Lots", value: stats.totalLots, icon: <Boxes size={12} /> },
+            {
+              label: "Expiring (90 days)",
+              value: stats.expiringSoon,
+              icon: <CalendarClock size={12} />,
+              accent: stats.expiringSoon > 0 ? "#ea580c" : undefined,
+            },
+            {
+              label: "Low Stock Items",
+              value: stats.lowStockItems,
+              icon: <AlertTriangle size={12} />,
+              accent: stats.lowStockItems > 0 ? "#dc2626" : undefined,
+            },
+          ]}
+        />
+      }
+      toolbar={
+        <FilterBar
+          search={
+            <Suspense fallback={null}>
+              <SearchBar placeholder="Search by name, NDC, or manufacturer..." basePath="/inventory" />
+            </Suspense>
+          }
+          filters={
+            <>
+              {CATEGORY_FILTERS.map((f) => (
+                <Link
+                  key={f.value}
+                  href={`/inventory?category=${f.value}${search ? `&search=${search}` : ""}`}
+                  className="px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
+                  style={{
+                    backgroundColor: category === f.value ? "var(--color-primary)" : "transparent",
+                    color: category === f.value ? "#fff" : "var(--text-secondary)",
+                    borderColor: category === f.value ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {f.label}
+                </Link>
+              ))}
+            </>
+          }
+        />
+      }
+    >
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+      >
         {items.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-gray-400 text-lg mb-2">
+            <p className="text-lg mb-2" style={{ color: "var(--text-muted)" }}>
               {search ? "No items match your search" : "No items yet"}
             </p>
             {!search && (
-              <Link href="/inventory/new" className="text-[#40721D] text-sm font-medium hover:underline">
+              <Link
+                href="/inventory/new"
+                className="text-sm font-semibold hover:underline"
+                style={{ color: "var(--color-primary)" }}
+              >
                 Add your first item
               </Link>
             )}
@@ -121,58 +125,72 @@ async function InventoryPageContent({
           <div className="overflow-x-auto">
             <table className="w-full responsive-table">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Item</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">NDC</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Strength</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Manufacturer</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">On Hand</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Reorder Pt</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Earliest Exp</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tags</th>
+                <tr style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--green-50)" }}>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Item</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>NDC</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Strength</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Manufacturer</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>On Hand</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Reorder Pt</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Earliest Exp</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Tags</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {items.map((item) => (
-                  <tr key={item.id} className={`hover:bg-gray-50 transition-colors ${item.isLow ? "bg-red-50/50" : ""}`}>
+              <tbody>
+                {items.map((item, idx) => (
+                  <tr
+                    key={item.id}
+                    className="transition-colors"
+                    style={{
+                      borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined,
+                      backgroundColor: item.isLow ? "rgba(239,68,68,0.05)" : undefined,
+                    }}
+                  >
                     <td className="px-4 py-3" data-label="Item">
-                      <Link href={`/inventory/${item.id}`} className="text-sm font-medium text-gray-900 hover:text-[#40721D]">
+                      <Link
+                        href={`/inventory/${item.id}`}
+                        className="text-sm font-semibold no-underline"
+                        style={{ color: "var(--text-primary)" }}
+                      >
                         {item.name}
                       </Link>
                       {item.genericName && item.genericName !== item.name && (
-                        <p className="text-xs text-gray-400">{item.genericName}</p>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item.genericName}</p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 font-mono" data-label="NDC">{item.ndc || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600" data-label="Strength">{item.strength || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600" data-label="Manufacturer">{item.manufacturer || "—"}</td>
+                    <td className="px-4 py-3 text-sm font-mono" style={{ color: "var(--text-secondary)" }} data-label="NDC">{item.ndc || "—"}</td>
+                    <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }} data-label="Strength">{item.strength || "—"}</td>
+                    <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }} data-label="Manufacturer">{item.manufacturer || "—"}</td>
                     <td className="px-4 py-3" data-label="On Hand">
-                      <span className={`text-sm font-medium ${item.isLow ? "text-red-600" : "text-gray-900"}`}>
+                      <span
+                        className="text-sm font-semibold"
+                        style={{ color: item.isLow ? "#dc2626" : "var(--text-primary)" }}
+                      >
                         {item.totalOnHand}
                       </span>
                       {item.unitOfMeasure && (
-                        <span className="text-xs text-gray-400 ml-1">{item.unitOfMeasure}</span>
+                        <span className="text-xs ml-1" style={{ color: "var(--text-muted)" }}>{item.unitOfMeasure}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600" data-label="Reorder Pt">
+                    <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }} data-label="Reorder Pt">
                       {item.reorderPoint ? Number(item.reorderPoint) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600" data-label="Earliest Exp">
+                    <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }} data-label="Earliest Exp">
                       {item.earliestExpiry ? formatDate(item.earliestExpiry) : "—"}
                     </td>
                     <td className="px-4 py-3" data-label="Tags">
                       <div className="flex flex-wrap gap-1">
                         {item.isCompoundIngredient && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-purple-50 text-purple-700 rounded">CPD</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold bg-purple-50 text-purple-700 rounded">CPD</span>
                         )}
                         {item.isRefrigerated && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded">COLD</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700 rounded">COLD</span>
                         )}
                         {item.deaSchedule && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-red-50 text-red-700 rounded">C-{item.deaSchedule}</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold bg-red-50 text-red-700 rounded">C-{item.deaSchedule}</span>
                         )}
                         {item.isLow && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-red-100 text-red-800 rounded">LOW</span>
+                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold bg-red-100 text-red-800 rounded">LOW</span>
                         )}
                       </div>
                     </td>
@@ -188,9 +206,10 @@ async function InventoryPageContent({
           </Suspense>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
+
 export default function InventoryPage({
   searchParams,
 }: {

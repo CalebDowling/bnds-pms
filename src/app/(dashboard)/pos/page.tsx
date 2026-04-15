@@ -1,10 +1,14 @@
 import Link from "next/link";
+import { Receipt, DollarSign, Monitor } from "lucide-react";
 import { getTransactions, getSessions, getPosStats } from "./actions";
 import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
-import { Suspense } from "react";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
+import StatsRow from "@/components/layout/StatsRow";
+import { Suspense } from "react";
 
 async function PosPageContent({
   searchParams,
@@ -18,49 +22,76 @@ async function PosPageContent({
 
   const stats = await getPosStats();
 
+  const tabs = [
+    { id: "transactions", label: "Transactions" },
+    { id: "sessions", label: "Sessions" },
+  ];
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Point of Sale</h1>
-          <p className="text-sm text-gray-500 mt-1">Transactions, sessions, and register management</p>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Today&apos;s Transactions</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.todayTransactions}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Today&apos;s Revenue</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">${stats.todayRevenue.toFixed(2)}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Active Registers</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.activeSessions}</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-4">
-        <div className="flex gap-0">
-          {[{ id: "transactions", label: "Transactions" }, { id: "sessions", label: "Sessions" }].map((t) => (
-            <Link key={t.id} href={`/pos?tab=${t.id}`}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                tab === t.id ? "border-[#40721D] text-[#40721D]" : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}>{t.label}</Link>
-          ))}
-        </div>
-      </div>
-
+    <PageShell
+      title="Point of Sale"
+      subtitle="Transactions, sessions, and register management"
+      stats={
+        <StatsRow
+          stats={[
+            {
+              label: "Today's Transactions",
+              value: stats.todayTransactions,
+              icon: <Receipt size={12} />,
+            },
+            {
+              label: "Today's Revenue",
+              value: `$${stats.todayRevenue.toFixed(2)}`,
+              icon: <DollarSign size={12} />,
+              accent: "var(--color-primary)",
+            },
+            {
+              label: "Active Registers",
+              value: stats.activeSessions,
+              icon: <Monitor size={12} />,
+            },
+          ]}
+        />
+      }
+      toolbar={
+        <FilterBar
+          filters={
+            <>
+              {tabs.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/pos?tab=${t.id}`}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-full border no-underline transition-colors"
+                  style={{
+                    backgroundColor: tab === t.id ? "var(--color-primary)" : "transparent",
+                    color: tab === t.id ? "#fff" : "var(--text-secondary)",
+                    borderColor: tab === t.id ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {t.label}
+                </Link>
+              ))}
+            </>
+          }
+          search={
+            tab === "transactions" ? (
+              <Suspense fallback={null}>
+                <SearchBar
+                  placeholder="Search by patient name or card last 4..."
+                  basePath="/pos?tab=transactions"
+                />
+              </Suspense>
+            ) : undefined
+          }
+        />
+      }
+    >
       {tab === "transactions" ? (
         <TransactionsTab search={search} page={page} />
       ) : (
         <SessionsTab page={page} />
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -68,67 +99,72 @@ async function TransactionsTab({ search, page }: { search: string; page: number 
   const { transactions, total, pages } = await getTransactions({ search, page });
 
   return (
-    <>
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+    >
+      {transactions.length === 0 ? (
+        <div className="p-12 text-center">
+          <p className="text-lg" style={{ color: "var(--text-muted)" }}>No transactions yet</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--green-50)" }}>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Patient</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Type</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Items</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Subtotal</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Tax</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Total</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Payment</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Cashier</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.map((t, idx) => (
+                <tr
+                  key={t.id}
+                  className="transition-colors"
+                  style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
+                >
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{formatDate(t.processedAt)}</td>
+                  <td className="px-4 py-3">
+                    {t.patient ? (
+                      <>
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{t.patient.lastName}, {t.patient.firstName}</p>
+                        <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>{t.patient.mrn}</p>
+                      </>
+                    ) : (
+                      <span className="text-sm" style={{ color: "var(--text-muted)" }}>Walk-in</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm capitalize" style={{ color: "var(--text-secondary)" }}>{t.transactionType.replace(/_/g, " ")}</td>
+                  <td className="px-4 py-3 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>{t._count.lineItems}</td>
+                  <td className="px-4 py-3 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>${Number(t.subtotal).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>${Number(t.tax).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>${Number(t.total).toFixed(2)}</td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm capitalize" style={{ color: "var(--text-secondary)" }}>{t.paymentMethod.replace(/_/g, " ")}</span>
+                    {t.cardLastFour && (
+                      <span className="text-xs ml-1 font-mono" style={{ color: "var(--text-muted)" }}>****{t.cardLastFour}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{t.cashier.firstName} {t.cashier.lastName}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="px-4 pb-4">
         <Suspense fallback={null}>
-          <SearchBar placeholder="Search by patient name or card last 4..." basePath="/pos?tab=transactions" />
+          <Pagination total={total} pages={pages} page={page} basePath="/pos?tab=transactions" />
         </Suspense>
       </div>
-
-      <div className="bg-white rounded-xl border border-gray-200">
-        {transactions.length === 0 ? (
-          <div className="p-12 text-center"><p className="text-gray-400 text-lg">No transactions yet</p></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Patient</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Items</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Subtotal</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Tax</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Payment</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Cashier</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {transactions.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(t.processedAt)}</td>
-                    <td className="px-4 py-3">
-                      {t.patient ? (
-                        <>
-                          <p className="text-sm text-gray-900">{t.patient.lastName}, {t.patient.firstName}</p>
-                          <p className="text-xs text-gray-400 font-mono">{t.patient.mrn}</p>
-                        </>
-                      ) : (
-                        <span className="text-sm text-gray-400">Walk-in</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 capitalize">{t.transactionType.replace(/_/g, " ")}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{t._count.lineItems}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">${Number(t.subtotal).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">${Number(t.tax).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">${Number(t.total).toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-gray-600 capitalize">{t.paymentMethod.replace(/_/g, " ")}</span>
-                      {t.cardLastFour && <span className="text-xs text-gray-400 ml-1">****{t.cardLastFour}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{t.cashier.firstName} {t.cashier.lastName}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="px-4 pb-4">
-          <Suspense fallback={null}><Pagination total={total} pages={pages} page={page} basePath="/pos?tab=transactions" /></Suspense>
-        </div>
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -136,38 +172,53 @@ async function SessionsTab({ page }: { page: number }) {
   const { sessions, total, pages } = await getSessions({ page });
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200">
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+    >
       {sessions.length === 0 ? (
-        <div className="p-12 text-center"><p className="text-gray-400 text-lg">No register sessions yet</p></div>
+        <div className="p-12 text-center">
+          <p className="text-lg" style={{ color: "var(--text-muted)" }}>No register sessions yet</p>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Register</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Opened By</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Opened At</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Opening $</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Closed At</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Closing $</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Txns</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+              <tr style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--green-50)" }}>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Register</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Opened By</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Opened At</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Opening $</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Closed At</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Closing $</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Txns</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {sessions.map((s) => (
-                <tr key={s.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-sm font-mono text-gray-900">{s.registerId}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{s.opener.firstName} {s.opener.lastName}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{formatDate(s.openedAt)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">${Number(s.openingBalance).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{s.closedAt ? formatDate(s.closedAt) : "—"}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{s.closingBalance ? `$${Number(s.closingBalance).toFixed(2)}` : "—"}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{s._count.transactions}</td>
+            <tbody>
+              {sessions.map((s, idx) => (
+                <tr
+                  key={s.id}
+                  className="transition-colors"
+                  style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
+                >
+                  <td className="px-4 py-3 text-sm font-mono font-semibold" style={{ color: "var(--text-primary)" }}>{s.registerId}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{s.opener.firstName} {s.opener.lastName}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{formatDate(s.openedAt)}</td>
+                  <td className="px-4 py-3 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>${Number(s.openingBalance).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{s.closedAt ? formatDate(s.closedAt) : "—"}</td>
+                  <td className="px-4 py-3 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>{s.closingBalance ? `$${Number(s.closingBalance).toFixed(2)}` : "—"}</td>
+                  <td className="px-4 py-3 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>{s._count.transactions}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                      s.status === "open" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"
-                    }`}>{s.status}</span>
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full"
+                      style={{
+                        backgroundColor: s.status === "open" ? "var(--green-100)" : "rgba(0,0,0,0.05)",
+                        color: s.status === "open" ? "var(--green-700)" : "var(--text-muted)",
+                      }}
+                    >
+                      {s.status}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -176,11 +227,14 @@ async function SessionsTab({ page }: { page: number }) {
         </div>
       )}
       <div className="px-4 pb-4">
-        <Suspense fallback={null}><Pagination total={total} pages={pages} page={page} basePath="/pos?tab=sessions" /></Suspense>
+        <Suspense fallback={null}>
+          <Pagination total={total} pages={pages} page={page} basePath="/pos?tab=sessions" />
+        </Suspense>
       </div>
     </div>
   );
 }
+
 export default function PosPage({
   searchParams,
 }: {
