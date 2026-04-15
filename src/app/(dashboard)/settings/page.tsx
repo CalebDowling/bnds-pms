@@ -31,7 +31,7 @@ const SECTIONS = [
 function PharmacyInfoSection() {
   return (
     <div>
-      <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>Pharmacy Information</h2>
+      <h2 className="mb-1">Pharmacy Information</h2>
       <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Store details and contact information</p>
       <dl className="space-y-0">
         {[
@@ -57,7 +57,7 @@ function PharmacyInfoSection() {
 function SystemConfigSection() {
   return (
     <div>
-      <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>System Configuration</h2>
+      <h2 className="mb-1">System Configuration</h2>
       <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Numbering formats, defaults, and system settings</p>
       <div className="space-y-0">
         {[
@@ -83,7 +83,7 @@ function SystemConfigSection() {
 function LinkedSection({ title, description, href }: { title: string; description: string; href: string }) {
   return (
     <div>
-      <h2 className="text-lg font-bold mb-1" style={{ color: "var(--text-primary)" }}>{title}</h2>
+      <h2 className="mb-1">{title}</h2>
       <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>{description}</p>
       <Link
         href={href}
@@ -110,7 +110,7 @@ function UsersSection() {
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Users & Roles</h2>
+          <h2>Users & Roles</h2>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>Manage staff accounts, roles, and permissions</p>
         </div>
         <Link
@@ -171,8 +171,8 @@ export default function SettingsPage() {
     <div>
       {/* Header */}
       <div className="mb-5">
-        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Settings</h1>
-        <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>Pharmacy configuration, users, and system settings</p>
+        <h1 className="page-title">Settings</h1>
+        <p className="page-subtitle">Pharmacy configuration, users, and system settings</p>
       </div>
 
       {/* Sidebar + Content */}

@@ -60,33 +60,26 @@ export default async function AnalyticsPage({ searchParams }: Props) {
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h1 style={{ fontSize: "28px", fontWeight: 700, color: "var(--text-primary, #2D2416)", margin: 0 }}>
-                Analytics Dashboard
-              </h1>
-              <p style={{ fontSize: "14px", color: "var(--text-muted, #8B7E6A)", marginTop: "4px" }}>
+              <h1 className="page-title">Analytics Dashboard</h1>
+              <p className="page-subtitle">
                 Pharmacy operations intelligence and performance metrics
               </p>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px" }}>
-              <span style={{ color: "var(--text-muted, #8B7E6A)", marginRight: "8px", fontWeight: 500 }}>
+            <div className="flex items-center gap-1 text-[13px]">
+              <span className="text-[12px] font-semibold uppercase tracking-wider mr-2" style={{ color: "var(--text-muted)" }}>
                 Period:
               </span>
               {(["7d", "30d", "90d", "ytd"] as const).map((r) => (
                 <a
                   key={r}
                   href={`?range=${r}`}
+                  className="px-3.5 py-1.5 rounded-md text-[12px] font-semibold no-underline transition-colors"
                   style={{
-                    padding: "6px 14px",
-                    borderRadius: "6px",
-                    textDecoration: "none",
-                    fontWeight: 500,
-                    fontSize: "13px",
-                    backgroundColor: preset === r ? "var(--green-700, #40721D)" : "var(--card-bg, #F5F0E8)",
-                    color: preset === r ? "#fff" : "var(--text-secondary, #5C4F3C)",
-                    border: preset === r ? "none" : "1px solid var(--border, #D4C9B8)",
-                    transition: "all 0.15s",
+                    backgroundColor: preset === r ? "var(--green-700)" : "var(--card-bg)",
+                    color: preset === r ? "#fff" : "var(--text-secondary)",
+                    border: preset === r ? "none" : "1px solid var(--border)",
                   }}
                 >
                   {rangeLabels[r]}
@@ -470,18 +463,15 @@ function Section({
 }) {
   return (
     <div
+      className="rounded-xl p-6"
       style={{
-        backgroundColor: "var(--card-bg, #F5F0E8)",
-        border: "1px solid var(--border, #D4C9B8)",
-        borderRadius: "12px",
-        padding: "24px",
+        backgroundColor: "var(--card-bg)",
+        border: "1px solid var(--border)",
       }}
     >
-      <div style={{ marginBottom: "16px" }}>
-        <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--text-primary, #2D2416)", margin: 0 }}>
-          {title}
-        </h2>
-        <p style={{ fontSize: "13px", color: "var(--text-muted, #8B7E6A)", marginTop: "2px" }}>
+      <div className="mb-4">
+        <h2>{title}</h2>
+        <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>
           {subtitle}
         </p>
       </div>
@@ -501,10 +491,11 @@ function StatBox({
 }) {
   return (
     <div>
-      <p style={{ fontSize: "12px", color: "var(--text-muted, #8B7E6A)", marginBottom: "2px", textTransform: "uppercase", letterSpacing: "0.3px" }}>
-        {label}
-      </p>
-      <p style={{ fontSize: "22px", fontWeight: 700, color: color ?? "var(--text-primary, #2D2416)", lineHeight: 1.2 }}>
+      <p className="section-label mb-0.5">{label}</p>
+      <p
+        className="text-[22px] font-extrabold tabular-nums leading-tight"
+        style={{ color: color ?? "var(--text-primary)" }}
+      >
         {value}
       </p>
     </div>
