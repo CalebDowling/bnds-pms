@@ -3,18 +3,18 @@
 
 :root {
   /* ── Brand Colors ── */
-  --color-primary: #40721D;
-  --color-primary-light: #5A9A2F;
-  --color-primary-dark: #2D5114;
+  --color-primary: #415c43;
+  --color-primary-light: #719776;
+  --color-primary-dark: #0f260b;
   --color-accent: #34394D;
   --color-success: #27AE60;
   --color-danger: #E74C3C;
   --color-warning: #F1C40F;
   --color-muted: #6B7280;
-  --color-bg: #E8DFD0;
-  --color-surface: #F5F0E8;
-  --color-border: #E5E7EB;
-  --color-green-tint: #F8FCF2;
+  --color-bg: #cbddd1;
+  --color-surface: #e2ede6;
+  --color-border: #b8cfc0;
+  --color-green-tint: #e8f1ea;
 
   /* ── Design Tokens: Spacing (4px base) ── */
   --space-1: 4px;
@@ -58,19 +58,19 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ── Dashboard KPI Palette ── */
-  --green-900: #145523;
-  --green-700: #40721D;
-  --green-600: #2da44e;
-  --green-500: #4cb868;
-  --green-100: #e6f9ec;
-  --green-50: #f0faf3;
-  --page-bg: #E8DFD0;
-  --card-bg: #F5F0E8;
-  --border: #e0ebe3;
-  --border-light: #edf5ef;
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-muted: #7c8d83;
+  --green-900: #0f260b;
+  --green-700: #415c43;
+  --green-600: #547a57;
+  --green-500: #719776;
+  --green-100: #d6e5da;
+  --green-50: #e2ede6;
+  --page-bg: #cbddd1;
+  --card-bg: #e2ede6;
+  --border: #b8cfc0;
+  --border-light: #c7dcd0;
+  --text-primary: #0f260b;
+  --text-secondary: #415c43;
+  --text-muted: #5d7a64;
   --red-600: #dc2626;
   --red-100: #fef2f2;
   --red-border: #fecaca;
