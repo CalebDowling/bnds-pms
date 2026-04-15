@@ -7,6 +7,7 @@ import {
   Building2, Users, Shield, Printer, Cpu, Bell, Link2, QrCode, CreditCard,
   ClipboardList, Phone, Mail, ChevronRight,
 } from "lucide-react";
+import PageShell from "@/components/layout/PageShell";
 
 // ─── Section definitions ──────────────────────────────────────────
 
@@ -168,17 +169,20 @@ export default function SettingsPage() {
   };
 
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-5">
-        <h1 className="page-title">Settings</h1>
-        <p className="page-subtitle">Pharmacy configuration, users, and system settings</p>
-      </div>
-
+    <PageShell
+      title="Settings"
+      subtitle="Pharmacy configuration, users, and system settings"
+    >
       {/* Sidebar + Content */}
-      <div className="flex gap-0 rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)", minHeight: "calc(100vh - 200px)" }}>
+      <div
+        className="flex gap-0 rounded-xl overflow-hidden"
+        style={{ border: "1px solid var(--border)", minHeight: "calc(100vh - 240px)" }}
+      >
         {/* Sidebar */}
-        <nav className="w-56 flex-shrink-0 border-r p-2" style={{ backgroundColor: "var(--card-bg)", borderColor: "var(--border)" }}>
+        <nav
+          className="w-56 flex-shrink-0 p-2"
+          style={{ backgroundColor: "var(--card-bg)", borderRight: "1px solid var(--border)" }}
+        >
           {SECTIONS.map((s) => {
             const Icon = s.icon;
             const isActive = s.id === active && !s.href;
@@ -188,9 +192,9 @@ export default function SettingsPage() {
                 onClick={() => handleSectionClick(s)}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm transition-all mb-0.5"
                 style={{
-                  backgroundColor: isActive ? "var(--color-primary, #40721D)" : "transparent",
+                  backgroundColor: isActive ? "var(--color-primary)" : "transparent",
                   color: isActive ? "#fff" : "var(--text-secondary)",
-                  fontWeight: isActive ? 600 : 400,
+                  fontWeight: isActive ? 600 : 500,
                 }}
               >
                 <Icon size={16} style={{ opacity: isActive ? 1 : 0.7 }} />
@@ -201,10 +205,10 @@ export default function SettingsPage() {
         </nav>
 
         {/* Content */}
-        <div className="flex-1 p-6" style={{ backgroundColor: "#fff" }}>
+        <div className="flex-1 p-6" style={{ backgroundColor: "var(--page-bg)" }}>
           {renderContent()}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

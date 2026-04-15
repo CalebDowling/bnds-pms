@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { Clock, XCircle, DollarSign, TrendingUp } from "lucide-react";
 import { getClaims, getPayments, getBillingStats } from "./actions";
 import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
+import StatsRow from "@/components/layout/StatsRow";
 import { Suspense } from "react";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
@@ -32,53 +36,69 @@ async function BillingPageContent({
   const stats = await getBillingStats();
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Billing</h1>
-          <p className="text-sm text-gray-500 mt-1">Claims, payments, and revenue</p>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Pending Claims</p>
-          <p className={`text-2xl font-bold mt-1 ${stats.pendingClaims > 0 ? "text-yellow-600" : "text-gray-900"}`}>{stats.pendingClaims}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Rejected Claims</p>
-          <p className={`text-2xl font-bold mt-1 ${stats.rejectedClaims > 0 ? "text-red-600" : "text-gray-900"}`}>{stats.rejectedClaims}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Outstanding</p>
-          <p className={`text-2xl font-bold mt-1 ${stats.totalOutstanding > 0 ? "text-orange-600" : "text-gray-900"}`}>${stats.totalOutstanding.toFixed(2)}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Payments (Month)</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">${stats.paymentsThisMonthAmount.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{stats.paymentsThisMonth} transactions</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-4">
-        <div className="flex gap-0">
-          {[{ id: "claims", label: "Claims" }, { id: "payments", label: "Payments" }].map((t) => (
-            <Link key={t.id} href={`/billing?tab=${t.id}`}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                tab === t.id ? "border-[#40721D] text-[#40721D]" : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}>{t.label}</Link>
-          ))}
-        </div>
-      </div>
-
+    <PageShell
+      title="Billing"
+      subtitle="Claims, payments, and revenue"
+      stats={
+        <StatsRow
+          stats={[
+            {
+              label: "Pending Claims",
+              value: stats.pendingClaims,
+              icon: <Clock size={12} />,
+              accent: stats.pendingClaims > 0 ? "#eab308" : undefined,
+            },
+            {
+              label: "Rejected Claims",
+              value: stats.rejectedClaims,
+              icon: <XCircle size={12} />,
+              accent: stats.rejectedClaims > 0 ? "#dc2626" : undefined,
+            },
+            {
+              label: "Outstanding",
+              value: `$${stats.totalOutstanding.toFixed(2)}`,
+              icon: <DollarSign size={12} />,
+              accent: stats.totalOutstanding > 0 ? "#ea580c" : undefined,
+            },
+            {
+              label: "Payments (Month)",
+              value: `$${stats.paymentsThisMonthAmount.toFixed(2)}`,
+              icon: <TrendingUp size={12} />,
+              accent: "var(--color-primary)",
+              sub: `${stats.paymentsThisMonth} transactions`,
+            },
+          ]}
+        />
+      }
+      toolbar={
+        <FilterBar
+          filters={
+            <>
+              {[{ id: "claims", label: "Claims" }, { id: "payments", label: "Payments" }].map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/billing?tab=${t.id}`}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-full border no-underline transition-colors"
+                  style={{
+                    backgroundColor: tab === t.id ? "var(--color-primary)" : "transparent",
+                    color: tab === t.id ? "#fff" : "var(--text-secondary)",
+                    borderColor: tab === t.id ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {t.label}
+                </Link>
+              ))}
+            </>
+          }
+        />
+      }
+    >
       {tab === "claims" ? (
         <ClaimsTab search={search} page={page} status={status} />
       ) : (
         <PaymentsTab search={search} page={page} />
       )}
-    </div>
+    </PageShell>
   );
 }
 

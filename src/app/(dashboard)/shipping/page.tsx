@@ -1,21 +1,25 @@
 import Link from "next/link";
+import { Plus, Clock, Truck, PackageCheck, CalendarClock } from "lucide-react";
 import { getShipments, getShippingStats } from "./actions";
 import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
+import StatsRow from "@/components/layout/StatsRow";
 import { Suspense } from "react";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  pending: { label: "Pending", color: "bg-yellow-50 text-yellow-700" },
-  packed: { label: "Packed", color: "bg-blue-50 text-blue-700" },
-  shipped: { label: "Shipped", color: "bg-cyan-50 text-cyan-700" },
-  in_transit: { label: "In Transit", color: "bg-indigo-50 text-indigo-700" },
-  delivered: { label: "Delivered", color: "bg-green-50 text-green-700" },
-  returned: { label: "Returned", color: "bg-red-50 text-red-700" },
-  cancelled: { label: "Cancelled", color: "bg-gray-100 text-gray-500" },
+const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
+  pending: { label: "Pending", bg: "#fefce8", color: "#a16207" },
+  packed: { label: "Packed", bg: "#eff6ff", color: "#1d4ed8" },
+  shipped: { label: "Shipped", bg: "#ecfeff", color: "#0e7490" },
+  in_transit: { label: "In Transit", bg: "#eef2ff", color: "#4338ca" },
+  delivered: { label: "Delivered", bg: "var(--green-100)", color: "var(--green-700)" },
+  returned: { label: "Returned", bg: "#fef2f2", color: "#b91c1c" },
+  cancelled: { label: "Cancelled", bg: "rgba(0,0,0,0.05)", color: "#6b7280" },
 };
 
 const STATUS_FILTERS = ["all", "pending", "packed", "shipped", "in_transit", "delivered", "returned"];
@@ -36,59 +40,61 @@ async function ShippingPageContent({
   ]);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Shipping</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage shipments and deliveries</p>
-        </div>
-        <Link href="/shipping/new"
-          className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors">
-          + New Shipment
+    <PageShell
+      title="Shipping"
+      subtitle="Manage shipments and deliveries"
+      actions={
+        <Link
+          href="/shipping/new"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white no-underline transition-colors"
+          style={{ backgroundColor: "var(--color-primary)" }}
+        >
+          <Plus size={14} /> New Shipment
         </Link>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Pending</p>
-          <p className={`text-2xl font-bold mt-1 ${stats.pending > 0 ? "text-yellow-600" : "text-gray-900"}`}>{stats.pending}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">In Transit</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.shipped}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Delivered</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">{stats.delivered}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Shipped Today</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.shippedToday}</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-        <div className="flex items-center gap-4 mb-3">
-          <Suspense fallback={null}>
-            <SearchBar placeholder="Search by tracking #, patient name, or MRN..." basePath="/shipping" />
-          </Suspense>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {STATUS_FILTERS.map((s) => (
-            <Link key={s} href={`/shipping?status=${s}${search ? `&search=${search}` : ""}`}
-              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                status === s ? "bg-[#40721D] text-white border-[#40721D]" : "border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}>
-              {s === "all" ? "All" : s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-            </Link>
-          ))}
-        </div>
-      </div>
-
+      }
+      stats={
+        <StatsRow
+          stats={[
+            { label: "Pending", value: stats.pending, icon: <Clock size={12} />, accent: stats.pending > 0 ? "#eab308" : undefined },
+            { label: "In Transit", value: stats.shipped, icon: <Truck size={12} /> },
+            { label: "Delivered", value: stats.delivered, icon: <PackageCheck size={12} />, accent: "var(--color-primary)" },
+            { label: "Shipped Today", value: stats.shippedToday, icon: <CalendarClock size={12} /> },
+          ]}
+        />
+      }
+      toolbar={
+        <FilterBar
+          search={
+            <Suspense fallback={null}>
+              <SearchBar placeholder="Search by tracking #, patient name, or MRN..." basePath="/shipping" />
+            </Suspense>
+          }
+          filters={
+            <>
+              {STATUS_FILTERS.map((s) => (
+                <Link
+                  key={s}
+                  href={`/shipping?status=${s}${search ? `&search=${search}` : ""}`}
+                  className="px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
+                  style={{
+                    backgroundColor: status === s ? "var(--color-primary)" : "transparent",
+                    color: status === s ? "#fff" : "var(--text-secondary)",
+                    borderColor: status === s ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {s === "all" ? "All" : s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                </Link>
+              ))}
+            </>
+          }
+        />
+      }
+    >
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200">
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+      >
         {shipments.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-400 text-lg mb-2">{search ? "No shipments match your search" : "No shipments yet"}</p>
@@ -108,11 +114,15 @@ async function ShippingPageContent({
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {shipments.map((s) => {
-                  const si = STATUS_CONFIG[s.status] || { label: s.status, color: "bg-gray-100 text-gray-700" };
+              <tbody>
+                {shipments.map((s, idx) => {
+                  const si = STATUS_CONFIG[s.status] || { label: s.status, bg: "rgba(0,0,0,0.05)", color: "#6b7280" };
                   return (
-                    <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={s.id}
+                      className="transition-colors"
+                      style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
+                    >
                       <td className="px-4 py-3">
                         <Link href={`/shipping/${s.id}`} className="text-sm font-medium text-gray-900 hover:text-[#40721D]">
                           {s.patient.lastName}, {s.patient.firstName}
@@ -136,7 +146,12 @@ async function ShippingPageContent({
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${si.color}`}>{si.label}</span>
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full"
+                          style={{ backgroundColor: si.bg, color: si.color }}
+                        >
+                          {si.label}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -151,7 +166,7 @@ async function ShippingPageContent({
           </Suspense>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
 export default function ShippingPage({

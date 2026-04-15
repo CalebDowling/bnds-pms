@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { getFormulas, getBatches } from "./actions";
 import { formatDate } from "@/lib/utils";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
 import { Suspense } from "react";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
@@ -26,57 +29,63 @@ async function CompoundingPageContent({
   const status = params.status || "all";
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Compounding</h1>
-          <p className="text-sm text-gray-500 mt-1">Formulas, batches, and quality assurance</p>
-        </div>
-        <div className="flex gap-2">
+    <PageShell
+      title="Compounding"
+      subtitle="Formulas, batches, and quality assurance"
+      actions={
+        <>
           <Link
             href="/compounding/formulas/new"
-            className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg no-underline transition-colors"
+            style={{
+              border: "1px solid var(--border)",
+              color: "var(--text-secondary)",
+              backgroundColor: "var(--card-bg)",
+            }}
           >
-            + New Formula
+            <Plus size={14} /> New Formula
           </Link>
           <Link
             href="/compounding/batches/new"
-            className="px-4 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white no-underline transition-colors"
+            style={{ backgroundColor: "var(--color-primary)" }}
           >
-            + New Batch
+            <Plus size={14} /> New Batch
           </Link>
-        </div>
-      </div>
-
-      {/* Tab Switcher */}
-      <div className="border-b border-gray-200 mb-4">
-        <div className="flex gap-0">
-          {[
-            { id: "formulas", label: "Formulas" },
-            { id: "batches", label: "Batches" },
-          ].map((t) => (
-            <Link
-              key={t.id}
-              href={`/compounding?tab=${t.id}`}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                tab === t.id
-                  ? "border-[#40721D] text-[#40721D]"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              {t.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-
+        </>
+      }
+      toolbar={
+        <FilterBar
+          filters={
+            <>
+              {[
+                { id: "formulas", label: "Formulas" },
+                { id: "batches", label: "Batches" },
+              ].map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/compounding?tab=${t.id}`}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-full border no-underline transition-colors"
+                  style={{
+                    backgroundColor: tab === t.id ? "var(--color-primary)" : "transparent",
+                    color: tab === t.id ? "#fff" : "var(--text-secondary)",
+                    borderColor: tab === t.id ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {t.label}
+                </Link>
+              ))}
+            </>
+          }
+        />
+      }
+    >
       {tab === "formulas" ? (
         <FormulasTab search={search} page={page} />
       ) : (
         <BatchesTab search={search} page={page} status={status} />
       )}
-    </div>
+    </PageShell>
   );
 }
 

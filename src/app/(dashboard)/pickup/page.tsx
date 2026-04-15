@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { getReadyForPickup } from "./actions";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
 import { Suspense } from "react";
 
 async function PickupQueueContent({
@@ -16,27 +17,27 @@ async function PickupQueueContent({
   const { fills, total, pages } = await getReadyForPickup(search, page);
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Patient Pickup</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {total} prescriptions ready for pickup
-        </p>
-      </div>
-
-      {/* Search */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-        <Suspense fallback={null}>
-          <SearchBar
-            placeholder="Search by patient name, Rx#, or MRN..."
-            basePath="/pickup"
-          />
-        </Suspense>
-      </div>
-
+    <PageShell
+      title="Patient Pickup"
+      subtitle={`${total.toLocaleString()} prescription${total === 1 ? "" : "s"} ready for pickup`}
+      toolbar={
+        <FilterBar
+          search={
+            <Suspense fallback={null}>
+              <SearchBar
+                placeholder="Search by patient name, Rx#, or MRN..."
+                basePath="/pickup"
+              />
+            </Suspense>
+          }
+        />
+      }
+    >
       {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+      >
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -136,7 +137,7 @@ async function PickupQueueContent({
           />
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
 

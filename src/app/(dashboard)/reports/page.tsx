@@ -3,6 +3,8 @@ import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import ReportsExportButton from "@/components/dashboard/ReportsExportButton";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import PageShell from "@/components/layout/PageShell";
+import FilterBar from "@/components/layout/FilterBar";
 import ReportsDashboard from "./ReportsDashboard";
 import type { PrescriptionFillWithRelations, CompoundingBatchWithRelations } from "@/types";
 
@@ -42,32 +44,38 @@ async function ReportsPageContent({
   ];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-          <p className="text-sm text-gray-500 mt-1">Pharmacy operations reports</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit mb-6">
-        {TABS.map((t) => (
-          <Link key={t.id} href={`/reports?tab=${t.id}`}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              tab === t.id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}>
-            {t.label}
-          </Link>
-        ))}
-      </div>
-
+    <PageShell
+      title="Reports"
+      subtitle="Pharmacy operations reports"
+      toolbar={
+        <FilterBar
+          filters={
+            <>
+              {TABS.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/reports?tab=${t.id}`}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-full border no-underline transition-colors"
+                  style={{
+                    backgroundColor: tab === t.id ? "var(--color-primary)" : "transparent",
+                    color: tab === t.id ? "#fff" : "var(--text-secondary)",
+                    borderColor: tab === t.id ? "var(--color-primary)" : "var(--border)",
+                  }}
+                >
+                  {t.label}
+                </Link>
+              ))}
+            </>
+          }
+        />
+      }
+    >
       {tab === "dashboard" && <DashboardTab startDate={params.startDate} endDate={params.endDate} />}
       {tab === "analytics" && <AnalyticsTab />}
       {tab === "fills" && <DailyFillsTab date={params.date} />}
       {tab === "inventory" && <InventoryTab />}
       {tab === "batches" && <BatchTab startDate={params.startDate} endDate={params.endDate} />}
-    </div>
+    </PageShell>
   );
 }
 

@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { Plus, Package, AlertTriangle, CalendarPlus, CheckCircle2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import PageShell from "@/components/layout/PageShell";
+import StatsRow from "@/components/layout/StatsRow";
 
 interface WaitingBinItem {
   id: string;
@@ -146,21 +149,39 @@ export default function WaitingBinClient({ initialItems, initialStats }: Waiting
   };
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Waiting Bin Tracking</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage physical waiting bin locations</p>
-        </div>
+    <PageShell
+      title="Waiting Bin Tracking"
+      subtitle="Manage physical waiting bin locations"
+      actions={
         <button
           onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white transition-colors"
+          style={{ backgroundColor: "var(--color-primary)" }}
         >
-          Add to Bin
+          <Plus size={14} /> Add to Bin
         </button>
-      </div>
-
+      }
+      stats={
+        <StatsRow
+          stats={[
+            { label: "Total in Bin", value: stats.totalInBin, icon: <Package size={12} /> },
+            {
+              label: "Overdue (>14d)",
+              value: stats.overdue,
+              icon: <AlertTriangle size={12} />,
+              accent: stats.overdue > 0 ? "#dc2626" : undefined,
+            },
+            { label: "Added Today", value: stats.addedToday, icon: <CalendarPlus size={12} /> },
+            {
+              label: "Picked Up Today",
+              value: stats.pickedUpToday,
+              icon: <CheckCircle2 size={12} />,
+              accent: "var(--color-primary)",
+            },
+          ]}
+        />
+      }
+    >
       {/* Messages */}
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -172,31 +193,6 @@ export default function WaitingBinClient({ initialItems, initialStats }: Waiting
           {success}
         </div>
       )}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="border border-gray-200 rounded-lg p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Total in Bin</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalInBin}</p>
-        </div>
-
-        <div className="border border-gray-200 rounded-lg p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Overdue (&gt;14d)</p>
-          <p className={`text-2xl font-bold mt-1 ${stats.overdue > 0 ? "text-red-600" : "text-gray-900"}`}>
-            {stats.overdue}
-          </p>
-        </div>
-
-        <div className="border border-gray-200 rounded-lg p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Added Today</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{stats.addedToday}</p>
-        </div>
-
-        <div className="border border-gray-200 rounded-lg p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase">Picked Up Today</p>
-          <p className="text-2xl font-bold text-green-600 mt-1">{stats.pickedUpToday}</p>
-        </div>
-      </div>
 
       {/* Filters and Controls */}
       <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -387,6 +383,6 @@ export default function WaitingBinClient({ initialItems, initialStats }: Waiting
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
