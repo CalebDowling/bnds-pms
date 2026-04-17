@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Building2, Users, Shield, Printer, Cpu, Bell, Link2, QrCode, CreditCard,
-  ClipboardList, Phone, Mail, ChevronRight,
+  ClipboardList, Phone, Mail, ChevronRight, Key,
 } from "lucide-react";
 import PageShell from "@/components/layout/PageShell";
 
@@ -16,6 +16,7 @@ const SECTIONS = [
   { id: "system", label: "System Config", icon: Cpu, href: null },
   { id: "users", label: "Users & Roles", icon: Users, href: "/users" },
   { id: "security", label: "Security", icon: Shield, href: "/settings/security" },
+  { id: "api-keys", label: "API Keys", icon: Key, href: "/settings/api-keys" },
   { id: "print", label: "Print Templates", icon: Printer, href: "/settings/print-templates" },
   { id: "hardware", label: "Hardware", icon: Cpu, href: "/settings/hardware" },
   { id: "alerts", label: "Alerts", icon: Bell, href: "/settings/alerts" },

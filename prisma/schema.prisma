@@ -128,6 +128,8 @@ model User {
   claimStatusChanges ClaimStatusLog[] @relation("ClaimStatusChanger")
   notifications    Notification[]
   patientDocumentsUploaded PatientDocument[] @relation("DocumentUploader")
+  apiKeysCreated   ApiKey[] @relation("ApiKeyCreator")
+  apiKeysRevoked   ApiKey[] @relation("ApiKeyRevoker")
 
   @@map("users")
 }
@@ -1568,4 +1570,71 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+// ═══════════════════════════════════════════════
+// PUBLIC API KEYS (for /api/v1/* third-party integrations)
+// ═══════════════════════════════════════════════
+
+model ApiKey {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // Public prefix shown in UI (e.g. "bnds_live_a1b2c3d4") — safe to display
+  keyPrefix       String    @unique @map("key_prefix") @db.VarChar(32)
+  // SHA-256 hash of the full key. Full key is shown ONCE at creation and never stored.
+  keyHash         String    @unique @map("key_hash") @db.VarChar(64)
+  // Human-readable label (e.g. "Zogo Telehealth Production")
+  label           String    @db.VarChar(120)
+  // Optional description / notes
+  description     String?   @db.Text
+  // Environment: "live" or "test"
+  environment     String    @default("live") @map("environment") @db.VarChar(10)
+  // JSON array of scope strings, each in the form "resource:action"
+  // Examples: ["patients:read", "prescriptions:read", "inventory:read"]
+  // Empty array or null = no access. "*:*" = full access.
+  scopes          Json      @default("[]") @map("scopes")
+  // Who created this key
+  createdByUserId String    @map("created_by") @db.Uuid
+  // Who revoked this key (if revoked)
+  revokedByUserId String?   @map("revoked_by") @db.Uuid
+  // Timestamps
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt       DateTime? @map("expires_at") @db.Timestamptz
+  lastUsedAt      DateTime? @map("last_used_at") @db.Timestamptz
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz
+  // Optional per-key rate limit (requests per minute). Null = use default.
+  rateLimitPerMin Int?      @map("rate_limit_per_min")
+  // Usage counter (total requests ever)
+  usageCount      BigInt    @default(0) @map("usage_count")
+
+  createdBy       User      @relation("ApiKeyCreator", fields: [createdByUserId], references: [id])
+  revokedBy       User?     @relation("ApiKeyRevoker", fields: [revokedByUserId], references: [id])
+  requestLogs     ApiRequestLog[]
+
+  @@index([keyPrefix])
+  @@index([keyHash])
+  @@index([revokedAt])
+  @@index([createdByUserId])
+  @@map("api_keys")
+}
+
+model ApiRequestLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiKeyId     String?  @map("api_key_id") @db.Uuid
+  method       String   @db.VarChar(10)
+  path         String   @db.VarChar(255)
+  statusCode   Int      @map("status_code")
+  durationMs   Int      @map("duration_ms")
+  ipAddress    String?  @map("ip_address") @db.VarChar(64)
+  userAgent    String?  @map("user_agent") @db.VarChar(500)
+  requestBody  Json?    @map("request_body")
+  errorMessage String?  @map("error_message") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  apiKey       ApiKey?  @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@index([apiKeyId, createdAt(sort: Desc)])
+  @@index([path])
+  @@index([statusCode])
+  @@index([createdAt(sort: Desc)])
+  @@map("api_request_logs")
 }
