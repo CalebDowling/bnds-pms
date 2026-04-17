@@ -264,8 +264,10 @@ model Patient {
   documents        PatientDocument[]
 
   @@index([lastName])
+  @@index([lastName, firstName])
   @@index([dateOfBirth])
   @@index([externalId])
+  @@index([status])
   @@map("patients")
 }
 
@@ -494,8 +496,10 @@ model Item {
   poItems              PurchaseOrderItem[] @relation("POItems")
 
   @@index([ndc])
+  @@index([name])
   @@index([externalId])
   @@index([supplierId])
+  @@index([isActive])
   @@map("items")
 }
 
@@ -805,6 +809,8 @@ model Prescription {
   @@index([status])
   @@index([patientId])
   @@index([dateReceived])
+  @@index([status, dateReceived(sort: Desc)])
+  @@index([prescriberId])
   @@index([externalId])
   @@map("prescriptions")
 }
@@ -850,6 +856,11 @@ model PrescriptionFill {
 
   @@unique([prescriptionId, fillNumber])
   @@index([status])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([prescriptionId])
+  @@index([filledAt(sort: Desc)])
+  @@index([dispensedAt(sort: Desc)])
+  @@index([claimId])
   @@index([externalId])
   @@map("prescription_fills")
 }
@@ -1051,6 +1062,9 @@ model Claim {
   statusLogs       ClaimStatusLog[]
 
   @@index([status])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([insuranceId])
+  @@index([submittedAt(sort: Desc)])
   @@map("claims")
 }
 

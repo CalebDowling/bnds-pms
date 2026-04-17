@@ -22,6 +22,10 @@ const nextConfig = {
       "@radix-ui/react-dropdown-menu",
       "@radix-ui/react-select",
       "@sentry/nextjs",
+      "recharts",
+      "framer-motion",
+      "lucide-react",
+      "date-fns",
     ],
   },
 

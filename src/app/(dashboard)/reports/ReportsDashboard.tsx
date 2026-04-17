@@ -1,10 +1,37 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import RxVolumeChart from "@/components/charts/RxVolumeChart";
-import RevenueDonutChart from "@/components/charts/RevenueDonutChart";
-import TopDrugsBarChart from "@/components/charts/TopDrugsBarChart";
-import TurnaroundChart from "@/components/charts/TurnaroundChart";
+import dynamic from "next/dynamic";
+
+// ⚠️ Perf: Recharts is ~300KB uncompressed. Dynamic-imported so users on
+// pages that don't render reports never ship the chart bundle.
+const ChartSkeleton = () => (
+  <div
+    className="rounded-lg animate-pulse"
+    style={{
+      height: 300,
+      backgroundColor: "var(--card-bg)",
+      border: "1px solid var(--border)",
+    }}
+  />
+);
+
+const RxVolumeChart = dynamic(() => import("@/components/charts/RxVolumeChart"), {
+  ssr: false,
+  loading: () => <ChartSkeleton />,
+});
+const RevenueDonutChart = dynamic(() => import("@/components/charts/RevenueDonutChart"), {
+  ssr: false,
+  loading: () => <ChartSkeleton />,
+});
+const TopDrugsBarChart = dynamic(() => import("@/components/charts/TopDrugsBarChart"), {
+  ssr: false,
+  loading: () => <ChartSkeleton />,
+});
+const TurnaroundChart = dynamic(() => import("@/components/charts/TurnaroundChart"), {
+  ssr: false,
+  loading: () => <ChartSkeleton />,
+});
 
 interface RxVolumePoint {
   date: string;

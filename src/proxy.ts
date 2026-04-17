@@ -101,9 +101,17 @@ export const config = {
      * Match all request paths except:
      * - _next/static (static files)
      * - _next/image (image optimization)
-     * - favicon.ico
-     * - public folder files
+     * - favicon.ico, manifest.json, sw.js
+     * - public folder assets (images, fonts, source maps)
+     * - /developers (public API docs — handles its own auth)
+     * - /api/openapi.json (public spec)
+     * - /api/v1/* (public API — validates its own API keys)
+     * - /api/health (load balancer checks)
+     *
+     * Narrowing this matcher avoids calling supabase.auth.getUser() on
+     * every static asset, public page, and public API hit. That call is
+     * network-bound and adds 100-300ms per request.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|developers|api/openapi.json|api/v1|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|otf|eot|css|js|map)$).*)",
   ],
 };
