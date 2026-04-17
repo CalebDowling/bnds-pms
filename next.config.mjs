@@ -27,50 +27,62 @@ const nextConfig = {
 
   // Security headers applied to all routes
   async headers() {
+    const baseSecurityHeaders = [
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "X-DNS-Prefetch-Control", value: "on" },
+      { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+    ];
+
+    const appCsp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://vercel.live https://*.vercel-scripts.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://*.stripe.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.sentry.io https://*.ingest.sentry.io https://vercel.live wss://vercel.live",
+      "frame-src 'self' blob: https://js.stripe.com https://vercel.live",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+    ].join("; ");
+
+    // Looser CSP for the public developer docs page — Scalar loads its runtime
+    // from jsdelivr and needs broader image/connect access to render API examples.
+    // Only applied on /developers; the rest of the PMS keeps the strict CSP above.
+    const devDocsCsp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://vercel.live",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
+      "connect-src 'self' https://cdn.jsdelivr.net https://*.supabase.co https://vercel.live wss://vercel.live",
+      "worker-src 'self' blob:",
+      "frame-src 'self' blob: https://vercel.live",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+    ].join("; ");
+
     return [
+      // Scalar docs page — relaxed CSP for jsdelivr CDN
       {
-        source: "/(.*)",
+        source: "/developers",
         headers: [
-          {
-            key: "X-Frame-Options",
-            value: "SAMEORIGIN",
-          },
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
-          {
-            key: "X-DNS-Prefetch-Control",
-            value: "on",
-          },
-          {
-            key: "Strict-Transport-Security",
-            value: "max-age=31536000; includeSubDomains",
-          },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
-          },
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://js.stripe.com https://vercel.live https://*.vercel-scripts.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "img-src 'self' data: blob: https://*.supabase.co https://*.stripe.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://*.sentry.io https://*.ingest.sentry.io https://vercel.live wss://vercel.live",
-              "frame-src 'self' blob: https://js.stripe.com https://vercel.live",
-              "object-src 'none'",
-              "base-uri 'self'",
-              "form-action 'self'",
-              "frame-ancestors 'self'",
-            ].join("; "),
-          },
+          ...baseSecurityHeaders,
+          { key: "Content-Security-Policy", value: devDocsCsp },
+        ],
+      },
+      // Everything else — strict CSP
+      {
+        source: "/((?!developers).*)",
+        headers: [
+          ...baseSecurityHeaders,
+          { key: "Content-Security-Policy", value: appCsp },
         ],
       },
     ];
