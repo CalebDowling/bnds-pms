@@ -9,7 +9,8 @@ _Last updated: April 17, 2026_
 - DRX auto-sync cron was removed from `vercel.json` on 2026-04-17 per user request. No more automatic 5-minute syncs. (added 2026-04-17)
 - A runtime kill-switch env var `DRX_SYNC_DISABLED=true` (optional) was added to `/api/drx-sync`, `/api/drx-sync/queue-sync`, and `/api/drx-sync/queue-counts`. When set, all three endpoints return 503 `{ disabled: true }` instead of hitting DRX. (added 2026-04-17)
 - Dashboard queue counts automatically fall back to local DB counts when DRX is unreachable/disabled — no user-facing breakage. (added 2026-04-17)
-- **To re-enable DRX sync:** (1) restore the `crons` block in `vercel.json`: `"crons": [{ "path": "/api/drx-sync?entity=all", "schedule": "*/5 * * * *" }]`, (2) remove the `DRX_SYNC_DISABLED` env var from Vercel project settings if it was set, (3) redeploy. (added 2026-04-17)
+- **To re-enable DRX sync:** (1) restore the `crons` block in `vercel.json`: `"crons": [{ "path": "/api/drx-sync?entity=all", "schedule": "*/5 * * * *" }]`, (2) remove the `DRX_SYNC_DISABLED` env var from Vercel project settings if it was set, (3) uncomment `<ShadowModeBanner />` in `src/app/(dashboard)/layout.tsx` (and the import line), (4) redeploy. (added 2026-04-17)
+- The `ShadowModeBanner` in the dashboard header was hidden (commented out in the layout on 2026-04-17) per user request. The component file itself is preserved and now auto-hides when the `DRX_SYNC_DISABLED` env flag is on, so it's safe to uncomment anytime. (added 2026-04-17)
 
 ### Project Overview
 - BNDS PMS is a custom Pharmacy Management System being built for Boudreaux's New Drug Store to replace DRX. Stack: Next.js 16.1.6 (App Router), Tailwind CSS v4, React 19, TypeScript, Prisma ORM, PostgreSQL (Supabase), Vercel hosting. (added 2026-04-16)

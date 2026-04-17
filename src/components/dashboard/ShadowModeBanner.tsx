@@ -14,6 +14,8 @@ interface SyncEntity {
 interface SyncStatus {
   enabled: boolean;
   entities: SyncEntity[];
+  /** True when the server-side DRX_SYNC_DISABLED env kill-switch is on. */
+  disabled?: boolean;
 }
 
 function timeAgo(dateStr: string): string {
@@ -61,7 +63,9 @@ export default function ShadowModeBanner() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!status?.enabled) return null;
+  // Hide when DRX isn't configured, or when the runtime kill-switch
+  // (DRX_SYNC_DISABLED env var) is on.
+  if (!status?.enabled || status.disabled) return null;
 
   const totalRecords = status.entities.reduce((sum, e) => sum + e.recordsSynced, 0);
   const totalErrors = status.entities.reduce((sum, e) => sum + e.errors, 0);

@@ -8,7 +8,7 @@ import { KeyboardShortcutsProvider } from "@/components/providers/KeyboardShortc
 import SessionTimeoutProvider from "@/components/providers/SessionTimeoutProvider";
 import ToastContainer from "@/components/ui/ToastContainer";
 import ToastProvider from "@/components/providers/ToastProvider";
-import ShadowModeBanner from "@/components/dashboard/ShadowModeBanner";
+// import ShadowModeBanner from "@/components/dashboard/ShadowModeBanner"; // Hidden while DRX sync is off (2026-04-17)
 import CommandPalette from "@/components/ui/CommandPalette";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
@@ -60,7 +60,7 @@ export default async function DashboardLayout({
         <KeyboardShortcutsProvider>
           <SessionTimeoutProvider>
             <div className="min-h-screen bg-[var(--page-bg)]">
-              <ShadowModeBanner />
+              {/* <ShadowModeBanner /> — hidden while DRX sync is off (2026-04-17) */}
               <SidebarLayoutShell>
                 <DashboardSearch />
                 <CommandPalette />
