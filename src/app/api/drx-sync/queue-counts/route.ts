@@ -11,7 +11,26 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+function isDrxSyncDisabled(): boolean {
+  const flag = process.env.DRX_SYNC_DISABLED?.toLowerCase();
+  return flag === "true" || flag === "1" || flag === "yes";
+}
+
 export async function GET() {
+  // When DRX sync is disabled, don't hit DRX's API at all. The dashboard
+  // has a local-DB fallback that will kick in and show counts from our
+  // own database.
+  if (isDrxSyncDisabled()) {
+    return NextResponse.json(
+      {
+        success: false,
+        disabled: true,
+        message: "DRX sync is disabled — dashboard will use local DB counts.",
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const { fetchAllQueueCounts } = await import("@/lib/drx/client");
     const start = Date.now();
