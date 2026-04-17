@@ -68,10 +68,13 @@ function NewUserPageContent() {
 
       const data = await response.json();
 
-      // Show success message
+      // Show the message from the server — it will reflect whether
+      // the invite email actually went out, and includes a manual-share
+      // fallback link if SMTP wasn't configured or the send failed.
       setError(null);
       setSuccess(
-        `Invitation sent to ${form.email}. They'll receive an email to set their password.`
+        data.message ||
+          `Invitation sent to ${form.email}. They'll receive an email to set their password.`
       );
       setForm({
         email: "",
@@ -85,11 +88,16 @@ function NewUserPageContent() {
       });
       setSelectedRoles([]);
 
-      // Redirect after a short delay to show success
-      setTimeout(() => {
-        router.push(`/users/${data.user.id}`);
-        router.refresh();
-      }, 2000);
+      // If the email failed to send, stay on the page so the admin can
+      // copy the manual-share link. Otherwise redirect to the user detail.
+      if (data.emailSent !== false) {
+        setTimeout(() => {
+          router.push(`/users/${data.user.id}`);
+          router.refresh();
+        }, 2000);
+      } else {
+        setLoading(false);
+      }
     } catch (error: unknown) {
       setError(getErrorMessage(error));
       setLoading(false);
