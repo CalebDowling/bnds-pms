@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getReadyForPickup } from "./actions";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";

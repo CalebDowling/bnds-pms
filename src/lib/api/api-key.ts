@@ -151,8 +151,13 @@ export async function validateApiKey(
  *   "patients:*"     — all actions on patients
  *   "*:read"         — read on all resources
  *   "patients:read"  — exact match
+ *
+ * If the REQUIRED scope is "*:*", any valid (non-empty) key passes.
+ * This is used for endpoints like /heartbeat that only check auth, not access.
  */
 export function hasScope(scopes: string[], resource: string, action: string): boolean {
+  // "*:*" requirement = just needs a valid key, no specific scope
+  if (resource === "*" && action === "*") return true;
   if (!scopes.length) return false;
   const wanted = `${resource}:${action}`;
   for (const scope of scopes) {
