@@ -3,11 +3,13 @@ import Link from "next/link";
 import { getUser, getRoles } from "../actions";
 import { formatDate } from "@/lib/utils";
 import UserEditForm from "./UserEditForm";
+import UserSecurityActions from "./UserSecurityActions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { getCurrentUser } from "@/lib/auth";
 
 async function UserDetailPageContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [user, roles] = await Promise.all([getUser(id), getRoles()]);
+  const [user, roles, currentUser] = await Promise.all([getUser(id), getRoles(), getCurrentUser()]);
   if (!user) notFound();
 
   return (
@@ -50,6 +52,20 @@ async function UserDetailPageContent({ params }: { params: Promise<{ id: string 
       </div>
 
       <UserEditForm user={user} roles={roles} />
+
+      {/* Admin-only: password management, deactivate, delete */}
+      {currentUser?.isAdmin && (
+        <UserSecurityActions
+          user={{
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            isActive: user.isActive,
+          }}
+          currentUserId={currentUser.id}
+        />
+      )}
     </div>
   );
 }
