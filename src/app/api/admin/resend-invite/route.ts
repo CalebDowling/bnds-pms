@@ -39,13 +39,19 @@ async function generate(email: string) {
     },
   });
 
-  if (error || !data?.properties?.action_link) {
+  // Use properties.hashed_token (not action_link). See src/app/auth/callback/route.ts
+  // and src/app/api/users/invite/route.ts for why — action_link uses an implicit
+  // flow with a hash fragment that server route handlers can't read.
+  const hashedToken = data?.properties?.hashed_token;
+  if (error || !hashedToken) {
     return {
       ok: false as const,
       status: 500,
       error: error?.message ?? "Failed to generate recovery link.",
     };
   }
+
+  const setPasswordLink = `${appUrl}/auth/callback?token_hash=${hashedToken}&type=recovery`;
 
   return {
     ok: true as const,
@@ -57,7 +63,7 @@ async function generate(email: string) {
         lastName: user.lastName,
         hasLoggedIn: !!user.lastLogin,
       },
-      setPasswordLink: data.properties.action_link,
+      setPasswordLink,
       expiresNoteHours: 24,
     },
   };

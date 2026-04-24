@@ -416,10 +416,14 @@ export async function sendPasswordReset(userId: string) {
 
   if (error) throw new Error(`Failed to generate reset link: ${error.message}`);
 
-  const resetLink = data?.properties?.action_link;
-  if (!resetLink) {
+  // Use hashed_token not action_link — see src/app/auth/callback/route.ts
+  // for why. action_link uses implicit flow (hash fragment) which server
+  // route handlers can't read.
+  const hashedToken = data?.properties?.hashed_token;
+  if (!hashedToken) {
     return { sent: false, emailDelivered: false, setPasswordLink: null };
   }
+  const resetLink = `${appUrl}/auth/callback?token_hash=${hashedToken}&type=recovery`;
 
   // Actually email the link.
   const safeName = user.firstName.replace(/[<>"'&]/g, "");

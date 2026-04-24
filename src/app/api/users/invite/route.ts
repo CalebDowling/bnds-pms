@@ -215,7 +215,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Generate password recovery link so user can set their own password
+    // Generate password recovery link so user can set their own password.
+    //
+    // NOTE: we do NOT use linkData.properties.action_link directly. That URL
+    // routes the user through Supabase's /auth/v1/verify endpoint, which
+    // redirects back to us with an implicit-flow hash fragment
+    // (#access_token=…). Server route handlers can't read hash fragments,
+    // so the session never gets created. Instead we take the `hashed_token`
+    // out of the response and build a URL that points directly at our
+    // callback: /auth/callback?token_hash=…&type=recovery. The callback
+    // calls supabase.auth.verifyOtp({ token_hash, type }) which verifies
+    // the token server-side and sets the session cookie properly.
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pms.bndsrx.com";
     const { data: linkData, error: linkError } =
       await admin.auth.admin.generateLink({
@@ -246,7 +256,10 @@ export async function POST(request: NextRequest) {
       success: false,
       error: "No recovery link was generated",
     };
-    const setPasswordLink = linkData?.properties?.action_link;
+    const hashedToken = linkData?.properties?.hashed_token;
+    const setPasswordLink = hashedToken
+      ? `${appUrl}/auth/callback?token_hash=${hashedToken}&type=recovery`
+      : undefined;
     if (setPasswordLink) {
       const { html, text } = buildInviteEmailHtml({
         firstName: firstName.trim(),
