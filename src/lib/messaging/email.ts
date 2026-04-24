@@ -1,27 +1,48 @@
 /**
- * Email service using nodemailer
- * Falls back to console logging in dev mode if SMTP config not provided
+ * Email service.
+ *
+ * Send-path selection (first match wins):
+ *
+ *   1. Microsoft Graph API (preferred for M365 tenants)
+ *      Triggered when AZURE_TENANT_ID + AZURE_CLIENT_ID + AZURE_CLIENT_SECRET
+ *      are all set. Uses OAuth client-credentials — no SMTP AUTH needed,
+ *      which is important because Microsoft has been deprecating basic
+ *      SMTP AUTH for years. Sends as MAIL_SEND_FROM (default: noreply@bndsrx.com).
+ *      See src/lib/messaging/graph-email.ts for setup instructions.
+ *
+ *   2. SMTP via nodemailer
+ *      Triggered when SMTP_HOST + SMTP_PORT + SMTP_USER + SMTP_PASS are set.
+ *      Works with SendGrid, Resend, Mailgun, Gmail App Passwords, etc.
+ *
+ *   3. Dev-mode console log
+ *      Triggered when neither of the above is configured. Prints the
+ *      email to the server log and returns messageId: "dev-mode" so
+ *      callers can detect that nothing actually sent.
  */
+
+import { isGraphEmailConfigured, sendEmailViaGraph } from "./graph-email";
 
 const smtpHost = process.env.SMTP_HOST;
 const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : undefined;
 const smtpUser = process.env.SMTP_USER;
 const smtpPass = process.env.SMTP_PASS;
-const smtpFrom = process.env.SMTP_FROM || "noreply@boudreauxsnewdrug.com";
+const smtpFrom =
+  process.env.MAIL_SEND_FROM ||
+  process.env.SMTP_FROM ||
+  "noreply@bndsrx.com";
+
+const graphConfigured = isGraphEmailConfigured();
+const smtpConfigured = !!(smtpHost && smtpPort && smtpUser && smtpPass);
 
 let transporter: any = null;
-const isDev = !smtpHost || !smtpPort || !smtpUser || !smtpPass;
-
-if (!isDev) {
-  // Load nodemailer only if we have SMTP config
-  // Note: nodemailer is NOT in package.json, so this will fail at runtime if not installed
-  // For dev mode, we'll just log to console
+if (smtpConfigured && !graphConfigured) {
+  // Only load nodemailer when SMTP is actually the active path.
   try {
     const nodemailer = require("nodemailer");
     transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
-      secure: smtpPort === 465, // Use TLS if port 465
+      secure: smtpPort === 465,
       auth: {
         user: smtpUser,
         pass: smtpPass,
@@ -43,8 +64,21 @@ export interface EmailOptions {
 }
 
 /**
- * Send an email
- * In dev mode (no SMTP config), logs to console
+ * Returns which provider is currently configured for outbound email.
+ * Handy for admin diagnostics.
+ */
+export function getEmailProvider(): "graph" | "smtp" | "dev" {
+  if (graphConfigured) return "graph";
+  if (smtpConfigured && transporter) return "smtp";
+  return "dev";
+}
+
+/**
+ * Send an email via the best configured provider.
+ *
+ * Callers can detect the dev-mode fallback by checking
+ * `result.messageId === "dev-mode"` and surfacing a warning to the
+ * admin ("SMTP / Graph not configured — link was logged to server console").
  */
 export async function sendEmail({
   to,
@@ -53,30 +87,34 @@ export async function sendEmail({
   text,
   from = smtpFrom,
 }: EmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    if (isDev || !transporter) {
-      console.log("📧 [DEV MODE] Email would be sent:");
-      console.log(`  To: ${to}`);
-      console.log(`  Subject: ${subject}`);
-      console.log(`  From: ${from}`);
-      console.log(`  Body: ${text || html.slice(0, 100)}...`);
-      return { success: true, messageId: "dev-mode" };
-    }
-
-    const info = await transporter.sendMail({
-      from,
-      to,
-      subject,
-      html,
-      text,
-    });
-
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`Failed to send email to ${to}:`, errorMsg);
-    return { success: false, error: errorMsg };
+  // ── 1. Prefer Microsoft Graph when configured ────────────────────
+  if (graphConfigured) {
+    const result = await sendEmailViaGraph({ to, subject, html, text, from });
+    if (result.success) return result;
+    // Fall through to SMTP / dev if Graph errored, so a transient failure
+    // doesn't block the whole message if SMTP is also available.
+    console.warn(`[email] Graph send failed, falling back: ${result.error}`);
   }
+
+  // ── 2. SMTP fallback ─────────────────────────────────────────────
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({ from, to, subject, html, text });
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`[email] SMTP send failed to ${to}:`, errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }
+
+  // ── 3. Dev mode — log only ───────────────────────────────────────
+  console.log("📧 [DEV MODE] Email would be sent:");
+  console.log(`  To: ${to}`);
+  console.log(`  Subject: ${subject}`);
+  console.log(`  From: ${from}`);
+  console.log(`  Body: ${text || html.slice(0, 200)}...`);
+  return { success: true, messageId: "dev-mode" };
 }
 
 /**

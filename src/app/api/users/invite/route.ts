@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
     if (emailResult.success && emailResult.messageId !== "dev-mode") {
       message = `Invitation sent to ${email}. They'll receive an email to set their password.`;
     } else if (emailResult.success && emailResult.messageId === "dev-mode") {
-      message = `User ${email} was created, but SMTP is not configured on the server. The set-password link was logged to the server console only. Configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and SMTP_FROM env vars on Vercel to send real emails.`;
+      message = `User ${email} was created, but no email provider is configured on the server. The set-password link was logged to the server console only. Configure either the Microsoft Graph env vars (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, MAIL_SEND_FROM) OR the SMTP env vars (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM) on Vercel to send real emails.`;
     } else {
       message = `User ${email} was created, but the invitation email failed to send (${emailResult.error ?? "unknown error"}). Share this link manually: ${setPasswordLink ?? "(no recovery link was generated)"}`;
     }
