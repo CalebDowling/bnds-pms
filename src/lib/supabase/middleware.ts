@@ -8,7 +8,7 @@ const TWO_FA_EXEMPT_ROUTES = [
   "/setup-2fa",
   "/api/security/2fa",
   "/api/auth",
-  "/callback",
+  "/auth/callback",
 ];
 
 // Rate limit: simple in-middleware counter (upgraded to Redis when UPSTASH_REDIS_REST_URL is set)
@@ -73,9 +73,17 @@ export async function updateSession(request: NextRequest) {
     // If no user and trying to access a protected route, redirect to login
     const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
     const isSetPassword = request.nextUrl.pathname.startsWith("/set-password");
+    // /auth/callback is the Supabase OAuth/recovery landing URL. The user
+    // arrives here with no session cookie yet (the callback itself creates
+    // the session by exchanging ?code= for a cookie), so it MUST be public
+    // or the middleware will bounce the user back to /login before the
+    // handler can run. This was the original "Set Password button opens
+    // sign-in" bug.
+    const isAuthCallback = request.nextUrl.pathname.startsWith("/auth/callback");
     const isPublicRoute =
       isAuthRoute ||
       isSetPassword ||
+      isAuthCallback ||
       request.nextUrl.pathname.startsWith("/api/") ||
       request.nextUrl.pathname.startsWith("/developers") ||
       request.nextUrl.pathname === "/";
