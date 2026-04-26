@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Phone Widget — New Layout Preview</title>
+<style>
+  :root {
+    --card-bg: #F5F0E8;
+    --page-bg: #E8DFD0;
+    --color-primary: #40721D;
+    --border: #d4c9b8;
+    --border-light: #e0d8cb;
+    --text-primary: #2d2417;
+    --text-secondary: #5c4e3c;
+    --text-muted: #8c7e6c;
+    --green-50: #f0fdf4;
+    --green-100: #dcfce7;
+    --green-400: #4ade80;
+    --green-500: #22c55e;
+    --green-600: #16a34a;
+    --green-700: #15803d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--page-bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 32px;
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  h1 { font-size: 20px; font-weight: 800; color: var(--color-primary); }
+  .subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+
+  .widget-container { width: 420px; }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  /* SVG icon helper */
+  .icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .icon svg { display: block; }
+
+  /* Header */
+  .card-header {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-left { display: flex; align-items: center; gap: 8px; }
+  .header-icon {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: var(--color-primary); color: white;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .header-label {
+    font-size: 11px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--text-muted);
+  }
+  .live-dot {
+    position: relative; display: inline-flex;
+    width: 8px; height: 8px;
+  }
+  .live-dot::before {
+    content: ''; position: absolute;
+    width: 100%; height: 100%; border-radius: 50%;
+    background: #22c55e;
+    animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    opacity: 0.6;
+  }
+  .live-dot::after {
+    content: ''; position: relative;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #22c55e;
+  }
+  @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+  .link-sm { font-size: 9px; font-weight: 600; color: var(--green-700); text-decoration: none; }
+
+  /* Stats strip */
+  .stats-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--border-light);
+  }
+  .stat-cell { text-align: center; padding: 10px 4px; }
+  .stat-cell + .stat-cell { border-left: 1px solid var(--border-light); }
+  .stat-icons { display: flex; align-items: center; justify-content: center; gap: 3px; margin-bottom: 2px; }
+  .stat-val { font-size: 18px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+  .stat-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-top: 2px; }
+  .pulse-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    animation: pulse-glow 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+
+  /* Two-column split */
+  .split { display: grid; grid-template-columns: 1fr 1fr; min-height: 100px; }
+  .split-left { border-right: 1px solid var(--border-light); }
+  .section-label {
+    padding: 8px 10px 4px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .section-label span:first-child {
+    font-size: 9px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--text-muted);
+  }
+  .count-badge {
+    font-size: 9px; font-weight: 900;
+    padding: 2px 6px; border-radius: 99px;
+  }
+  .call-list { padding: 0 8px 8px; display: flex; flex-direction: column; gap: 6px; }
+
+  /* Call card */
+  .call-card { border-radius: 8px; padding: 8px 10px; transition: all 0.15s; }
+  .call-card.live {
+    border: 1px solid rgba(34,197,94,0.2);
+    border-left: 3px solid #22c55e;
+    background: rgba(34,197,94,0.04);
+  }
+  .call-card.ring {
+    border: 1px solid rgba(249,115,22,0.2);
+    border-left: 3px solid #f97316;
+    background: rgba(249,115,22,0.04);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  .call-card.hold-card {
+    border: 1px solid rgba(234,179,8,0.2);
+    border-left: 3px solid #eab308;
+    background: rgba(234,179,8,0.04);
+  }
+  .call-card.long-wait {
+    border: 1px solid rgba(239,68,68,0.2);
+    border-left: 3px solid #ef4444;
+    background: rgba(239,68,68,0.04);
+  }
+
+  .call-row1 { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+  .call-name { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+  .call-mrn { font-size: 9px; font-weight: 700; color: var(--green-700); background: var(--green-100); padding: 0 5px; border-radius: 3px; margin-left: 4px; }
+  .call-phone { font-size: 10px; color: var(--text-muted); display: block; }
+  .badge { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 99px; }
+  .badge-live { background: #dcfce7; color: #15803d; }
+  .badge-hold { background: #fef9c3; color: #a16207; }
+  .badge-ring { background: #fff7ed; color: #c2410c; }
+  .timer { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .call-actions { display: flex; gap: 4px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 3px 8px; font-size: 10px; font-weight: 700;
+    border-radius: 6px; border: 1px solid; cursor: pointer; background: none;
+  }
+  .btn-hold { border-color: rgba(234,179,8,0.3); color: #a16207; background: #fefce8; }
+  .btn-xfer { border-color: rgba(96,165,250,0.4); color: #1d4ed8; background: #eff6ff; }
+  .btn-end { border-color: rgba(252,165,165,0.5); color: #dc2626; background: #fef2f2; margin-left: auto; }
+  .btn-pickup { border-color: rgba(34,197,94,0.3); color: #15803d; background: #f0fdf4; }
+  .btn-pickup-full {
+    width: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 4px; padding: 5px 8px; font-size: 10px; font-weight: 700;
+    border-radius: 6px; border: none; cursor: pointer;
+    background: var(--color-primary); color: white;
+  }
+  .wait-long { font-size: 8px; font-weight: 800; color: #dc2626; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Departments */
+  .dept-section { border-top: 1px solid var(--border-light); }
+  .dept-label { padding: 8px 12px 4px; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); }
+  .dept-row { padding: 0 12px 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .dept-chip {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 8px; border-radius: 5px;
+    background: rgba(0,0,0,0.02); border: 1px solid var(--border-light);
+    font-size: 10px; font-weight: 500; color: var(--text-secondary);
+  }
+  .dept-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Footer */
+  .footer {
+    padding: 8px 12px; border-top: 1px solid var(--border-light);
+    display: flex; gap: 6px;
+  }
+  .btn-primary {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 8px 12px; font-size: 11px; font-weight: 800;
+    border-radius: 7px; border: none; cursor: pointer;
+    background: var(--color-primary); color: white;
+    transition: all 0.15s;
+  }
+  .btn-primary:hover { box-shadow: 0 4px 12px rgba(64,114,29,0.25); }
+  .btn-outline {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 8px 12px; font-size: 11px; font-weight: 800;
+    border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border); color: var(--text-secondary); background: none;
+  }
+</style>
+</head>
+<body>
+
+<h1>Phone Widget — Split Panel Layout</h1>
+<p class="subtitle">Professional icons, everything visible at once</p>
+
+<div class="widget-container">
+  <div class="card">
+
+    <!-- Header -->
+    <div class="card-header">
+      <div class="header-left">
+        <div class="header-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <span class="header-label">Phone System</span>
+        <span class="live-dot"></span>
+      </div>
+      <a href="#" class="link-sm">Full Dashboard &rarr;</a>
+    </div>
+
+    <!-- Stats Strip -->
+    <div class="stats-strip">
+      <!-- Active -->
+      <div class="stat-cell">
+        <div class="stat-icons">
+          <span class="icon" style="color:#22c55e;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </span>
+          <span class="pulse-dot" style="background:#22c55e;"></span>
+        </div>
+        <div class="stat-val" style="color:#22c55e;">2</div>
+        <div class="stat-lbl">Active</div>
+      </div>
+      <!-- On Hold -->
+      <div class="stat-cell">
+        <div class="stat-icons">
+          <span class="icon" style="color:#eab308;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </span>
+          <span class="pulse-dot" style="background:#eab308;"></span>
+        </div>
+        <div class="stat-val" style="color:#eab308;">1</div>
+        <div class="stat-lbl">On Hold</div>
+      </div>
+      <!-- Today -->
+      <div class="stat-cell">
+        <div class="stat-icons">
+          <span class="icon" style="color:var(--text-muted);">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 2 16 8 22 8"/><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </span>
+        </div>
+        <div class="stat-val">14</div>
+        <div class="stat-lbl">Today</div>
+      </div>
+      <!-- Missed -->
+      <div class="stat-cell">
+        <div class="stat-icons">
+          <span class="icon" style="color:#ef4444;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+          </span>
+        </div>
+        <div class="stat-val" style="color:#ef4444;">2</div>
+        <div class="stat-lbl">Missed</div>
+      </div>
+    </div>
+
+    <!-- Two-Column Split -->
+    <div class="split">
+      <!-- Left: Active Calls -->
+      <div class="split-left">
+        <div class="section-label">
+          <span>Active Calls</span>
+          <span class="count-badge" style="background:#dcfce7;color:#15803d;">2</span>
+        </div>
+        <div class="call-list">
+          <!-- Live call -->
+          <div class="call-card live">
+            <div class="call-row1">
+              <div style="min-width:0;">
+                <span class="call-name">D. Broussard</span>
+                <span class="call-mrn">MRN-4821</span>
+                <span class="call-phone">(337) 555-0147</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+                <span class="badge badge-live">LIVE</span>
+                <span class="timer" style="color:#15803d;">3:42</span>
+              </div>
+            </div>
+            <div class="call-actions">
+              <button class="btn btn-hold">
+                <span class="icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></span>
+                Hold
+              </button>
+              <button class="btn btn-xfer">
+                <span class="icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg></span>
+                Transfer
+              </button>
+              <button class="btn btn-end">
+                <span class="icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></svg></span>
+                End
+              </button>
+            </div>
+          </div>
+          <!-- Ringing call -->
+          <div class="call-card ring">
+            <div class="call-row1">
+              <div style="min-width:0;">
+                <span class="call-name">(337) 555-0192</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+                <span class="badge badge-ring">RING</span>
+                <span class="timer" style="color:#c2410c;">0:08</span>
+              </div>
+            </div>
+            <div class="call-actions">
+              <button class="btn btn-pickup">
+                <span class="icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
+                Pick Up
+              </button>
+              <button class="btn btn-xfer">
+                <span class="icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg></span>
+                Transfer
+              </button>
+              <button class="btn btn-end">
+                <span class="icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></svg></span>
+                End
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Hold Queue -->
+      <div>
+        <div class="section-label">
+          <span>On Hold</span>
+          <span class="count-badge" style="background:#fef2f2;color:#dc2626;">1</span>
+        </div>
+        <div class="call-list">
+          <div class="call-card long-wait">
+            <div class="call-row1">
+              <div style="min-width:0;">
+                <span class="call-name">K. Mancuso</span>
+                <span class="call-phone">MRN: P-3892</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+                <span class="timer" style="color:#dc2626;font-size:13px;font-weight:700;">2:48</span>
+                <span class="wait-long">Long wait</span>
+              </div>
+            </div>
+            <button class="btn-pickup-full">
+              <span class="icon"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
+              Pick Up Call
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Department Status -->
+    <div class="dept-section">
+      <div class="dept-label">Departments</div>
+      <div class="dept-row">
+        <div class="dept-chip"><span class="dept-dot" style="background:#22c55e;"></span>Pharmacy</div>
+        <div class="dept-chip"><span class="dept-dot" style="background:#22c55e;"></span>Pharmacist</div>
+        <div class="dept-chip"><span class="dept-dot" style="background:#22c55e;"></span>Billing</div>
+        <div class="dept-chip"><span class="dept-dot" style="background:#eab308;"></span>Shipping</div>
+        <div class="dept-chip"><span class="dept-dot" style="background:#22c55e;"></span>Voicemail</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <button class="btn-primary">
+        <span class="icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+        Open Call Center
+        <span class="icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+      </button>
+      <button class="btn-outline">
+        <span class="icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        History
+      </button>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

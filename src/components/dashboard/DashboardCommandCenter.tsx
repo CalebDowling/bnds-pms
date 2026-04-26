@@ -46,25 +46,33 @@ function WorkflowItem({ label, count, href, statusColor, icon }: WorkflowItemPro
     <Link
       href={href}
       className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors no-underline group"
-      style={{ color: "var(--text-primary)" }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)"; }}
+      style={{ color: "#14201a" }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#f5f8f0"; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
     >
       <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
-      <span style={{ color: "var(--text-muted)" }} className="flex-shrink-0">{icon}</span>
-      <span className="text-[15px] font-medium flex-1 truncate" style={{ color: "var(--text-primary)" }}>
+      <span style={{ color: "#7a8a78" }} className="flex-shrink-0">{icon}</span>
+      <span
+        className="text-[14px] flex-1 truncate"
+        style={{
+          color: "#14201a",
+          fontFamily: "var(--font-inter), 'Inter Tight', Inter, system-ui, sans-serif",
+          fontWeight: 500,
+          letterSpacing: "-0.005em",
+        }}
+      >
         {label}
       </span>
       <span
-        className="text-[14px] font-bold tabular-nums px-1.5 py-px rounded"
+        className="text-[13px] font-semibold tabular-nums px-1.5 py-px rounded"
         style={{
-          backgroundColor: count > 0 ? "var(--green-100)" : undefined,
-          color: count > 0 ? "var(--green-700)" : "var(--text-muted)",
+          backgroundColor: count > 0 ? "#e8f3e2" : "transparent",
+          color: count > 0 ? "#174530" : "#7a8a78",
         }}
       >
         {count}
       </span>
-      <ChevronRight size={12} style={{ color: "var(--border)" }} />
+      <ChevronRight size={12} style={{ color: "#cfc7b6" }} />
     </Link>
   );
 }
@@ -77,33 +85,65 @@ interface ModuleCardMiniProps {
   href: string;
 }
 
+// Edge-accent-stripe Quick Access tile per BNDS PMS Redesign (Style D).
+// 3px left color bar tied to the module, monochrome ink icon, Inter Tight
+// 13px label, 11.5px sub-text in --ink-3. Hover lifts the stripe to fill
+// the tile and warms the background to the pale leaf surface.
 function ModuleCardMini({ title, stat, icon, accentColor, href }: ModuleCardMiniProps) {
   return (
     <Link
       href={href}
-      className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg transition-all no-underline group"
-      style={{ border: "1px solid var(--border)" }}
+      className="relative flex items-center gap-2.5 pl-3 pr-2.5 py-2.5 rounded-md transition-colors no-underline overflow-hidden"
+      style={{
+        border: "1px solid #e3ddd1",
+        backgroundColor: "#ffffff",
+        boxShadow: "0 1px 0 rgba(20, 32, 26, 0.02)",
+      }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "var(--color-primary)";
-        (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)";
+        (e.currentTarget as HTMLElement).style.backgroundColor = "#f5f8f0";
+        (e.currentTarget as HTMLElement).style.borderColor = "#cfe0c0";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-        (e.currentTarget as HTMLElement).style.backgroundColor = "";
+        (e.currentTarget as HTMLElement).style.backgroundColor = "#ffffff";
+        (e.currentTarget as HTMLElement).style.borderColor = "#e3ddd1";
       }}
     >
-      <div
-        className="w-9 h-9 rounded-md flex items-center justify-center text-white mb-0.5"
+      {/* Edge accent stripe */}
+      <span
+        aria-hidden
+        className="absolute left-0 top-0 bottom-0 w-[3px]"
         style={{ backgroundColor: accentColor }}
+      />
+      <span
+        className="flex items-center justify-center flex-shrink-0"
+        style={{ color: "#14201a" }}
       >
         {icon}
+      </span>
+      <div className="flex flex-col min-w-0">
+        <span
+          className="leading-tight truncate"
+          style={{
+            fontFamily: "var(--font-inter), 'Inter Tight', Inter, system-ui, sans-serif",
+            fontSize: "13px",
+            fontWeight: 500,
+            color: "#14201a",
+            letterSpacing: "-0.005em",
+          }}
+        >
+          {title}
+        </span>
+        <span
+          className="leading-tight tabular-nums truncate"
+          style={{
+            fontSize: "11.5px",
+            fontWeight: 500,
+            color: "#5a6b58",
+          }}
+        >
+          {stat}
+        </span>
       </div>
-      <span className="text-[12px] font-semibold text-center leading-tight" style={{ color: "var(--text-secondary)" }}>
-        {title}
-      </span>
-      <span className="text-[11px] font-bold tabular-nums" style={{ color: "var(--text-muted)" }}>
-        {stat}
-      </span>
     </Link>
   );
 }
@@ -177,12 +217,12 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
       {/* Three Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Column 1: Workflow Queue */}
-        <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
-          <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-light)" }}>
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+        <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "#faf8f4", border: "1px solid #e3ddd1" }}>
+          <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid #ece7da" }}>
+            <span className="text-[11px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.12em" }}>
               Workflow Queue
             </span>
-            <Link href="/queue" className="text-[9px] font-semibold hover:underline" style={{ color: "var(--green-700)" }}>
+            <Link href="/queue" className="text-[11px] font-medium hover:underline" style={{ color: "#1f5a3a" }}>
               Open Queue
             </Link>
           </div>
@@ -202,23 +242,25 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
 
         {/* Column 2: Quick Access + Phone System */}
         <div className="space-y-4">
-          {/* Quick Access Modules */}
-          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
-            <div className="px-3 pt-3 pb-2" style={{ borderBottom: "1px solid var(--border-light)" }}>
-              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+          {/* Quick Access — Edge accent stripe tiles (BNDS PMS Redesign Style D).
+              Brand colors aligned to forest+leaf palette so the modules read as
+              part of the design system, not bootstrap rainbow chips. */}
+          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "#faf8f4", border: "1px solid #e3ddd1" }}>
+            <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid #ece7da" }}>
+              <span className="text-[11px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.12em" }}>
                 Quick Access
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2 p-3">
-              <ModuleCardMini title="Patient" stat={`${data.patientsToday} today`} icon={<Users size={16} />} accentColor="#10b981" href="/patients" />
-              <ModuleCardMini title="Rx" stat={`${data.rxToday} today`} icon={<Pill size={16} />} accentColor="#3b82f6" href="/prescriptions" />
-              <ModuleCardMini title="Item" stat={`${data.activeItems}`} icon={<Package size={16} />} accentColor="#a855f7" href="/inventory" />
-              <ModuleCardMini title="Prescriber" stat={`${data.doctorsOnFile}`} icon={<Cross size={16} />} accentColor="#f97316" href="/prescriptions/prescribers" />
-              <ModuleCardMini title="Compound" stat={`${data.pendingBatches} pend`} icon={<FlaskConical size={16} />} accentColor="#f43f5e" href="/compounding" />
-              <ModuleCardMini title="Inventory" stat={`${data.lowStockItems} low`} icon={<AlertTriangle size={16} />} accentColor="#f59e0b" href="/inventory" />
-              <ModuleCardMini title="Sales" stat={`${data.salesToday} today`} icon={<DollarSign size={16} />} accentColor="#40721d" href="/pos" />
-              <ModuleCardMini title="Claims" stat={`${data.rejectedClaims} rej`} icon={<ClipboardCheck size={16} />} accentColor="#6366f1" href="/billing/claims" />
-              <ModuleCardMini title="System" stat="Admin" icon={<Settings size={16} />} accentColor="#14b8a6" href="/settings" />
+            <div className="grid grid-cols-2 gap-2 p-3">
+              <ModuleCardMini title="Patients" stat={`${data.patientsToday} today`} icon={<Users size={16} strokeWidth={1.75} />} accentColor="#1f5a3a" href="/patients" />
+              <ModuleCardMini title="Prescriptions" stat={`${data.rxToday} today`} icon={<Pill size={16} strokeWidth={1.75} />} accentColor="#5aa845" href="/prescriptions" />
+              <ModuleCardMini title="Inventory" stat={`${data.activeItems} items`} icon={<Package size={16} strokeWidth={1.75} />} accentColor="#7a8a78" href="/inventory" />
+              <ModuleCardMini title="Prescribers" stat={`${data.doctorsOnFile} on file`} icon={<Cross size={16} strokeWidth={1.75} />} accentColor="#d4a02a" href="/prescriptions/prescribers" />
+              <ModuleCardMini title="Compounding" stat={`${data.pendingBatches} pending`} icon={<FlaskConical size={16} strokeWidth={1.75} />} accentColor="#9c4a25" href="/compounding" />
+              <ModuleCardMini title="Reorder" stat={`${data.lowStockItems} low`} icon={<AlertTriangle size={16} strokeWidth={1.75} />} accentColor="#c54b3b" href="/inventory/reorder" />
+              <ModuleCardMini title="POS" stat={`${data.salesToday} today`} icon={<DollarSign size={16} strokeWidth={1.75} />} accentColor="#174530" href="/pos" />
+              <ModuleCardMini title="Claims" stat={`${data.rejectedClaims} rejected`} icon={<ClipboardCheck size={16} strokeWidth={1.75} />} accentColor="#3a6a8c" href="/billing/claims" />
+              <ModuleCardMini title="Settings" stat="Admin" icon={<Settings size={16} strokeWidth={1.75} />} accentColor="#0f2e1f" href="/settings" />
             </div>
           </div>
 
@@ -229,15 +271,15 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
         {/* Column 3: Activity & Alerts */}
         <div className="space-y-4">
           {/* Recent Activity — live FillEvent feed (refreshes every 30s) */}
-          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
-            <div className="px-3 pt-3 pb-2" style={{ borderBottom: "1px solid var(--border-light)" }}>
-              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "#faf8f4", border: "1px solid #e3ddd1" }}>
+            <div className="px-3 pt-3 pb-2" style={{ borderBottom: "1px solid #ece7da" }}>
+              <span className="text-[11px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.12em" }}>
                 Recent Activity
               </span>
             </div>
             <div>
               {recentActivity.length === 0 ? (
-                <div className="px-3 py-4 text-center text-[11px] italic" style={{ color: "var(--text-muted)" }}>
+                <div className="px-3 py-4 text-center text-[11px] italic" style={{ color: "#7a8a78" }}>
                   No recent activity yet
                 </div>
               ) : (
@@ -246,32 +288,32 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
                     key={item.fillId}
                     href={`/queue/process/${item.fillId}`}
                     className="block px-3 py-2 no-underline transition-colors"
-                    style={{ borderTop: i > 0 ? "1px solid var(--border-light)" : undefined }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)"; }}
+                    style={{ borderTop: i > 0 ? "1px solid #ece7da" : undefined }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#f5f8f0"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--green-700)" }}>
+                      <span className="text-[11px] font-semibold tabular-nums" style={{ color: "#1f5a3a" }}>
                         Rx# {item.rxNum}
                       </span>
-                      <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>
+                      <span className="text-[10px]" style={{ color: "#7a8a78" }}>
                         {item.minutesAgo < 60 ? `${item.minutesAgo}m` : `${Math.floor(item.minutesAgo / 60)}h`}
                       </span>
                     </div>
-                    <div className="text-[11px] font-medium" style={{ color: "var(--text-primary)" }}>
+                    <div className="text-[12px] font-medium" style={{ color: "#14201a" }}>
                       {item.patient}
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[10px] truncate" style={{ color: "var(--text-secondary)" }}>
+                      <div className="text-[11px] truncate" style={{ color: "#3a4a3c" }}>
                         {item.eventLabel}
                         {item.performer && item.performer !== "—" && (
-                          <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                          <span className="ml-1" style={{ color: "#7a8a78" }}>
                             · {item.performer}
                           </span>
                         )}
                       </div>
                       {item.copay && (
-                        <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: "var(--text-muted)" }}>
+                        <span className="text-[11px] tabular-nums flex-shrink-0" style={{ color: "#7a8a78" }}>
                           {item.copay}
                         </span>
                       )}
@@ -283,12 +325,12 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
           </div>
 
           {/* Stock Alerts */}
-          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
-            <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border-light)" }}>
-              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "#faf8f4", border: "1px solid #e3ddd1" }}>
+            <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid #ece7da" }}>
+              <span className="text-[11px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.12em" }}>
                 Stock Alerts
               </span>
-              <Link href="/inventory" className="text-[9px] font-semibold hover:underline" style={{ color: "var(--green-700)" }}>
+              <Link href="/inventory" className="text-[11px] font-medium hover:underline" style={{ color: "#1f5a3a" }}>
                 View All
               </Link>
             </div>
@@ -300,25 +342,26 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
                     href={`/inventory/${item.itemId}`}
                     className="block px-3 py-2 no-underline transition-colors"
                     style={{
-                      borderTop: i > 0 ? "1px solid var(--border-light)" : undefined,
-                      borderLeft: `3px solid ${item.severity === "critical" ? "#ef4444" : "#f59e0b"}`,
+                      borderTop: i > 0 ? "1px solid #ece7da" : undefined,
+                      borderLeft: `3px solid ${item.severity === "critical" ? "#c54b3b" : "#d4a02a"}`,
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)"; }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#f5f8f0"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
                   >
-                    <div className={`text-[11px] font-semibold truncate ${
-                      item.severity === "critical" ? "text-red-600" : "text-amber-600"
-                    }`}>
+                    <div
+                      className="text-[12px] font-semibold truncate"
+                      style={{ color: item.severity === "critical" ? "#c54b3b" : "#9c6a14" }}
+                    >
                       {item.itemName}
                     </div>
-                    <div className="text-[10px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+                    <div className="text-[11px] tabular-nums" style={{ color: "#7a8a78" }}>
                       {item.currentStock} in stock
                     </div>
                   </Link>
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center text-[11px]" style={{ color: "var(--text-muted)" }}>
+              <div className="p-4 text-center text-[11px]" style={{ color: "#7a8a78" }}>
                 All stock levels healthy
               </div>
             )}

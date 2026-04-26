@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>New Sage Palette — Dashboard Preview</title>
+<style>
+  :root {
+    /* NEW SAGE PALETTE */
+    --color-primary: #415c43;
+    --color-primary-light: #719776;
+    --color-primary-dark: #0f260b;
+    --page-bg: #cbddd1;
+    --card-bg: #e2ede6;
+    --border: #b8cfc0;
+    --border-light: #c7dcd0;
+    --text-primary: #0f260b;
+    --text-secondary: #415c43;
+    --text-muted: #5d7a64;
+    --green-900: #0f260b;
+    --green-700: #415c43;
+    --green-600: #547a57;
+    --green-500: #719776;
+    --green-100: #d6e5da;
+    --green-50: #e2ede6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--page-bg);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+
+  /* Top navigation bar */
+  .topbar {
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-logo {
+    width: 36px; height: 36px;
+    background: var(--color-primary);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 900;
+    font-size: 16px;
+  }
+  .brand-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+  .brand-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .nav-links {
+    display: flex;
+    gap: 6px;
+  }
+  .nav-link {
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .nav-link:hover {
+    background: var(--green-100);
+    color: var(--color-primary);
+  }
+  .nav-link.active {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  /* Page header */
+  .page-header {
+    padding: 24px 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .page-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+  .page-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .btn-primary {
+    padding: 9px 16px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-primary:hover {
+    background: var(--color-primary-dark);
+  }
+
+  /* Three-column grid */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    padding: 0 24px 24px;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+  }
+  .card-link {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--green-700);
+    text-decoration: none;
+  }
+
+  /* Workflow queue */
+  .workflow-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    transition: all 0.15s;
+  }
+  .workflow-item:hover {
+    background: var(--green-100);
+  }
+  .workflow-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .workflow-label {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .workflow-count {
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--green-100);
+    color: var(--green-700);
+  }
+  .workflow-count.zero {
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  /* Module grid */
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 12px;
+  }
+  .module-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+  .module-card:hover {
+    border-color: var(--color-primary);
+    background: var(--green-100);
+  }
+  .module-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .module-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+  .module-stat {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  /* Phone widget */
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--border-light);
+  }
+  .stat-cell {
+    text-align: center;
+    padding: 10px 4px;
+  }
+  .stat-cell + .stat-cell {
+    border-left: 1px solid var(--border-light);
+  }
+  .stat-val {
+    font-size: 18px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-lbl {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .phone-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 80px;
+  }
+  .phone-section {
+    padding: 8px 10px;
+  }
+  .phone-section.left-border {
+    border-right: 1px solid var(--border-light);
+  }
+  .phone-section-label {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .call-card {
+    padding: 8px;
+    border-radius: 7px;
+    margin-bottom: 6px;
+  }
+  .call-card.live {
+    background: rgba(113, 151, 118, 0.15);
+    border-left: 3px solid var(--color-primary);
+    border: 1px solid rgba(113, 151, 118, 0.3);
+    border-left: 3px solid var(--color-primary);
+  }
+  .call-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .call-phone {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .dept-row {
+    padding: 8px 14px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border-light);
+  }
+  .dept-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: rgba(0,0,0,0.03);
+    border: 1px solid var(--border-light);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .dept-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green-500);
+  }
+  .card-footer {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    gap: 6px;
+  }
+  .btn-call-center {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .btn-history {
+    padding: 8px 12px;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  /* Activity list */
+  .activity-item {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-light);
+  }
+  .activity-item:first-child {
+    border-top: none;
+  }
+  .activity-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .activity-rx {
+    font-size: 10px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--green-700);
+  }
+  .activity-time {
+    font-size: 9px;
+    color: var(--text-muted);
+  }
+  .activity-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 2px;
+  }
+  .activity-copay {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Stock alert */
+  .stock-item {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-light);
+    border-left: 3px solid;
+  }
+  .stock-item.critical {
+    border-left-color: #ef4444;
+  }
+  .stock-item.low {
+    border-left-color: #f59e0b;
+  }
+  .stock-name {
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .stock-name.critical { color: #dc2626; }
+  .stock-name.low { color: #d97706; }
+  .stock-qty {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Palette display */
+  .palette-banner {
+    display: flex;
+    gap: 16px;
+    padding: 16px 24px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    justify-content: center;
+  }
+  .palette-swatch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .palette-color {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+  }
+  .palette-code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+</style>
+</head>
+<body>
+
+<!-- Palette banner -->
+<div class="palette-banner">
+  <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">New Palette:</span>
+  <div class="palette-swatch">
+    <div class="palette-color" style="background:#cbddd1;"></div>
+    <span class="palette-code">#cbddd1</span>
+  </div>
+  <div class="palette-swatch">
+    <div class="palette-color" style="background:#719776;"></div>
+    <span class="palette-code">#719776</span>
+  </div>
+  <div class="palette-swatch">
+    <div class="palette-color" style="background:#415c43;"></div>
+    <span class="palette-code">#415c43</span>
+  </div>
+  <div class="palette-swatch">
+    <div class="palette-color" style="background:#0f260b;"></div>
+    <span class="palette-code">#0f260b</span>
+  </div>
+</div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-logo">B</div>
+    <div>
+      <div class="brand-name">Boudreaux's New Drug Store</div>
+      <div class="brand-sub">Pharmacy Management System</div>
+    </div>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link active">Dashboard</a>
+    <a class="nav-link">Queue</a>
+    <a class="nav-link">Patients</a>
+    <a class="nav-link">Prescriptions</a>
+    <a class="nav-link">Inventory</a>
+    <a class="nav-link">POS</a>
+    <a class="nav-link">Settings</a>
+  </div>
+</div>
+
+<!-- Page header -->
+<div class="page-header">
+  <div>
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub">Welcome back, Caleb — here's what's happening today</div>
+  </div>
+  <button class="btn-primary">+ New Prescription</button>
+</div>
+
+<!-- Three-column grid -->
+<div class="grid">
+
+  <!-- Column 1: Workflow Queue -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-label">Workflow Queue</span>
+      <a class="card-link">Open Queue →</a>
+    </div>
+    <div>
+      <div class="workflow-item">
+        <span class="workflow-dot" style="background:#3b82f6;"></span>
+        <span class="workflow-label">Intake</span>
+        <span class="workflow-count">12</span>
+      </div>
+      <div class="workflow-item">
+        <span class="workflow-dot" style="background:#06b6d4;"></span>
+        <span class="workflow-label">Sync</span>
+        <span class="workflow-count zero">0</span>
+      </div>
+      <div class="workflow-item">
+        <span class="workflow-dot" style="background:#ef4444;"></span>
+        <span class="workflow-label">Reject</span>
+        <span class="workflow-count">4</span>
+      </div>
+      <div class="workflow-item">
+        <span class="workflow-dot" style="background:#a855f7;"></span>
+        <span class="workflow-label">Print</span>
+        <span class="workflow-count">8</span>
+      </div>
+      <div class="workflow-item">
+        <span class="workflow-dot" style="background:#6366f1;"></span>
+        <span class="workflow-label">Scan</span>
+        <span class="workflow-count">3</span>
+      </div>
+      <div class="workflow-item">
+        <span class="workflow-dot" style="background:#10b981;"></span>
+        <span class="workflow-label">Verify</span>
+        <span class="workflow-count">15</span>
+      </div>
+      <div class="workflow-item">
+        <span class="workflow-dot" style="background:#f97316;"></span>
+        <span class="workflow-label">Out of Stock</span>
+        <span class="workflow-count">2</span>
+      </div>
+      <div class="workflow-item">
+        <span class="workflow-dot" style="background:#f59e0b;"></span>
+        <span class="workflow-label">Waiting Bin</span>
+        <span class="workflow-count">28</span>
+      </div>
+      <div class="workflow-item">
+        <span class="workflow-dot" style="background:#14b8a6;"></span>
+        <span class="workflow-label">Renewals</span>
+        <span class="workflow-count">6</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Column 2: Quick Access + Phone Widget -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-label">Quick Access</span>
+      </div>
+      <div class="module-grid">
+        <div class="module-card">
+          <div class="module-icon" style="background:#10b981;">P</div>
+          <div class="module-title">Patient</div>
+          <div class="module-stat">42 today</div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon" style="background:#3b82f6;">Rx</div>
+          <div class="module-title">Rx</div>
+          <div class="module-stat">138 today</div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon" style="background:#a855f7;">I</div>
+          <div class="module-title">Item</div>
+          <div class="module-stat">2,431</div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon" style="background:#f97316;">D</div>
+          <div class="module-title">Prescriber</div>
+          <div class="module-stat">284</div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon" style="background:#f43f5e;">C</div>
+          <div class="module-title">Compound</div>
+          <div class="module-stat">3 pend</div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon" style="background:#f59e0b;">!</div>
+          <div class="module-title">Inventory</div>
+          <div class="module-stat">12 low</div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon" style="background:var(--color-primary);">$</div>
+          <div class="module-title">Sales</div>
+          <div class="module-stat">$4.2k today</div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon" style="background:#6366f1;">CL</div>
+          <div class="module-title">Claims</div>
+          <div class="module-stat">5 rej</div>
+        </div>
+        <div class="module-card">
+          <div class="module-icon" style="background:#14b8a6;">S</div>
+          <div class="module-title">System</div>
+          <div class="module-stat">Admin</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone widget -->
+    <div class="card">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:22px;height:22px;border-radius:6px;background:var(--color-primary);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">☏</div>
+          <span class="card-label">Phone System</span>
+        </div>
+        <a class="card-link">Full Dashboard →</a>
+      </div>
+      <div class="stats-strip">
+        <div class="stat-cell">
+          <div class="stat-val" style="color:var(--color-primary);">2</div>
+          <div class="stat-lbl">Active</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val" style="color:#eab308;">1</div>
+          <div class="stat-lbl">On Hold</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val">14</div>
+          <div class="stat-lbl">Today</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-val" style="color:#ef4444;">2</div>
+          <div class="stat-lbl">Missed</div>
+        </div>
+      </div>
+      <div class="phone-split">
+        <div class="phone-section left-border">
+          <div class="phone-section-label">Active Calls</div>
+          <div class="call-card live">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="call-name">D. Broussard</div>
+              <span style="font-family:monospace;font-size:11px;font-weight:700;color:var(--color-primary);">3:42</span>
+            </div>
+            <div class="call-phone">(337) 555-0147</div>
+          </div>
+        </div>
+        <div class="phone-section">
+          <div class="phone-section-label">On Hold</div>
+          <div class="call-card" style="background:rgba(234,179,8,0.08);border-left:3px solid #eab308;border:1px solid rgba(234,179,8,0.25);border-left:3px solid #eab308;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="call-name">K. Mancuso</div>
+              <span style="font-family:monospace;font-size:11px;font-weight:700;color:#a16207;">1:48</span>
+            </div>
+            <div class="call-phone">(337) 555-0219</div>
+          </div>
+        </div>
+      </div>
+      <div class="dept-row">
+        <div class="dept-chip"><span class="dept-dot"></span>Pharmacy</div>
+        <div class="dept-chip"><span class="dept-dot"></span>Pharmacist</div>
+        <div class="dept-chip"><span class="dept-dot"></span>Billing</div>
+        <div class="dept-chip"><span class="dept-dot" style="background:#eab308;"></span>Shipping</div>
+      </div>
+      <div class="card-footer">
+        <button class="btn-call-center">Open Call Center →</button>
+        <button class="btn-history">History</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Column 3: Activity + Stock Alerts -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-label">Recent Activity</span>
+      </div>
+      <div>
+        <div class="activity-item">
+          <div class="activity-row">
+            <span class="activity-rx">Rx# 714367</span>
+            <span class="activity-time">2m</span>
+          </div>
+          <div class="activity-name">Destini Broussard</div>
+          <div class="activity-copay">$250.00</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-row">
+            <span class="activity-rx">Rx# 714360</span>
+            <span class="activity-time">12m</span>
+          </div>
+          <div class="activity-name">Kayley Mancuso</div>
+          <div class="activity-copay">$350.00</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-row">
+            <span class="activity-rx">Rx# 714355</span>
+            <span class="activity-time">1h</span>
+          </div>
+          <div class="activity-name">Mary Johnson</div>
+          <div class="activity-copay">$45.00</div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-row">
+            <span class="activity-rx">Rx# 714348</span>
+            <span class="activity-time">2h</span>
+          </div>
+          <div class="activity-name">John Davis</div>
+          <div class="activity-copay">$120.00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-label">Stock Alerts</span>
+        <a class="card-link">View All →</a>
+      </div>
+      <div>
+        <div class="stock-item critical">
+          <div class="stock-name critical">Lisinopril 10mg</div>
+          <div class="stock-qty">8 in stock</div>
+        </div>
+        <div class="stock-item critical">
+          <div class="stock-name critical">Metformin 500mg</div>
+          <div class="stock-qty">12 in stock</div>
+        </div>
+        <div class="stock-item low">
+          <div class="stock-name low">Atorvastatin 20mg</div>
+          <div class="stock-qty">28 in stock</div>
+        </div>
+        <div class="stock-item low">
+          <div class="stock-name low">Amoxicillin 500mg</div>
+          <div class="stock-qty">34 in stock</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -15,7 +15,18 @@
       "Bash(find . -path \"*/app/\\(dashboard\\)/*\" -name \"page.tsx\")",
       "Bash(find . -path \"*/app/\\(dashboard\\)/*\" -name \"actions.ts\")",
       "Bash(find . -path \"*/app/\\(dashboard\\)/dashboard/*\" -name \"actions.ts\")",
-      "Bash(find . -path \"*/app/\\(dashboard\\)/queue/*\" -name \"actions.ts\")"
+      "Bash(find . -path \"*/app/\\(dashboard\\)/queue/*\" -name \"actions.ts\")",
+      "mcp__3b862705-a19b-4fea-b577-88fd77f2a1ea__list_deployments",
+      "mcp__3b862705-a19b-4fea-b577-88fd77f2a1ea__get_deployment",
+      "Read(//c/Users/cdowling/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/b5eb8ca4-6e7d-4fb1-9dae-e8bb25c6a534/f4621cb6-1ae3-4439-92eb-46733eef9cec/skills/docx/**)",
+      "Bash(npm list:*)",
+      "Bash(node docs/generate-workflow-guide.js)",
+      "Bash(python scripts/office/validate.py \"C:\\\\Users\\\\cdowling\\\\OneDrive - Boudreaux's New Drug Store\\\\Cursor Projects\\\\bnds-pms\\\\docs\\\\BNDS_PMS_Complete_Workflow_Guide.docx\")",
+      "Bash(pip install:*)",
+      "WebFetch(domain:server.danwins.com)",
+      "WebFetch(domain:getdrx.readme.io)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|js\\)$\")",
+      "Bash(xargs -I {} bash -c 'echo \"=== {} ===\" && head -30 {} | grep -E \"export \\(async \\)?function|POST|GET|webhook\"')"
     ]
   }
 }

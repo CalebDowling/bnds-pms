@@ -228,8 +228,8 @@ export default function HeaderNew() {
     <header
       className="sticky top-0 z-30 h-14 flex items-center justify-between gap-4 px-4 transition-all duration-300 ease-in-out"
       style={{
-        backgroundColor: "var(--card-bg)",
-        borderBottom: "1px solid var(--border)",
+        backgroundColor: "#faf8f4",
+        borderBottom: "1px solid #e3ddd1",
       }}
     >
       {/* ── Left: spacer ── */}
@@ -237,13 +237,16 @@ export default function HeaderNew() {
 
       {/* ── Right: Actions ── */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* New Rx */}
+        {/* New Rx — solid forest button per BNDS PMS Redesign (no gradient) */}
         {canAccess("prescriptions", "write") && (
           <Link
             href="/prescriptions/new"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-[#40721d] to-[#5a9f2a] hover:from-[#36631a] hover:to-[#4f8925] text-white no-underline transition-all shadow-sm hover:shadow-md"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white no-underline transition-colors shadow-sm hover:shadow"
+            style={{ backgroundColor: "#1f5a3a" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#174530"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#1f5a3a"; }}
           >
-            <Plus size={14} strokeWidth={2.5} />
+            <Plus size={14} strokeWidth={2} />
             <span className="hidden lg:inline">New Rx</span>
           </Link>
         )}
@@ -352,12 +355,15 @@ export default function HeaderNew() {
           )}
         </button>
 
-        {/* User avatar */}
-        <div className="flex items-center gap-2 pl-2 border-l border-gray-200 dark:border-gray-700">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#40721d] to-[#5a9f2a] text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+        {/* User avatar — flat forest-green initials chip per BNDS PMS Redesign */}
+        <div className="flex items-center gap-2 pl-2" style={{ borderLeft: "1px solid #e3ddd1" }}>
+          <div
+            className="w-7 h-7 rounded-full text-white flex items-center justify-center text-[10px] font-semibold flex-shrink-0"
+            style={{ backgroundColor: "#1f5a3a" }}
+          >
             {initials}
           </div>
-          <span className="hidden lg:block text-xs font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate">
+          <span className="hidden lg:block text-xs font-medium max-w-[120px] truncate" style={{ color: "#3a4a3c" }}>
             {displayName}
           </span>
         </div>

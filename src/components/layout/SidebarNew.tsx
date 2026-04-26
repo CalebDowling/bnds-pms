@@ -114,16 +114,25 @@ export default function SidebarNew() {
       className="fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ease-in-out hidden md:flex"
       style={{
         width: collapsed ? 64 : 256,
-        backgroundColor: "var(--card-bg)",
-        borderRight: "1px solid var(--border)",
+        // Paper-green sidebar background per BNDS PMS Redesign — sits between
+        // the warm paper page background and the white content cards, so the
+        // sidebar reads as part of the chrome without feeling heavy.
+        backgroundColor: "#eef3e9",
+        borderRight: "1px solid #d9e2d1",
       }}
       aria-label="Main navigation"
     >
       {/* ── Logo ── */}
-      <div className="h-14 flex items-center flex-shrink-0 overflow-hidden px-3" style={{ borderBottom: "1px solid var(--border)" }}>
+      <div className="h-14 flex items-center flex-shrink-0 overflow-hidden px-3" style={{ borderBottom: "1px solid #d9e2d1" }}>
         <Link href="/dashboard" className="flex items-center gap-2 no-underline min-w-0">
           {collapsed ? (
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#40721d] to-[#5a9f2a] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+              style={{
+                backgroundColor: "#1f5a3a",
+                fontFamily: "var(--font-serif), 'Source Serif 4', Georgia, serif",
+              }}
+            >
               B
             </div>
           ) : (
@@ -142,12 +151,15 @@ export default function SidebarNew() {
           <div key={gi} className={gi > 0 ? "mt-4" : ""}>
             {/* Group header */}
             {group.label && !collapsed && (
-              <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] dark:text-gray-500 transition-opacity duration-300">
+              <div
+                className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest transition-opacity duration-300"
+                style={{ color: "#7a8a78", letterSpacing: "0.14em" }}
+              >
                 {group.label}
               </div>
             )}
             {group.label && collapsed && (
-              <div className="mx-auto my-2 w-6 border-t" style={{ borderColor: "var(--border)" }} />
+              <div className="mx-auto my-2 w-6 border-t" style={{ borderColor: "#d9e2d1" }} />
             )}
 
             {/* Items */}
@@ -164,7 +176,7 @@ export default function SidebarNew() {
       </nav>
 
       {/* ── Bottom section ── */}
-      <div className="flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+      <div className="flex-shrink-0" style={{ borderTop: "1px solid #d9e2d1" }}>
         {/* Bottom nav items */}
         <div className="py-2 px-2 space-y-0.5">
           {bottomItems.map((item) => (
@@ -178,7 +190,7 @@ export default function SidebarNew() {
         </div>
 
         {/* Sign out */}
-        <div className="px-2 py-2" style={{ borderTop: "1px solid var(--border)" }}>
+        <div className="px-2 py-2" style={{ borderTop: "1px solid #d9e2d1" }}>
           <button
             onClick={handleSignOut}
             className={`
@@ -187,9 +199,9 @@ export default function SidebarNew() {
               transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
               ${collapsed ? "justify-center px-2 py-2" : "px-3 py-2"}
             `}
-            style={{ color: "var(--text-muted)" }}
+            style={{ color: "#5a6b58" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-danger)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#5a6b58"; }}
             aria-label="Sign out"
             title={collapsed ? "Sign out" : undefined}
           >
@@ -201,7 +213,7 @@ export default function SidebarNew() {
         </div>
 
         {/* Toggle button */}
-        <div className="px-2 py-2" style={{ borderTop: "1px solid var(--border)" }}>
+        <div className="px-2 py-2" style={{ borderTop: "1px solid #d9e2d1" }}>
           <button
             onClick={toggle}
             className={`
@@ -210,9 +222,9 @@ export default function SidebarNew() {
               transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
               ${collapsed ? "justify-center px-2 py-2" : "px-3 py-2"}
             `}
-            style={{ color: "var(--text-muted)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--color-primary)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            style={{ color: "#5a6b58" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#1f5a3a"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#5a6b58"; }}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -248,26 +260,27 @@ function SidebarLink({
     <Link
       href={item.href}
       className={`
-        group relative flex items-center gap-3 rounded-lg text-sm font-medium
+        group relative flex items-center gap-3 rounded-lg text-sm
         transition-colors duration-150 no-underline
-        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f5a3a]
         ${collapsed ? "justify-center px-2 py-2" : "px-3 py-2"}
       `}
       style={{
-        backgroundColor: active ? "var(--green-100)" : undefined,
-        color: active ? "var(--color-primary)" : "var(--text-secondary)",
-        borderLeft: active ? "3px solid var(--color-primary)" : "3px solid transparent",
+        backgroundColor: active ? "#cfe0c0" : "transparent",
+        color: active ? "#0f2e1f" : "#3a4a3c",
+        border: active ? "1px solid #b6cba2" : "1px solid transparent",
+        fontWeight: active ? 600 : 500,
       }}
       onMouseEnter={(e) => {
         if (!active) {
-          (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)";
-          (e.currentTarget as HTMLElement).style.color = "var(--color-primary)";
+          (e.currentTarget as HTMLElement).style.backgroundColor = "#e3ecda";
+          (e.currentTarget as HTMLElement).style.color = "#1f5a3a";
         }
       }}
       onMouseLeave={(e) => {
         if (!active) {
-          (e.currentTarget as HTMLElement).style.backgroundColor = "";
-          (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+          (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+          (e.currentTarget as HTMLElement).style.color = "#3a4a3c";
         }
       }}
       title={collapsed ? item.label : undefined}
@@ -289,10 +302,10 @@ function SidebarLink({
         <div
           className="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 z-50"
           style={{
-            backgroundColor: "var(--card-bg)",
-            color: "var(--text-primary)",
-            border: "1px solid var(--border)",
-            boxShadow: "var(--shadow-md)",
+            backgroundColor: "#0f2e1f",
+            color: "#faf8f4",
+            border: "1px solid #174530",
+            boxShadow: "0 6px 16px rgba(15, 46, 31, 0.18)",
           }}
           role="tooltip"
         >

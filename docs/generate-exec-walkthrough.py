@@ -153,10 +153,19 @@ timer("Minutes 16-19")
 
 gh("Phone System / IVR", 2)
 click("Point to the Quick Dial phone pad on the dashboard")
-say("We have a built-in phone system. The dialer on the dashboard lets staff call patients directly without switching apps. But the real power is the automated IVR.")
-say("When patients call our pharmacy number, they hear an automated menu - Press 1 for refills, Press 2 to check prescription status, Press 3 to speak with a pharmacist. If they press 1, they enter their RX number and the system automatically creates a refill request that shows up in our queue. They get a text message confirming their refill was received. No staff time needed for routine refill calls.")
-say("We also have automated outbound calling - the system can call patients in batch to notify them their prescription is ready, or remind them about refills coming due.")
-private("If asked about the IVR: It uses Twilio. We need to set the Twilio environment variables to go live. The code is fully built.")
+say("We have a built-in phone system. The dialer on the dashboard lets staff call patients directly without switching apps. But there is a lot more to it than just a dialer.")
+
+say("First, the automated IVR. When patients call our pharmacy number, they hear a menu - Press 1 for refills, Press 2 to check prescription status, Press 3 to speak with a pharmacist. If they press 1, they enter their RX number and the system automatically creates a refill request. They get a text confirming it was received. No staff time needed for routine refill calls.")
+
+click("Click Phone in the sidebar to show the live call dashboard")
+say("This is our call center dashboard. Staff can see every active call in real-time - who is calling, whether they have been matched to a patient in our system, how long they have been on the line, and what they called about.")
+say("On the left, active calls with live duration timers. In the center, the hold queue - anyone on hold sorted by wait time, with a red highlight if they have been waiting more than two minutes. On the right, transfer controls. Staff can put a caller on hold, retrieve them, transfer to the pharmacist line, billing, or shipping - all with one click, right from this screen.")
+say("We also have automated outbound calling campaigns. The system can call patients in batch to notify them their prescription is ready or remind them about refills coming due.")
+
+click("Click Call History link if visible")
+say("Every call is logged - who called, when, how long, who handled it, and the outcome. Fully searchable and filterable.")
+
+private("If asked about the IVR: It uses Twilio. We need to set the Twilio environment variables to go live. The code is fully built. The call management dashboard works with or without Twilio configured - in dev mode it shows the UI but calls are simulated.")
 
 gh("Point of Sale (POS)", 2)
 click("Click POS in the sidebar")
@@ -230,6 +239,6 @@ doc.add_paragraph()
 p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 r = p.add_run("CONFIDENTIAL - DO NOT DISTRIBUTE\nDestroy after presentation"); r.font.size = Pt(9); r.font.color.rgb = red; r.bold = True
 
-out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Executive_Walkthrough_v2.docx")
+out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Executive_Walkthrough_v3.docx")
 doc.save(out)
 print(f"Saved: {out}")

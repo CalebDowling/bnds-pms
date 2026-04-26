@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { SentryErrorBoundary } from "@/components/sentry-error-boundary";
 
@@ -19,11 +19,20 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "600", "700"],
 });
 
+// Heritage serif for headings — pairs with Inter for the BNDS PMS redesign
+// (forest + leaf greens, warm paper background — see globals.css)
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-serif",
+  weight: ["400", "500", "600"],
+});
+
 export const metadata: Metadata = {
   title: "BNDS Pharmacy Management System",
   description: "Boudreaux's Compounding Pharmacy - Management System",
   manifest: "/manifest.json",
-  themeColor: "#415c43",
+  themeColor: "#1f5a3a",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -43,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${sourceSerif.variable}`}>
       <head>
         <link rel="apple-touch-icon" href="/logo.webp" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
