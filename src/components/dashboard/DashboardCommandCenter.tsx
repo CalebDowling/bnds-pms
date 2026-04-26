@@ -29,7 +29,7 @@ import {
   ArrowDownUp,
 } from "lucide-react";
 import { getReorderStatus } from "@/lib/inventory/reorder-check";
-import { getQueueCounts } from "@/app/(dashboard)/dashboard/actions";
+import { getQueueCounts, getRecentActivity, type RecentActivityItem } from "@/app/(dashboard)/dashboard/actions";
 import type { DashboardData } from "@/components/dashboard/CardGrid";
 import DashboardPhoneWidget from "@/components/dashboard/DashboardPhoneWidget";
 
@@ -141,6 +141,10 @@ const QUEUE_CONFIG: { status: string; label: string; icon: React.ReactNode; colo
 export default function DashboardCommandCenter({ data }: { data: DashboardData }) {
   const [stockAlerts, setStockAlerts] = useState<{ critical: ReorderItem[]; low: ReorderItem[] }>({ critical: [], low: [] });
   const [queueCounts, setQueueCounts] = useState<Record<string, number>>({});
+  // Real recent-activity feed — pulled from FillEvent rows so the dashboard
+  // mirrors what's actually moving through the workflow. Previously this was
+  // hardcoded with 4 fake rows that never updated.
+  const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
 
   useEffect(() => {
     getReorderStatus()
@@ -152,20 +156,19 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
     getQueueCounts()
       .then((counts) => setQueueCounts(counts as Record<string, number>))
       .catch(() => {});
+    getRecentActivity(8)
+      .then((items) => setRecentActivity(items))
+      .catch(() => {});
     const interval = setInterval(() => {
       getQueueCounts()
         .then((counts) => setQueueCounts(counts as Record<string, number>))
         .catch(() => {});
+      getRecentActivity(8)
+        .then((items) => setRecentActivity(items))
+        .catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, []);
-
-  const recentActivity = [
-    { rxNum: "714367", patient: "Destini Broussard", copay: "$250.00", minutesAgo: 2 },
-    { rxNum: "714360", patient: "Kayley Mancuso", copay: "$350.00", minutesAgo: 12 },
-    { rxNum: "714355", patient: "Mary Johnson", copay: "$45.00", minutesAgo: 75 },
-    { rxNum: "714348", patient: "John Davis", copay: "$120.00", minutesAgo: 130 },
-  ];
 
   const allAlerts = [...stockAlerts.critical, ...stockAlerts.low];
 
@@ -225,7 +228,7 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
 
         {/* Column 3: Activity & Alerts */}
         <div className="space-y-4">
-          {/* Recent Activity */}
+          {/* Recent Activity — live FillEvent feed (refreshes every 30s) */}
           <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}>
             <div className="px-3 pt-3 pb-2" style={{ borderBottom: "1px solid var(--border-light)" }}>
               <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
@@ -233,22 +236,49 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
               </span>
             </div>
             <div>
-              {recentActivity.map((item, i) => (
-                <div key={item.rxNum} className="px-3 py-2" style={{ borderTop: i > 0 ? "1px solid var(--border-light)" : undefined }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--green-700)" }}>
-                      Rx# {item.rxNum}
-                    </span>
-                    <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>
-                      {item.minutesAgo < 60 ? `${item.minutesAgo}m` : `${Math.floor(item.minutesAgo / 60)}h`}
-                    </span>
-                  </div>
-                  <div className="text-[11px] font-medium" style={{ color: "var(--text-primary)" }}>
-                    {item.patient}
-                  </div>
-                  <div className="text-[10px] tabular-nums" style={{ color: "var(--text-muted)" }}>{item.copay}</div>
+              {recentActivity.length === 0 ? (
+                <div className="px-3 py-4 text-center text-[11px] italic" style={{ color: "var(--text-muted)" }}>
+                  No recent activity yet
                 </div>
-              ))}
+              ) : (
+                recentActivity.map((item, i) => (
+                  <Link
+                    key={item.fillId}
+                    href={`/queue/process/${item.fillId}`}
+                    className="block px-3 py-2 no-underline transition-colors"
+                    style={{ borderTop: i > 0 ? "1px solid var(--border-light)" : undefined }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--green-50)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold tabular-nums" style={{ color: "var(--green-700)" }}>
+                        Rx# {item.rxNum}
+                      </span>
+                      <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>
+                        {item.minutesAgo < 60 ? `${item.minutesAgo}m` : `${Math.floor(item.minutesAgo / 60)}h`}
+                      </span>
+                    </div>
+                    <div className="text-[11px] font-medium" style={{ color: "var(--text-primary)" }}>
+                      {item.patient}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[10px] truncate" style={{ color: "var(--text-secondary)" }}>
+                        {item.eventLabel}
+                        {item.performer && item.performer !== "—" && (
+                          <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                            · {item.performer}
+                          </span>
+                        )}
+                      </div>
+                      {item.copay && (
+                        <span className="text-[10px] tabular-nums flex-shrink-0" style={{ color: "var(--text-muted)" }}>
+                          {item.copay}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
 

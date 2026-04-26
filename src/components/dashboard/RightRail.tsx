@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getReorderStatus } from "@/lib/inventory/reorder-check";
+import { getRecentActivity, type RecentActivityItem } from "@/app/(dashboard)/dashboard/actions";
 
 interface ReorderItem {
   itemId: string;
@@ -41,6 +42,10 @@ export default function RightRail() {
   const [lowStockItems, setLowStockItems] = useState<ReorderItem[]>([]);
   const [criticalItems, setCriticalItems] = useState<ReorderItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Live recent-activity feed — was hardcoded before, so it never showed
+  // what was actually happening. Refreshes on the same cadence as the
+  // dashboard command center.
+  const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
 
   useEffect(() => {
     const loadReorderStatus = async () => {
@@ -55,17 +60,25 @@ export default function RightRail() {
       }
     };
 
-    loadReorderStatus();
-    // Refresh every 5 minutes
-    const interval = setInterval(loadReorderStatus, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+    const loadActivity = async () => {
+      try {
+        const items = await getRecentActivity(5);
+        setRecentActivity(items);
+      } catch {
+        // non-critical — fall back to empty list
+      }
+    };
 
-  const recentActivity = [
-    { rxNum: "714367", patient: "Destini Broussard", copay: "$250.00", profit: "$248.22", minutesAgo: 2 },
-    { rxNum: "714360", patient: "Kayley Mancuso", copay: "$350.00", profit: "$342.44", minutesAgo: 12 },
-    { rxNum: "714355", patient: "Mary Johnson", copay: "$45.00", profit: "$38.12", minutesAgo: 75 },
-  ];
+    loadReorderStatus();
+    loadActivity();
+    // Refresh every 5 minutes (stock) — recent activity gets a faster 30s tick
+    const stockInterval = setInterval(loadReorderStatus, 5 * 60 * 1000);
+    const activityInterval = setInterval(loadActivity, 30 * 1000);
+    return () => {
+      clearInterval(stockInterval);
+      clearInterval(activityInterval);
+    };
+  }, []);
 
   const allStockAlerts = [...criticalItems, ...lowStockItems];
 
@@ -78,34 +91,49 @@ export default function RightRail() {
           <span className="text-[10px] bg-[var(--green-100)] text-[var(--green-700)] px-1.5 py-px rounded font-semibold">{recentActivity.length}</span>
         </div>
         <div className="divide-y divide-[var(--border-light)]">
-          {recentActivity.map((item) => {
-            const timeInfo = getRelativeTime(item.minutesAgo);
-            return (
-              <div
-                key={item.rxNum}
-                className="px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors group"
-              >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="activity-icon" style={{
-                      background: "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)"
-                    }}>
-                      <VerifiedIcon />
+          {recentActivity.length === 0 ? (
+            <div className="px-4 py-4 text-center text-[11px] italic text-[var(--text-muted)]">
+              No recent activity yet
+            </div>
+          ) : (
+            recentActivity.map((item) => {
+              const timeInfo = getRelativeTime(item.minutesAgo);
+              return (
+                <Link
+                  key={item.fillId}
+                  href={`/queue/process/${item.fillId}`}
+                  className="block px-4 py-3 hover:bg-gray-50 transition-colors group no-underline"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="activity-icon" style={{
+                        background: "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)"
+                      }}>
+                        <VerifiedIcon />
+                      </div>
+                      <div className="text-[11px] font-semibold text-[var(--green-700)] font-tabular">Rx# {item.rxNum}</div>
                     </div>
-                    <div className="text-[11px] font-semibold text-[var(--green-700)] font-tabular">Rx# {item.rxNum}</div>
+                    {timeInfo.isRecent && <PulsingDot />}
                   </div>
-                  {timeInfo.isRecent && <PulsingDot />}
-                </div>
-                <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-1.5">{item.patient}</div>
-                <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-                  <span>
-                    <span className="font-tabular">{item.copay}</span> · <span className="font-tabular text-[var(--green-700)]">{item.profit}</span>
-                  </span>
-                  <span className="text-[10px] text-gray-400">{timeInfo.text}</span>
-                </div>
-              </div>
-            );
-          })}
+                  <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-1.5">{item.patient}</div>
+                  <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+                    <span className="truncate">
+                      {item.eventLabel}
+                      {item.performer && item.performer !== "—" && (
+                        <span className="ml-1 text-gray-400">· {item.performer}</span>
+                      )}
+                    </span>
+                    <span className="text-[10px] text-gray-400 flex-shrink-0">{timeInfo.text}</span>
+                  </div>
+                  {item.copay && (
+                    <div className="text-[11px] text-[var(--text-muted)] font-tabular mt-0.5">
+                      {item.copay}
+                    </div>
+                  )}
+                </Link>
+              );
+            })
+          )}
         </div>
       </div>
 

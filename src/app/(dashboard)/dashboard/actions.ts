@@ -60,6 +60,113 @@ export async function getDashboardData() {
   }
 }
 
+// ─── Recent Activity ──────────────────────────────────────────────
+
+export interface RecentActivityItem {
+  fillId: string;
+  rxNum: string;
+  patient: string;
+  /** Most recent event for this fill — e.g. "verify → waiting_bin", "patient_notified", "pickup_checklist". */
+  eventLabel: string;
+  /** Who performed the event (tech / pharmacist). */
+  performer: string;
+  copay: string | null;
+  minutesAgo: number;
+}
+
+/**
+ * Returns the N most recent fill events across the pharmacy. This drives the
+ * dashboard "Recent Activity" rail — previously hardcoded with fake data so
+ * pharmacists couldn't see what was actually happening on the floor.
+ *
+ * We dedupe by fillId so a single fill that just transitioned doesn't push
+ * older fills off the list with multiple events.
+ */
+export async function getRecentActivity(
+  limit: number = 8
+): Promise<RecentActivityItem[]> {
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const { FILL_STATUS_META } = await import("@/lib/workflow/fill-status");
+
+    // Pull more than `limit` so dedupe-by-fill still leaves us enough rows.
+    const events = await prisma.fillEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit * 4,
+      include: {
+        performer: { select: { firstName: true, lastName: true } },
+        fill: {
+          select: {
+            id: true,
+            copayAmount: true,
+            prescription: {
+              select: {
+                rxNumber: true,
+                patient: {
+                  select: { firstName: true, lastName: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const seen = new Set<string>();
+    const out: RecentActivityItem[] = [];
+    const now = Date.now();
+
+    for (const e of events) {
+      if (out.length >= limit) break;
+      if (!e.fill || seen.has(e.fillId)) continue;
+      seen.add(e.fillId);
+
+      const rx = e.fill.prescription;
+      const patient = rx?.patient
+        ? `${rx.patient.firstName || ""} ${rx.patient.lastName || ""}`.trim() || "Unknown"
+        : "Unknown";
+
+      // Translate the event into something a pharmacist actually wants to
+      // read. status_change events get the status label; the others get a
+      // human-readable summary.
+      let eventLabel = e.eventType;
+      if (e.eventType === "status_change" && e.fromValue && e.toValue) {
+        const from = FILL_STATUS_META[e.fromValue]?.label || e.fromValue;
+        const to = FILL_STATUS_META[e.toValue]?.label || e.toValue;
+        eventLabel = `${from} → ${to}`;
+      } else if (e.eventType === "verify_checklist") {
+        eventLabel = "RPh verified";
+      } else if (e.eventType === "pickup_checklist") {
+        eventLabel = "Pickup confirmed";
+      } else if (e.eventType === "patient_notified") {
+        eventLabel = "Patient notified";
+      } else if (e.eventType === "metadata_update") {
+        eventLabel = "Metadata updated";
+      }
+
+      const minutesAgo = Math.max(
+        0,
+        Math.floor((now - e.createdAt.getTime()) / 60000)
+      );
+
+      out.push({
+        fillId: e.fillId,
+        rxNum: rx?.rxNumber || "—",
+        patient,
+        eventLabel,
+        performer: `${e.performer.firstName || ""} ${e.performer.lastName || ""}`.trim() || "—",
+        copay: e.fill.copayAmount ? `$${Number(e.fill.copayAmount).toFixed(2)}` : null,
+        minutesAgo,
+      });
+    }
+
+    return out;
+  } catch (err) {
+    console.error("[getRecentActivity] Error:", err);
+    return [];
+  }
+}
+
 export async function getQueueCounts() {
   const fallback = {
     intake: 0,
