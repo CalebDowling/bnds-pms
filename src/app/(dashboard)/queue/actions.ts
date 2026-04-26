@@ -52,7 +52,11 @@ export async function getQueueFills({
         where: { status: { in: fillStatuses } },
         include: {
           prescription: {
-            include: {
+            // rxNumber is the human-facing Rx# (e.g. "725366") — must be
+            // selected explicitly so QueueTable can display it instead of
+            // the row UUID, which is what techs were seeing before.
+            select: {
+              rxNumber: true,
               patient: {
                 select: {
                   firstName: true,
@@ -97,7 +101,8 @@ export async function getQueueFills({
 
       return {
         fillId: f.id,
-        rxId: f.prescriptionId || "—",
+        // Display the pharmacy-facing Rx# (e.g. "725366"), not the row UUID.
+        rxId: f.prescription?.rxNumber || "—",
         patientName,
         phone,
         itemName,
@@ -144,7 +149,8 @@ async function getRefillRenewals(page: number, limit: number, label: string) {
 
     const fills: QueueFill[] = requests.map((r: any) => ({
       fillId: r.id,
-      rxId: r.prescription?.id ? String(r.prescription.id) : "—",
+      // Show the pharmacy-facing Rx# rather than the UUID.
+      rxId: r.prescription?.rxNumber || "—",
       patientName: r.prescription?.patient
         ? `${r.prescription.patient.firstName} ${r.prescription.patient.lastName}`
         : "Unknown",

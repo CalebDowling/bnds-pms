@@ -219,6 +219,167 @@ export async function processFill(
   return result.fill;
 }
 
+// ─── Update Fill Financials / Bin Location ────────────────────────
+
+export interface FillFinancialsInput {
+  binLocation?: string | null;
+  copayAmount?: number | null;
+  totalPrice?: number | null;
+  /**
+   * Convenience field — when set we update the dispense quantity. Useful for
+   * the Process page where qty=0 fills currently can't advance because of the
+   * quantity guard in advanceFillStatus().
+   */
+  quantity?: number | null;
+}
+
+/**
+ * Update fill-level financial / fulfillment metadata. Wired into the Process
+ * page so a tech can capture bin location at Waiting Bin, and copay / total
+ * price at the Sold step.
+ *
+ * Each change is recorded as a FillEvent so we have an audit trail for the
+ * pharmacist (who set what bin, what copay was charged, etc.).
+ */
+export async function setFillFinancials(
+  fillId: string,
+  input: FillFinancialsInput,
+  notes?: string
+) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const updates: Record<string, unknown> = {};
+  const changeSummary: string[] = [];
+
+  if (input.binLocation !== undefined) {
+    updates.binLocation = input.binLocation;
+    changeSummary.push(`bin=${input.binLocation || "(cleared)"}`);
+  }
+  if (input.copayAmount !== undefined) {
+    updates.copayAmount = input.copayAmount;
+    changeSummary.push(`copay=${input.copayAmount ?? "(cleared)"}`);
+  }
+  if (input.totalPrice !== undefined) {
+    updates.totalPrice = input.totalPrice;
+    changeSummary.push(`total=${input.totalPrice ?? "(cleared)"}`);
+  }
+  if (input.quantity !== undefined && input.quantity !== null) {
+    updates.quantity = input.quantity;
+    changeSummary.push(`qty=${input.quantity}`);
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return { success: true, message: "No changes" };
+  }
+
+  await prisma.$transaction([
+    prisma.prescriptionFill.update({
+      where: { id: fillId },
+      data: updates,
+    }),
+    prisma.fillEvent.create({
+      data: {
+        fillId,
+        eventType: "metadata_update",
+        fromValue: null,
+        toValue: changeSummary.join(", "),
+        performedBy: user.id,
+        notes: notes || null,
+      },
+    }),
+  ]);
+
+  revalidatePath(`/queue/process/${fillId}`);
+
+  return { success: true, message: "Saved" };
+}
+
+// ─── Pharmacist Verify Checklist ──────────────────────────────────
+
+/**
+ * Items the pharmacist must explicitly attest to before a fill leaves Verify.
+ * Stored on the FillEvent.notes column as JSON so we can audit later who
+ * checked what; also stamped into PrescriptionFill.metadata so the panel
+ * reflects the current state on reload.
+ */
+export interface VerifyChecklistInput {
+  drugCorrect: boolean;
+  quantityCorrect: boolean;
+  sigCorrect: boolean;
+  noInteractions: boolean;
+  ndcVerified: boolean;
+  pdmpChecked?: boolean; // only required for controlled substances
+}
+
+export async function recordVerifyChecklist(
+  fillId: string,
+  checklist: VerifyChecklistInput
+) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const fill = await prisma.prescriptionFill.findUnique({
+    where: { id: fillId },
+    select: { metadata: true, item: { select: { isControlled: true, deaSchedule: true } } },
+  });
+
+  if (!fill) throw new Error("Fill not found");
+
+  // For controlled substances the PDMP check is required. `deaSchedule` is a
+  // VARCHAR in the DB ("II", "III", "II"), not a number — so just treating any
+  // non-null schedule as "controlled" is the right call here.
+  const isControlled =
+    !!fill.item?.isControlled || fill.item?.deaSchedule != null;
+  if (isControlled && !checklist.pdmpChecked) {
+    throw new Error("PDMP check is required for controlled substances");
+  }
+
+  const allChecked =
+    checklist.drugCorrect &&
+    checklist.quantityCorrect &&
+    checklist.sigCorrect &&
+    checklist.noInteractions &&
+    checklist.ndcVerified &&
+    (!isControlled || checklist.pdmpChecked);
+
+  if (!allChecked) {
+    throw new Error("All review items must be checked before verification");
+  }
+
+  const existingMetadata = (fill.metadata as Record<string, unknown>) || {};
+
+  await prisma.$transaction([
+    prisma.prescriptionFill.update({
+      where: { id: fillId },
+      data: {
+        metadata: {
+          ...existingMetadata,
+          verifyChecklist: {
+            ...checklist,
+            performedBy: user.id,
+            performedAt: new Date().toISOString(),
+          },
+        },
+      },
+    }),
+    prisma.fillEvent.create({
+      data: {
+        fillId,
+        eventType: "verify_checklist",
+        fromValue: null,
+        toValue: "all_checked",
+        performedBy: user.id,
+        notes: JSON.stringify(checklist),
+      },
+    }),
+  ]);
+
+  revalidatePath(`/queue/process/${fillId}`);
+
+  return { success: true };
+}
+
 // ─── Verify Barcode Scan ──────────────────────────────────────────
 
 export async function verifyScan(

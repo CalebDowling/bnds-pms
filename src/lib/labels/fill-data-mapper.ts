@@ -69,15 +69,17 @@ export async function buildTemplateDataFromFill(
   // Insurance
   const primaryIns = patient.insurance?.[0];
 
-  // Date formatter
-  const fmt = (d: Date | null | undefined): string =>
-    d
-      ? d.toLocaleDateString("en-US", {
-          month: "2-digit",
-          day: "2-digit",
-          year: "numeric",
-        })
-      : "";
+  // Date formatter — uses UTC parts so that DATE-only columns (DOB, expiration)
+  // don't drift by ±1 day depending on the server timezone.
+  // Prisma maps Postgres DATE → JS Date as UTC midnight; toLocaleDateString
+  // would render that as the previous day in any negative-UTC zone.
+  const fmt = (d: Date | null | undefined): string => {
+    if (!d) return "";
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const yyyy = String(d.getUTCFullYear());
+    return `${mm}/${dd}/${yyyy}`;
+  };
 
   // Date + 365 days
   const fillDate = fill.filledAt || fill.createdAt;
@@ -130,7 +132,10 @@ export async function buildTemplateDataFromFill(
     "prescription.refills": String(rx.refillsRemaining || 0),
     "prescription.total_qty_remaining": String(rx.refillsRemaining || 0),
     "prescription.date_expires": fmt(rx.expirationDate),
-    "prescription.id": rx.id,
+    // NB: Rx# (numeric) — NOT the row UUID. The DRX templates expect the
+    // pharmacy-facing Rx number (e.g. "725366") so it can be barcoded and
+    // human-read on the bottle label.
+    "prescription.id": rx.rxNumber,
 
     // ── Fill ──
     "fill_date": fmt(fillDate),
@@ -146,13 +151,18 @@ export async function buildTemplateDataFromFill(
     // ── Barcodes ──
     "id|label_version": `b${fill.id}:0`,
     "id|fill_number": `Signature:_________________`,
-    "narcotic_label|prescription.id": rx.id,
+    "narcotic_label|prescription.id": rx.rxNumber,
 
     // ── Item / Drug ──
     "item.name": drugName,
     "item.print_name": printName,
     "item.ndcFormatted": ndcFormatted,
-    "item.manufacturer": item?.manufacturer || (formula ? "COMPOUNDED IN-HOUSE" : ""),
+    // Only stamp "COMPOUNDED IN-HOUSE" when the Rx itself is flagged as a
+    // compound. Some manufactured drugs (e.g. Cetirizine tablets) get linked to
+    // a formula record for ingredient tracking but should still print the
+    // commercial manufacturer on the bottle.
+    "item.manufacturer":
+      item?.manufacturer || (rx.isCompound ? "COMPOUNDED IN-HOUSE" : ""),
     "item.boh": "",
     "item.id": item ? `i${item.id}` : "",
 

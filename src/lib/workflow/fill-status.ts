@@ -169,13 +169,49 @@ export interface AdvanceFillResult {
 }
 
 /**
+ * Maps a fill status to the prescription-level status that should be
+ * reflected on the parent Rx so search/list views stay in sync.
+ *
+ * The Rx status is intentionally coarser than the fill status — pharmacists
+ * filtering "in progress" Rxs don't need to know whether the fill is in
+ * Print vs Scan vs Verify. We collapse those into a single `in_progress`.
+ */
+const FILL_TO_RX_STATUS: Record<string, string> = {
+  intake:               "intake",
+  adjudicating:         "in_progress",
+  print:                "in_progress",
+  scan:                 "in_progress",
+  verify:               "in_progress",
+  waiting_bin:          "ready",
+  sold:                 "dispensed",
+  hold:                 "on_hold",
+  oos:                  "on_hold",
+  rejected:             "on_hold",
+  rph_rejected:         "on_hold",
+  price_check:          "on_hold",
+  prepay:               "on_hold",
+  ok_to_charge:         "in_progress",
+  decline:              "on_hold",
+  ok_to_charge_clinic:  "in_progress",
+  compound_qa:          "compounding",
+  telehealth:           "in_progress",
+  mochi:                "in_progress",
+  cancelled:            "cancelled",
+  pending:              "intake",
+};
+
+/**
  * Atomically advance a fill to a new status with audit trail.
  *
  * - Validates the transition is allowed
+ * - Blocks advance past "intake" if the fill has zero quantity (no drug to dispense)
  * - Updates the fill status in a transaction
  * - Creates a FillEvent for the audit log
+ * - Sets filledBy/filledAt when entering "scan" (the tech filled the bottle)
  * - Sets verifiedBy/verifiedAt when entering "verify" → "waiting_bin"
  * - Sets dispensedAt when entering "sold"
+ * - Syncs the parent Prescription.status via FILL_TO_RX_STATUS so list views
+ *   don't show stale rx_status='intake' for an Rx that's already been sold
  */
 export async function advanceFillStatus(
   fillId: string,
@@ -185,7 +221,14 @@ export async function advanceFillStatus(
 ): Promise<AdvanceFillResult> {
   const fill = await prisma.prescriptionFill.findUnique({
     where: { id: fillId },
-    select: { id: true, status: true, prescriptionId: true },
+    select: {
+      id: true,
+      status: true,
+      prescriptionId: true,
+      quantity: true,
+      filledBy: true,
+      filledAt: true,
+    },
   });
 
   if (!fill) {
@@ -199,8 +242,50 @@ export async function advanceFillStatus(
     };
   }
 
+  // ── Quantity guard ────────────────────────────────────────────
+  // A fill with quantity=0 has nothing to dispense. Allow the operator to
+  // route it to an exception queue (hold, oos, rejected, cancelled), but
+  // block the happy-path workflow until the quantity is set. Without this
+  // guard a tech could print a label and "dispense" zero pills.
+  const qty = Number(fill.quantity);
+  const exceptionTargets = new Set([
+    "hold",
+    "oos",
+    "rejected",
+    "rph_rejected",
+    "price_check",
+    "cancelled",
+  ]);
+  const isHappyPath =
+    !exceptionTargets.has(newStatus) && newStatus !== fill.status;
+  if ((!qty || qty <= 0) && isHappyPath && fill.status !== "intake") {
+    // Allow movement out of intake (so the tech can put it on hold), but
+    // don't let it advance further along the happy path until quantity is set.
+    return {
+      success: false,
+      error:
+        "Fill quantity is 0 — set a dispense quantity before advancing this fill.",
+    };
+  }
+  if ((!qty || qty <= 0) && newStatus === "adjudicating") {
+    // Even from intake, you shouldn't claim against insurance for 0 qty.
+    return {
+      success: false,
+      error:
+        "Fill quantity is 0 — set a dispense quantity before sending the claim.",
+    };
+  }
+
   // Build additional data updates based on the target status
   const additionalData: Record<string, unknown> = {};
+
+  // Tech filled the bottle when they hand off to the scan stage.
+  // Stamp filledBy/filledAt the first time we cross that boundary so the
+  // audit trail records the tech, not just the verifying pharmacist.
+  if (newStatus === "scan" && !fill.filledAt) {
+    additionalData.filledBy = userId;
+    additionalData.filledAt = new Date();
+  }
 
   if (newStatus === "waiting_bin" && fill.status === "verify") {
     // Pharmacist verified — record who and when
@@ -212,16 +297,25 @@ export async function advanceFillStatus(
     additionalData.dispensedAt = new Date();
   }
 
+  // Compute the new prescription-level status. If the fill is moving forward
+  // along the happy path we want the Rx to follow; if it's diverging into an
+  // exception state (e.g. on_hold), we follow that too. Only skip the sync if
+  // the mapping doesn't have an entry (defensive — every status should map).
+  const newRxStatus = FILL_TO_RX_STATUS[newStatus];
+
   try {
-    const [updated] = await prisma.$transaction([
-      prisma.prescriptionFill.update({
+    // Use the interactive ($transaction(callback)) form so we can branch the
+    // statements without fighting Prisma's tuple-typed array overload.
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedFill = await tx.prescriptionFill.update({
         where: { id: fillId },
         data: {
           status: newStatus,
           ...additionalData,
         },
-      }),
-      prisma.fillEvent.create({
+      });
+
+      await tx.fillEvent.create({
         data: {
           fillId,
           eventType: "status_change",
@@ -230,8 +324,23 @@ export async function advanceFillStatus(
           performedBy: userId,
           notes: notes || null,
         },
-      }),
-    ]);
+      });
+
+      if (newRxStatus) {
+        const rxData: Record<string, unknown> = { status: newRxStatus };
+        // When the final fill is sold, also stamp the Rx-level dateFilled so
+        // reports keyed off the parent record see the dispense date.
+        if (newStatus === "sold") {
+          rxData.dateFilled = new Date();
+        }
+        await tx.prescription.update({
+          where: { id: fill.prescriptionId },
+          data: rxData,
+        });
+      }
+
+      return updatedFill;
+    });
 
     return { success: true, fill: { id: updated.id, status: updated.status } };
   } catch (err) {

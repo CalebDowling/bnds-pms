@@ -21,8 +21,17 @@ import {
   FileText,
   Activity,
   AlertTriangle,
+  MapPin,
+  DollarSign,
 } from "lucide-react";
-import { getFillDetail, processFill, verifyScan, type FillDetail } from "./actions";
+import {
+  getFillDetail,
+  processFill,
+  verifyScan,
+  setFillFinancials,
+  recordVerifyChecklist,
+  type FillDetail,
+} from "./actions";
 import { FILL_STATUS_META } from "@/lib/workflow/fill-status";
 
 // ─── Status Colors ────────────────────────────────────────────────
@@ -53,11 +62,51 @@ export default function FillProcessPage() {
   const [scanResult, setScanResult] = useState<{ match: boolean; message: string } | null>(null);
   const [scanning, setScanning] = useState(false);
 
+  // Editable fill metadata (qty fix, bin location, copay, total).
+  // Tracked separately from `fill` so the input is responsive and only saves
+  // when the tech clicks the per-section Save button.
+  const [qtyDraft, setQtyDraft] = useState<string>("");
+  const [binDraft, setBinDraft] = useState<string>("");
+  const [copayDraft, setCopayDraft] = useState<string>("");
+  const [totalDraft, setTotalDraft] = useState<string>("");
+  const [savingMeta, setSavingMeta] = useState(false);
+
+  // Pharmacist verify checklist — must be all-checked before advancing
+  // out of Verify so the audit trail captures who attested to each item.
+  const [checklist, setChecklist] = useState({
+    drugCorrect: false,
+    quantityCorrect: false,
+    sigCorrect: false,
+    noInteractions: false,
+    ndcVerified: false,
+    pdmpChecked: false,
+  });
+
   const loadFill = useCallback(async () => {
     try {
       const data = await getFillDetail(fillId);
       setFill(data);
       if (!data) setError("Fill not found");
+      else {
+        // Hydrate the metadata drafts from the saved fill so each input
+        // shows the current value, not a stale empty string.
+        setBinDraft(data.binLocation || "");
+        setCopayDraft(data.copayAmount != null ? String(data.copayAmount) : "");
+        setTotalDraft(data.totalPrice != null ? String(data.totalPrice) : "");
+        setQtyDraft(String(data.quantity || ""));
+        // Restore checklist from fill.metadata if present
+        const stored = (data.metadata?.verifyChecklist as Record<string, boolean>) || null;
+        if (stored) {
+          setChecklist({
+            drugCorrect: !!stored.drugCorrect,
+            quantityCorrect: !!stored.quantityCorrect,
+            sigCorrect: !!stored.sigCorrect,
+            noInteractions: !!stored.noInteractions,
+            ndcVerified: !!stored.ndcVerified,
+            pdmpChecked: !!stored.pdmpChecked,
+          });
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load fill");
     } finally {
@@ -72,6 +121,11 @@ export default function FillProcessPage() {
     setProcessing(true);
     setError(null);
     try {
+      // If the pharmacist is moving from Verify → Waiting Bin, persist the
+      // checklist first so the audit trail records who attested to each item.
+      if (newStatus === "waiting_bin" && fill.status === "verify") {
+        await recordVerifyChecklist(fill.id, checklist);
+      }
       await processFill(fill.id, newStatus, actionNotes || undefined);
       setActionNotes("");
       await loadFill();
@@ -92,6 +146,71 @@ export default function FillProcessPage() {
       setScanResult({ match: false, message: "Scan verification failed" });
     } finally {
       setScanning(false);
+    }
+  };
+
+  const saveQty = async () => {
+    if (!fill) return;
+    const qty = parseFloat(qtyDraft);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      setError("Enter a positive quantity");
+      return;
+    }
+    setSavingMeta(true);
+    setError(null);
+    try {
+      await setFillFinancials(fill.id, { quantity: qty }, "Set dispense quantity");
+      await loadFill();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save quantity");
+    } finally {
+      setSavingMeta(false);
+    }
+  };
+
+  const saveBin = async () => {
+    if (!fill) return;
+    setSavingMeta(true);
+    setError(null);
+    try {
+      await setFillFinancials(
+        fill.id,
+        { binLocation: binDraft.trim() || null },
+        "Set bin location"
+      );
+      await loadFill();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save bin");
+    } finally {
+      setSavingMeta(false);
+    }
+  };
+
+  const saveCopayTotal = async () => {
+    if (!fill) return;
+    const copay = copayDraft.trim() === "" ? null : parseFloat(copayDraft);
+    const total = totalDraft.trim() === "" ? null : parseFloat(totalDraft);
+    if (copay !== null && !Number.isFinite(copay)) {
+      setError("Copay must be a number");
+      return;
+    }
+    if (total !== null && !Number.isFinite(total)) {
+      setError("Total must be a number");
+      return;
+    }
+    setSavingMeta(true);
+    setError(null);
+    try {
+      await setFillFinancials(
+        fill.id,
+        { copayAmount: copay, totalPrice: total },
+        "Set copay/total at POS"
+      );
+      await loadFill();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save copay/total");
+    } finally {
+      setSavingMeta(false);
     }
   };
 
@@ -303,16 +422,162 @@ export default function FillProcessPage() {
                       {fill.prescription.expirationDate ? new Date(fill.prescription.expirationDate).toLocaleDateString() : "—"}
                     </div>
                   </div>
+
+                  {/* Interactive Pharmacist Review Checklist.
+                      Each item must be explicitly checked before the pharmacist
+                      can advance the fill out of Verify. The state is persisted
+                      via recordVerifyChecklist() in the advance handler so we
+                      have an audit trail showing who attested to what. */}
                   <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2 mt-2">
                     <span className="text-xs font-semibold text-blue-700">Pharmacist Review Checklist:</span>
-                    <ul className="text-xs text-blue-600 mt-1 space-y-0.5 list-disc list-inside">
-                      <li>Drug, strength, and dosage form correct</li>
-                      <li>Quantity and days supply appropriate</li>
-                      <li>SIG directions match prescription</li>
-                      <li>No drug interactions or allergy conflicts</li>
-                      <li>NDC / lot verified during scan step</li>
-                      {isControlled && <li className="font-bold">CONTROLLED SUBSTANCE — verify PDMP check</li>}
-                    </ul>
+                    <div className="mt-1.5 space-y-1">
+                      {[
+                        { key: "drugCorrect", label: "Drug, strength, and dosage form correct" },
+                        { key: "quantityCorrect", label: "Quantity and days supply appropriate" },
+                        { key: "sigCorrect", label: "SIG directions match prescription" },
+                        { key: "noInteractions", label: "No drug interactions or allergy conflicts" },
+                        { key: "ndcVerified", label: "NDC / lot verified during scan step" },
+                      ].map((item) => (
+                        <label
+                          key={item.key}
+                          className="flex items-center gap-2 text-xs text-blue-700 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={(checklist as Record<string, boolean>)[item.key] || false}
+                            onChange={(e) =>
+                              setChecklist((prev) => ({
+                                ...prev,
+                                [item.key]: e.target.checked,
+                              }))
+                            }
+                            className="rounded border-blue-300 text-blue-700 focus:ring-blue-500 w-4 h-4"
+                          />
+                          {item.label}
+                        </label>
+                      ))}
+                      {isControlled && (
+                        <label className="flex items-center gap-2 text-xs text-red-700 font-bold cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checklist.pdmpChecked}
+                            onChange={(e) =>
+                              setChecklist((prev) => ({
+                                ...prev,
+                                pdmpChecked: e.target.checked,
+                              }))
+                            }
+                            className="rounded border-red-300 text-red-700 focus:ring-red-500 w-4 h-4"
+                          />
+                          CONTROLLED SUBSTANCE — verify PDMP check
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Quantity-fix banner ──
+                A fill with qty=0 cannot be advanced (the workflow guards against
+                dispensing zero pills). Surface a fix UI right at the top so the
+                tech can correct it without bouncing back to the prescription page. */}
+            {fill.quantity === 0 && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5 text-amber-700">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Dispense Quantity Required
+                </h3>
+                <p className="text-xs text-amber-700 mb-2">
+                  This fill has no quantity set, so it can&apos;t advance through the workflow. Enter the quantity to dispense.
+                </p>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={qtyDraft}
+                    onChange={(e) => setQtyDraft(e.target.value)}
+                    placeholder="e.g. 30"
+                    className="px-3 py-2 border border-amber-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 w-32"
+                  />
+                  <button
+                    onClick={saveQty}
+                    disabled={savingMeta}
+                    className="px-3 py-2 text-xs font-semibold text-white rounded-md disabled:opacity-50"
+                    style={{ backgroundColor: "#b45309" }}
+                  >
+                    {savingMeta ? "Saving..." : "Set Quantity"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Bin Location panel (Waiting Bin stage) ──
+                After verify the bottle goes into a physical bin in the pharmacy.
+                The tech needs to record which bin so the cashier can find it
+                when the patient arrives. */}
+            {fill.status === "waiting_bin" && (
+              <div className="bg-white rounded-lg border p-4" style={{ borderColor: "var(--border)" }}>
+                <h3 className="text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                  <MapPin className="w-3.5 h-3.5" /> Bin Location
+                </h3>
+                <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                  Record which physical bin this fill is in. This is shown to the cashier at pickup.
+                </p>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={binDraft}
+                    onChange={(e) => setBinDraft(e.target.value)}
+                    placeholder="e.g. A12, Will-Call 3, Drive-Thru"
+                    className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2"
+                    style={{ borderColor: "var(--border)" }}
+                  />
+                  <button
+                    onClick={saveBin}
+                    disabled={savingMeta}
+                    className="px-3 py-2 text-xs font-semibold text-white rounded-md disabled:opacity-50"
+                    style={{ backgroundColor: "var(--green-700)" }}
+                  >
+                    {savingMeta ? "Saving..." : "Save Bin"}
+                  </button>
+                </div>
+
+                {/* Copay / total price (captured at POS).
+                    Pre-fillable so the cashier can confirm at the register. */}
+                <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                    <DollarSign className="w-3.5 h-3.5" /> Copay / Total Price
+                  </h4>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={copayDraft}
+                      onChange={(e) => setCopayDraft(e.target.value)}
+                      placeholder="Copay"
+                      className="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 w-28"
+                      style={{ borderColor: "var(--border)" }}
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={totalDraft}
+                      onChange={(e) => setTotalDraft(e.target.value)}
+                      placeholder="Total"
+                      className="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 w-28"
+                      style={{ borderColor: "var(--border)" }}
+                    />
+                    <button
+                      onClick={saveCopayTotal}
+                      disabled={savingMeta}
+                      className="px-3 py-2 text-xs font-semibold text-white rounded-md disabled:opacity-50"
+                      style={{ backgroundColor: "var(--green-700)" }}
+                    >
+                      {savingMeta ? "Saving..." : "Save"}
+                    </button>
                   </div>
                 </div>
               </div>
