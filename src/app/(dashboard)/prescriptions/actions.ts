@@ -151,35 +151,65 @@ export async function getPrescription(id: string) {
 // ─── CREATE ─────────────────────────────────
 
 export async function createPrescription(data: PrescriptionFormData) {
-  const rxNumber = await generateRxNumber();
+  // generateRxNumber() does "read max, +1" which can collide under
+  // concurrent submits. Retry on P2002 (unique constraint on rxNumber)
+  // by re-reading the max and trying again. Capped to avoid an infinite
+  // loop if the constraint violation is from a different field.
+  const MAX_ATTEMPTS = 5;
+  let lastError: unknown;
 
-  const prescription = await prisma.prescription.create({
-    data: {
-      rxNumber,
-      patientId: data.patientId,
-      prescriberId: data.prescriberId,
-      status: "intake",
-      source: data.source,
-      priority: data.priority || "normal",
-      itemId: data.itemId || null,
-      formulaId: data.formulaId || null,
-      isCompound: data.isCompound,
-      quantityPrescribed: data.quantityPrescribed || null,
-      daysSupply: data.daysSupply || null,
-      directions: data.directions?.trim() || null,
-      dawCode: data.dawCode || null,
-      refillsAuthorized: data.refillsAuthorized || 0,
-      refillsRemaining: data.refillsAuthorized || 0,
-      dateWritten: new Date(data.dateWritten),
-      expirationDate: data.expirationDate ? new Date(data.expirationDate) : null,
-      prescriberNotes: data.prescriberNotes?.trim() || null,
-      internalNotes: data.internalNotes?.trim() || null,
-      insuranceId: data.insuranceId || null,
-    },
-  });
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const rxNumber = await generateRxNumber();
 
-  revalidatePath("/prescriptions");
-  return prescription;
+    try {
+      const prescription = await prisma.prescription.create({
+        data: {
+          rxNumber,
+          patientId: data.patientId,
+          prescriberId: data.prescriberId,
+          status: "intake",
+          source: data.source,
+          priority: data.priority || "normal",
+          itemId: data.itemId || null,
+          formulaId: data.formulaId || null,
+          isCompound: data.isCompound,
+          quantityPrescribed: data.quantityPrescribed || null,
+          daysSupply: data.daysSupply || null,
+          directions: data.directions?.trim() || null,
+          dawCode: data.dawCode || null,
+          refillsAuthorized: data.refillsAuthorized || 0,
+          refillsRemaining: data.refillsAuthorized || 0,
+          dateWritten: new Date(data.dateWritten),
+          expirationDate: data.expirationDate ? new Date(data.expirationDate) : null,
+          prescriberNotes: data.prescriberNotes?.trim() || null,
+          internalNotes: data.internalNotes?.trim() || null,
+          insuranceId: data.insuranceId || null,
+        },
+      });
+
+      revalidatePath("/prescriptions");
+      return prescription;
+    } catch (err) {
+      lastError = err;
+      // Only retry on a unique-constraint collision on rxNumber.
+      // Re-throw anything else immediately.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002" &&
+        Array.isArray(err.meta?.target) &&
+        (err.meta?.target as string[]).includes("rxNumber")
+      ) {
+        // small jittered backoff to spread concurrent retries
+        await new Promise((r) => setTimeout(r, 25 + Math.random() * 50));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Failed to allocate a unique Rx number after retries");
 }
 
 // ─── UPDATE STATUS ──────────────────────────

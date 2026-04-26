@@ -147,7 +147,7 @@ function NewPrescriptionPageContent() {
   }
 
   return (
-    <div>
+    <div className="pb-24">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">New Prescription</h1>
         <p className="text-sm text-gray-500 mt-1">Enter a new prescription order</p>
@@ -286,7 +286,8 @@ function NewPrescriptionPageContent() {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3">
+        {/* Right padding clears the floating "+" FAB (~80px wide zone) */}
+        <div className="flex items-center justify-end gap-3 pr-20">
           <button type="button" onClick={() => router.back()} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
           <button type="submit" disabled={loading}
             className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50">

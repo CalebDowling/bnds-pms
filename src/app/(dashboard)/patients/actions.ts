@@ -116,56 +116,83 @@ export async function getPatient(id: string) {
 // ─── CREATE PATIENT ─────────────────────────
 
 export async function createPatient(data: PatientFormData) {
-  const mrn = await generateMRN();
+  // generateMRN() does "read max, +1" which races under concurrent
+  // creates. Retry on P2002 against `mrn` by regenerating the next
+  // number. Capped to avoid an infinite loop if the constraint is
+  // from a different field.
+  const MAX_ATTEMPTS = 5;
+  let lastError: unknown;
 
-  const patient = await prisma.patient.create({
-    data: {
-      mrn,
-      firstName: data.firstName.trim(),
-      middleName: data.middleName?.trim() || null,
-      lastName: data.lastName.trim(),
-      suffix: data.suffix?.trim() || null,
-      dateOfBirth: new Date(data.dateOfBirth),
-      gender: data.gender || null,
-      ssnLastFour: data.ssnLastFour?.trim() || null,
-      email: data.email?.trim() || null,
-      preferredContact: data.preferredContact || "phone",
-      preferredLanguage: data.preferredLanguage || "en",
-      notes: data.notes?.trim() || null,
-      // Create phone number inline if provided
-      ...(data.phone
-        ? {
-            phoneNumbers: {
-              create: {
-                phoneType: data.phoneType || "mobile",
-                number: data.phone.replace(/\D/g, ""),
-                isPrimary: true,
-                acceptsSms: data.phoneType === "mobile",
-              },
-            },
-          }
-        : {}),
-      // Create address inline if provided
-      ...(data.addressLine1
-        ? {
-            addresses: {
-              create: {
-                addressType: "home",
-                line1: data.addressLine1.trim(),
-                line2: data.addressLine2?.trim() || null,
-                city: data.city?.trim() || "",
-                state: data.state?.trim() || "",
-                zip: data.zip?.trim() || "",
-                isDefault: true,
-              },
-            },
-          }
-        : {}),
-    },
-  });
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const mrn = await generateMRN();
 
-  revalidatePath("/patients");
-  return patient;
+    try {
+      const patient = await prisma.patient.create({
+        data: {
+          mrn,
+          firstName: data.firstName.trim(),
+          middleName: data.middleName?.trim() || null,
+          lastName: data.lastName.trim(),
+          suffix: data.suffix?.trim() || null,
+          dateOfBirth: new Date(data.dateOfBirth),
+          gender: data.gender || null,
+          ssnLastFour: data.ssnLastFour?.trim() || null,
+          email: data.email?.trim() || null,
+          preferredContact: data.preferredContact || "phone",
+          preferredLanguage: data.preferredLanguage || "en",
+          notes: data.notes?.trim() || null,
+          // Create phone number inline if provided
+          ...(data.phone
+            ? {
+                phoneNumbers: {
+                  create: {
+                    phoneType: data.phoneType || "mobile",
+                    number: data.phone.replace(/\D/g, ""),
+                    isPrimary: true,
+                    acceptsSms: data.phoneType === "mobile",
+                  },
+                },
+              }
+            : {}),
+          // Create address inline if provided
+          ...(data.addressLine1
+            ? {
+                addresses: {
+                  create: {
+                    addressType: "home",
+                    line1: data.addressLine1.trim(),
+                    line2: data.addressLine2?.trim() || null,
+                    city: data.city?.trim() || "",
+                    state: data.state?.trim() || "",
+                    zip: data.zip?.trim() || "",
+                    isDefault: true,
+                  },
+                },
+              }
+            : {}),
+        },
+      });
+
+      revalidatePath("/patients");
+      return patient;
+    } catch (err) {
+      lastError = err;
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002" &&
+        Array.isArray(err.meta?.target) &&
+        (err.meta?.target as string[]).includes("mrn")
+      ) {
+        await new Promise((r) => setTimeout(r, 25 + Math.random() * 50));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Failed to allocate a unique MRN after retries");
 }
 
 // ─── UPDATE PATIENT ─────────────────────────
