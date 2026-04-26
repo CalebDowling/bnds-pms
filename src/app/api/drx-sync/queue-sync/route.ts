@@ -8,24 +8,20 @@
  */
 
 import { NextResponse } from "next/server";
+import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function isDrxSyncDisabled(): boolean {
-  const flag = process.env.DRX_SYNC_DISABLED?.toLowerCase();
-  return flag === "true" || flag === "1" || flag === "yes";
-}
-
 export async function GET() {
-  // Honor the global DRX sync kill switch
-  if (isDrxSyncDisabled()) {
+  // Honor the global DRX sync kill switch (default OFF — see env.isDrxEnabled).
+  if (!env.isDrxEnabled()) {
     return NextResponse.json(
       {
         success: false,
         disabled: true,
         message:
-          "DRX sync is currently disabled. Set DRX_SYNC_DISABLED=false to re-enable.",
+          "DRX sync is currently disabled. Set DRX_SYNC_DISABLED=false in Vercel to re-enable.",
         timestamp: new Date().toISOString(),
       },
       { status: 503 }

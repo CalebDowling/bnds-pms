@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,22 @@ async function probe(endpoint: string, limit = 2, extraParams?: Record<string, s
 }
 
 export async function GET() {
+  // Diagnostic endpoint — only run when DRX is intentionally enabled. Without
+  // this gate the test makes 30+ outbound HTTPS calls to DRX every time it's
+  // hit, even when the integration is mothballed.
+  if (!env.isDrxEnabled()) {
+    return NextResponse.json(
+      {
+        success: false,
+        disabled: true,
+        message:
+          "DRX integration is disabled. Set DRX_SYNC_DISABLED=false in Vercel to run the diagnostic.",
+        timestamp: new Date().toISOString(),
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const { testConnection, fetchCustomQueueCounts, fetchAllQueueCounts } = await import("@/lib/drx/client");
     const connection = await testConnection();

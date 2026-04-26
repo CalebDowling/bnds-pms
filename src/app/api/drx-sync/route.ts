@@ -11,27 +11,22 @@
  *     full: "true" to force full resync instead of delta
  *
  * ─── KILL SWITCH ──────────────────────────────────────────────────────
- * Set env var DRX_SYNC_DISABLED=true to disable both cron and manual
- * sync triggers. The status endpoint (GET without cron secret) will
- * still return the current state so the dashboard banner stays useful.
+ * DRX is OFF by default. Both cron and manual sync triggers return 503.
+ * The status endpoint (GET without cron secret) still responds so the
+ * dashboard banner stays useful.
  *
- * To re-enable:
- *   1. Remove the DRX_SYNC_DISABLED env var in Vercel
- *   2. Restore the crons block in vercel.json:
- *        "crons": [{ "path": "/api/drx-sync?entity=all", "schedule": "*\/5 * * * *" }]
- *   3. Redeploy
+ * Single source of truth: env.isDrxEnabled() in src/lib/env.ts. To
+ * re-enable: set DRX_SYNC_DISABLED=false in Vercel and restore the
+ * crons block in vercel.json:
+ *   "crons": [{ "path": "/api/drx-sync?entity=all", "schedule": "*\/5 * * * *" }]
  * ─────────────────────────────────────────────────────────────────────
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 min max for sync
-
-function isDrxSyncDisabled(): boolean {
-  const flag = process.env.DRX_SYNC_DISABLED?.toLowerCase();
-  return flag === "true" || flag === "1" || flag === "yes";
-}
 
 function disabledResponse() {
   return NextResponse.json(
@@ -39,7 +34,7 @@ function disabledResponse() {
       success: false,
       disabled: true,
       message:
-        "DRX sync is currently disabled. Set DRX_SYNC_DISABLED=false (or remove the env var) and restore the cron in vercel.json to re-enable.",
+        "DRX sync is currently disabled. Set DRX_SYNC_DISABLED=false in Vercel and restore the cron in vercel.json to re-enable.",
       timestamp: new Date().toISOString(),
     },
     { status: 503 }
@@ -54,8 +49,8 @@ export async function GET(req: NextRequest) {
 
   if (isCron) {
     // ── KILL SWITCH — block cron triggers when disabled ──
-    if (isDrxSyncDisabled()) {
-      console.log("[DRX Sync Cron] Skipped — DRX_SYNC_DISABLED is set");
+    if (!env.isDrxEnabled()) {
+      console.log("[DRX Sync Cron] Skipped — DRX integration is disabled");
       return disabledResponse();
     }
 
@@ -88,14 +83,14 @@ export async function GET(req: NextRequest) {
     const status = await getSyncStatus();
     return NextResponse.json({
       ...status,
-      disabled: isDrxSyncDisabled(),
+      disabled: !env.isDrxEnabled(),
     });
   } catch (e) {
     return NextResponse.json(
       {
         error: "Failed to get sync status",
         detail: (e as Error).message,
-        disabled: isDrxSyncDisabled(),
+        disabled: !env.isDrxEnabled(),
       },
       { status: 500 }
     );
@@ -117,8 +112,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ── KILL SWITCH — block manual triggers too ──
-  if (isDrxSyncDisabled()) {
-    console.log("[DRX Sync Manual] Blocked — DRX_SYNC_DISABLED is set");
+  if (!env.isDrxEnabled()) {
+    console.log("[DRX Sync Manual] Blocked — DRX integration is disabled");
     return disabledResponse();
   }
 

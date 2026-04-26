@@ -555,8 +555,9 @@ export async function syncActiveQueues(): Promise<{
   errors: number;
   duration: number;
 }> {
-  if (process.env.DRX_SYNC_ENABLED === "false") {
-    console.log("[DRX Queue Sync] Disabled via DRX_SYNC_ENABLED=false — skipping");
+  const { env } = await import("@/lib/env");
+  if (!env.isDrxEnabled()) {
+    console.log("[DRX Queue Sync] DRX integration is disabled — skipping. Set DRX_SYNC_DISABLED=false to re-enable.");
     return { statusCounts: {}, totalUpdated: 0, errors: 0, duration: 0 };
   }
 
@@ -628,9 +629,10 @@ export async function runSync(
   entities: SyncEntity = "all",
   fullResync = false
 ): Promise<SyncResult[]> {
-  // Check if DRX sync is disabled (for DRX independence mode)
-  if (process.env.DRX_SYNC_ENABLED === "false") {
-    console.log("[DRX Sync] Disabled via DRX_SYNC_ENABLED=false — skipping");
+  // DRX integration is mothballed by default — see env.isDrxEnabled.
+  const { env } = await import("@/lib/env");
+  if (!env.isDrxEnabled()) {
+    console.log("[DRX Sync] DRX integration is disabled — skipping. Set DRX_SYNC_DISABLED=false to re-enable.");
     return [{ entity: "all" as SyncEntity, imported: 0, updated: 0, skipped: 0, errors: 0, duration: 0 }];
   }
 

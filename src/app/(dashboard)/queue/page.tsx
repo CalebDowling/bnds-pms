@@ -123,7 +123,7 @@ async function QueueContent({
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
             {total} fill{total !== 1 ? "s" : ""} in {label}
             <span className="ml-2" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
-              (Live from DRX &middot; status: {drxStatus})
+              (status: {drxStatus})
             </span>
           </p>
         </div>
@@ -135,7 +135,7 @@ async function QueueContent({
             </p>
             <p className="text-sm" style={{ color: "var(--text-muted)", opacity: 0.75 }}>
               {total === 0
-                ? "This queue is currently empty in DRX."
+                ? "No fills are currently in this stage."
                 : `${total} fills total — navigate pages to view more.`}
             </p>
           </div>

@@ -23,6 +23,14 @@ export interface PatientLookupResult {
 export async function searchPatientsLive(query: string): Promise<PatientLookupResult[]> {
   if (!query || query.trim().length < 2) return [];
 
+  // DRX integration is mothballed by default. Without this gate the lookup
+  // page would still call out to DRX on every keystroke, time out, and show
+  // an empty list. Bail early so the UI can fall back to local-DB search.
+  const { env } = await import("@/lib/env");
+  if (!env.isDrxEnabled()) {
+    return [];
+  }
+
   try {
     const drxClient = await import("@/lib/drx/client");
     const trimmed = query.trim();

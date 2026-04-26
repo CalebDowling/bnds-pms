@@ -80,11 +80,12 @@ export async function getQueueCounts() {
     mochi: 0,
   };
 
-  // Dual-mode: use DRX API when sync is enabled (DRX is still primary),
-  // fall back to local DB when DRX sync is disabled (independence mode).
-  const drxDisabled = process.env.DRX_SYNC_ENABLED === "false";
+  // Dual-mode: use DRX API when sync is enabled, otherwise read counts from
+  // the local prescription_fills table. Default is OFF — see env.isDrxEnabled.
+  const { env } = await import("@/lib/env");
+  const drxEnabled = env.isDrxEnabled();
 
-  if (!drxDisabled) {
+  if (drxEnabled) {
     // ── DRX Mode: fetch live counts from DRX API ──
     try {
       const { fetchAllQueueCounts } = await import("@/lib/drx/client");

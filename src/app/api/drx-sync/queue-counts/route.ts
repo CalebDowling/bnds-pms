@@ -8,24 +8,19 @@
  */
 
 import { NextResponse } from "next/server";
+import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
-function isDrxSyncDisabled(): boolean {
-  const flag = process.env.DRX_SYNC_DISABLED?.toLowerCase();
-  return flag === "true" || flag === "1" || flag === "yes";
-}
-
 export async function GET() {
   // When DRX sync is disabled, don't hit DRX's API at all. The dashboard
-  // has a local-DB fallback that will kick in and show counts from our
-  // own database.
-  if (isDrxSyncDisabled()) {
+  // reads counts directly from the local prescription_fills table instead.
+  if (!env.isDrxEnabled()) {
     return NextResponse.json(
       {
         success: false,
         disabled: true,
-        message: "DRX sync is disabled — dashboard will use local DB counts.",
+        message: "DRX sync is disabled — dashboard reads counts from the local DB.",
       },
       { status: 503 }
     );

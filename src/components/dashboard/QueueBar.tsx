@@ -12,7 +12,9 @@ interface QueueItem {
   href?: string;
 }
 
-// Queue items match DRX queue bar — same options, same order
+// Queue items mirror the original DRX queue bar — same options, same order.
+// Counts now come from the local prescription_fills table; see env.isDrxEnabled
+// for the DRX integration status.
 const defaultQueueItems: QueueItem[] = [
   { label: "Intake", status: "intake", count: 0, tooltip: "View Intake Queue" },
   { label: "Sync", status: "sync", count: 0, tooltip: "View Sync Queue" },

@@ -69,6 +69,34 @@ export const env = {
     getEnvVar("DRX_BASE_URL") ||
     "https://boudreaux.drxapp.com/external_api/v1",
 
+  /**
+   * DRX integration master switch.
+   *
+   * **Default: OFF.** DRX is mothballed — counts, sync, and live lookups all
+   * read/write only the local DB unless this returns true. The kill switch
+   * lives in code (default-disabled) instead of in env vars so removing the
+   * variable doesn't accidentally re-enable DRX.
+   *
+   * To re-enable DRX:
+   *   1. Set `DRX_SYNC_DISABLED=false` in Vercel project settings (any other
+   *      value, or unset, leaves DRX off).
+   *   2. Restore the cron in vercel.json:
+   *        "crons": [{ "path": "/api/drx-sync?entity=all", "schedule": "*\/5 * * * *" }]
+   *   3. Optionally uncomment <ShadowModeBanner /> in src/app/(dashboard)/layout.tsx.
+   *   4. Redeploy.
+   *
+   * Historical note: there used to be two contradictory flags
+   * (`DRX_SYNC_DISABLED` for routes, `DRX_SYNC_ENABLED` for queue counts) which
+   * drifted out of sync and caused the dashboard to keep hitting DRX even when
+   * the cron was dead. This helper is the single source of truth — every
+   * caller goes through it.
+   */
+  isDrxEnabled: () => {
+    const flag = process.env.DRX_SYNC_DISABLED?.toLowerCase();
+    // Only "false" / "0" / "no" turns DRX back on. Anything else = off.
+    return flag === "false" || flag === "0" || flag === "no";
+  },
+
   // WooCommerce
   wcConsumerKey: () => getEnvVar("WC_CONSUMER_KEY"),
   wcConsumerSecret: () => getEnvVar("WC_CONSUMER_SECRET"),
