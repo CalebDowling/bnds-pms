@@ -228,6 +228,7 @@ export async function advanceFillStatus(
       quantity: true,
       filledBy: true,
       filledAt: true,
+      metadata: true,
     },
   });
 
@@ -240,6 +241,35 @@ export async function advanceFillStatus(
       success: false,
       error: `Cannot move from "${fill.status}" to "${newStatus}". Allowed: ${getNextStatuses(fill.status).join(", ") || "none"}`,
     };
+  }
+
+  // ── Pickup checklist guard (waiting_bin → sold) ─────────────────
+  // The OBRA-90 counseling offer, patient signature, and payment must be
+  // attested to before a fill can be marked as sold/dispensed. The Process
+  // page collects these via recordPickupChecklist() which stamps
+  // metadata.pickupChecklist; we just verify it's present here so the gate
+  // can't be bypassed by hitting the action directly.
+  if (fill.status === "waiting_bin" && newStatus === "sold") {
+    const meta = (fill.metadata as Record<string, unknown>) || {};
+    const checklist = meta.pickupChecklist as
+      | {
+          counselOffered?: boolean;
+          signatureCaptured?: boolean;
+          paymentReceived?: boolean;
+        }
+      | undefined;
+    if (
+      !checklist ||
+      !checklist.counselOffered ||
+      !checklist.signatureCaptured ||
+      !checklist.paymentReceived
+    ) {
+      return {
+        success: false,
+        error:
+          "Pickup checklist incomplete — counseling, signature, and payment must be confirmed before dispense.",
+      };
+    }
   }
 
   // ── Quantity guard ────────────────────────────────────────────

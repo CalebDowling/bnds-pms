@@ -23,6 +23,9 @@ import {
   AlertTriangle,
   MapPin,
   DollarSign,
+  MessageCircle,
+  PenLine,
+  Bell,
 } from "lucide-react";
 import {
   getFillDetail,
@@ -30,6 +33,8 @@ import {
   verifyScan,
   setFillFinancials,
   recordVerifyChecklist,
+  recordPickupChecklist,
+  notifyPatientReady,
   type FillDetail,
 } from "./actions";
 import { FILL_STATUS_META } from "@/lib/workflow/fill-status";
@@ -82,6 +87,21 @@ export default function FillProcessPage() {
     pdmpChecked: false,
   });
 
+  // Pickup checklist — gates waiting_bin → sold. Counsel offer (OBRA-90),
+  // patient signature / HIPAA ack, and payment must be attested before
+  // dispense. Notify-patient-ready is tracked separately because it can fire
+  // before the patient arrives.
+  const [pickup, setPickup] = useState({
+    counselOffered: false,
+    counselAccepted: false,
+    signatureCaptured: false,
+    paymentReceived: false,
+    pickupNotes: "",
+  });
+  const [savingPickup, setSavingPickup] = useState(false);
+  const [notifying, setNotifying] = useState(false);
+  const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
+
   const loadFill = useCallback(async () => {
     try {
       const data = await getFillDetail(fillId);
@@ -106,6 +126,19 @@ export default function FillProcessPage() {
             pdmpChecked: !!stored.pdmpChecked,
           });
         }
+        // Restore pickup checklist from metadata so a half-completed pickup
+        // doesn't reset state if the cashier reloads the page.
+        const storedPickup =
+          (data.metadata?.pickupChecklist as Record<string, unknown>) || null;
+        if (storedPickup) {
+          setPickup({
+            counselOffered: !!storedPickup.counselOffered,
+            counselAccepted: !!storedPickup.counselAccepted,
+            signatureCaptured: !!storedPickup.signatureCaptured,
+            paymentReceived: !!storedPickup.paymentReceived,
+            pickupNotes: (storedPickup.pickupNotes as string) || "",
+          });
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load fill");
@@ -126,6 +159,11 @@ export default function FillProcessPage() {
       if (newStatus === "waiting_bin" && fill.status === "verify") {
         await recordVerifyChecklist(fill.id, checklist);
       }
+      // For waiting_bin → sold, persist the pickup checklist (counsel /
+      // signature / payment) before the workflow guard checks for it.
+      if (newStatus === "sold" && fill.status === "waiting_bin") {
+        await recordPickupChecklist(fill.id, pickup);
+      }
       await processFill(fill.id, newStatus, actionNotes || undefined);
       setActionNotes("");
       await loadFill();
@@ -133,6 +171,36 @@ export default function FillProcessPage() {
       setError(e instanceof Error ? e.message : "Action failed");
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const sendPickupSms = async () => {
+    if (!fill) return;
+    setNotifying(true);
+    setNotifyMessage(null);
+    setError(null);
+    try {
+      const result = await notifyPatientReady(fill.id);
+      setNotifyMessage(`SMS sent to ${result.phone}`);
+      await loadFill();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to send SMS");
+    } finally {
+      setNotifying(false);
+    }
+  };
+
+  const savePickupChecklist = async () => {
+    if (!fill) return;
+    setSavingPickup(true);
+    setError(null);
+    try {
+      await recordPickupChecklist(fill.id, pickup);
+      await loadFill();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save pickup checklist");
+    } finally {
+      setSavingPickup(false);
     }
   };
 
@@ -579,6 +647,130 @@ export default function FillProcessPage() {
                       {savingMeta ? "Saving..." : "Save"}
                     </button>
                   </div>
+                </div>
+
+                {/* Notify Patient Ready (SMS).
+                    The cashier can fire this as soon as the bottle is in the
+                    bin so the patient gets a heads-up before they arrive.
+                    Idempotent — calling again resends. */}
+                <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                    <Bell className="w-3.5 h-3.5" /> Patient Notification
+                  </h4>
+                  {(() => {
+                    const notif = fill.metadata?.pickupNotification as
+                      | { sentAt?: string; phone?: string }
+                      | undefined;
+                    if (notif?.sentAt) {
+                      return (
+                        <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                          Last sent {new Date(notif.sentAt).toLocaleString()} to {notif.phone || "patient"}.
+                        </p>
+                      );
+                    }
+                    return (
+                      <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+                        Send a pickup-ready SMS to the patient&apos;s primary phone.
+                      </p>
+                    );
+                  })()}
+                  <button
+                    onClick={sendPickupSms}
+                    disabled={notifying || !fill.patient.phoneNumbers[0]?.number}
+                    className="px-3 py-2 text-xs font-semibold text-white rounded-md disabled:opacity-50 inline-flex items-center gap-1.5"
+                    style={{ backgroundColor: "#0ea5e9" }}
+                  >
+                    {notifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <MessageCircle className="w-3 h-3" />}
+                    {notifying ? "Sending..." : "Send Pickup SMS"}
+                  </button>
+                  {!fill.patient.phoneNumbers[0]?.number && (
+                    <p className="text-xs mt-1 text-amber-600">No primary phone on file.</p>
+                  )}
+                  {notifyMessage && (
+                    <p className="text-xs mt-1 text-sky-700">{notifyMessage}</p>
+                  )}
+                </div>
+
+                {/* Pickup Checklist — required gate for waiting_bin → sold.
+                    Captures OBRA-90 counsel offer, signature/HIPAA ack, and
+                    payment received. Persisted to metadata + FillEvent for
+                    the audit trail. */}
+                <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+                  <h4 className="text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                    <PenLine className="w-3.5 h-3.5" /> Pickup Checklist
+                  </h4>
+                  <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                    Must be completed at the register before dispense.
+                  </p>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--text-secondary)" }}>
+                      <input
+                        type="checkbox"
+                        checked={pickup.counselOffered}
+                        onChange={(e) => setPickup((p) => ({ ...p, counselOffered: e.target.checked }))}
+                        className="w-4 h-4"
+                      />
+                      Counseling offered (OBRA-90)
+                    </label>
+                    {pickup.counselOffered && (
+                      <label className="flex items-center gap-2 text-xs cursor-pointer ml-6" style={{ color: "var(--text-secondary)" }}>
+                        <input
+                          type="checkbox"
+                          checked={pickup.counselAccepted}
+                          onChange={(e) => setPickup((p) => ({ ...p, counselAccepted: e.target.checked }))}
+                          className="w-4 h-4"
+                        />
+                        Patient accepted counseling (uncheck if declined)
+                      </label>
+                    )}
+                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--text-secondary)" }}>
+                      <input
+                        type="checkbox"
+                        checked={pickup.signatureCaptured}
+                        onChange={(e) => setPickup((p) => ({ ...p, signatureCaptured: e.target.checked }))}
+                        className="w-4 h-4"
+                      />
+                      Patient signature / HIPAA acknowledgement captured
+                    </label>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: "var(--text-secondary)" }}>
+                      <input
+                        type="checkbox"
+                        checked={pickup.paymentReceived}
+                        onChange={(e) => setPickup((p) => ({ ...p, paymentReceived: e.target.checked }))}
+                        className="w-4 h-4"
+                      />
+                      Payment received
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    value={pickup.pickupNotes}
+                    onChange={(e) => setPickup((p) => ({ ...p, pickupNotes: e.target.value }))}
+                    placeholder="Pickup notes (e.g. 'signature on file', 'counsel declined')..."
+                    className="w-full mt-2 px-3 py-2 border rounded-md text-xs focus:outline-none focus:ring-2"
+                    style={{ borderColor: "var(--border)" }}
+                  />
+                  <button
+                    onClick={savePickupChecklist}
+                    disabled={savingPickup}
+                    className="mt-2 px-3 py-1.5 text-xs font-semibold text-white rounded-md disabled:opacity-50"
+                    style={{ backgroundColor: "var(--green-700)" }}
+                  >
+                    {savingPickup ? "Saving..." : "Save Pickup Checklist"}
+                  </button>
+                  {(() => {
+                    const stored = fill.metadata?.pickupChecklist as
+                      | { performedAt?: string }
+                      | undefined;
+                    if (stored?.performedAt) {
+                      return (
+                        <p className="text-xs mt-1 text-green-700">
+                          Last saved {new Date(stored.performedAt).toLocaleString()}.
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
             )}
