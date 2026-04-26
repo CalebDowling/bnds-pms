@@ -29,19 +29,29 @@ export type PrescriptionFormData = {
 
 // ─── RX NUMBER GENERATOR ────────────────────
 
-async function generateRxNumber(): Promise<string> {
-  const lastRx = await prisma.prescription.findFirst({
-    orderBy: { rxNumber: "desc" },
-    select: { rxNumber: true },
-  });
-
-  let nextNumber = 100001;
-  if (lastRx?.rxNumber) {
-    const num = parseInt(lastRx.rxNumber, 10);
-    if (!isNaN(num)) nextNumber = num + 1;
+/**
+ * Read the next candidate Rx number from the database.
+ *
+ * Caveat: rxNumber is `VARCHAR`, so `orderBy desc` is lexicographic — for
+ * variable-width numeric strings ("999999" vs "1000000") that disagrees
+ * with numeric ordering. To get the true numeric max we cast in raw SQL.
+ *
+ * The caller should NOT re-invoke this on a P2002 retry; a failed insert
+ * leaves the max unchanged, so the same value would come back. Increment
+ * the candidate locally instead.
+ */
+async function nextRxNumberSeed(): Promise<number> {
+  // True numeric max via raw SQL. Strips non-digits defensively in case
+  // any legacy / seed rows have a non-numeric format.
+  const rows = await prisma.$queryRaw<{ max: bigint | null }[]>`
+    SELECT MAX(NULLIF(REGEXP_REPLACE(rx_number, '[^0-9]', '', 'g'), '')::BIGINT) AS max
+    FROM prescriptions
+  `;
+  const max = rows[0]?.max;
+  if (max != null) {
+    return Number(max) + 1;
   }
-
-  return nextNumber.toString();
+  return 100001;
 }
 
 // ─── LIST / SEARCH ───────────────────────────
@@ -151,15 +161,24 @@ export async function getPrescription(id: string) {
 // ─── CREATE ─────────────────────────────────
 
 export async function createPrescription(data: PrescriptionFormData) {
-  // generateRxNumber() does "read max, +1" which can collide under
-  // concurrent submits. Retry on P2002 (unique constraint on rxNumber)
-  // by re-reading the max and trying again. Capped to avoid an infinite
-  // loop if the constraint violation is from a different field.
-  const MAX_ATTEMPTS = 5;
+  // The "read max, +1" pattern collides on two distinct failure modes:
+  //   1. Concurrent inserts both reading the same max
+  //   2. Pre-existing rows with an rxNumber at-or-above the proposed max
+  //      (e.g., from seed data or a lex-vs-numeric ordering mismatch)
+  //
+  // A pure "re-read on P2002" retry only fixes (1) — under (2) the
+  // re-read returns the same max so we'd loop on the same value.
+  // Solution: read the seed once, then increment the candidate locally
+  // on every P2002 retry. That covers both cases.
+  //
+  // Long-term fix (tracked separately): replace this with a Postgres
+  // SEQUENCE + nextval() so the database hands out the number atomically.
+  const MAX_ATTEMPTS = 20;
   let lastError: unknown;
+  let candidate = await nextRxNumberSeed();
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const rxNumber = await generateRxNumber();
+    const rxNumber = candidate.toString();
 
     try {
       const prescription = await prisma.prescription.create({
@@ -191,22 +210,15 @@ export async function createPrescription(data: PrescriptionFormData) {
       return prescription;
     } catch (err) {
       lastError = err;
-      // Retry on any P2002 (unique-constraint violation). Prisma's
-      // `meta.target` reports the mapped Postgres COLUMN name
-      // (`rx_number` because of `@map`), not the model field name
-      // (`rxNumber`), so a strict equality check is brittle. The only
-      // unique constraint on Prescription is on rx_number, and the
-      // 5-attempt cap bounds the worst case if that ever changes.
-      //
-      // Log the meta shape on first attempt so we can verify what
-      // Postgres is actually sending us in production.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         if (attempt === 0) {
           console.warn("[createPrescription] P2002 on attempt 0", {
+            candidate,
             target: err.meta?.target,
             modelName: err.meta?.modelName,
           });
         }
+        candidate++;
         // small jittered backoff to spread concurrent retries
         await new Promise((r) => setTimeout(r, 25 + Math.random() * 50));
         continue;

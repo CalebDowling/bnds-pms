@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { generateMRN } from "@/lib/utils/mrn";
+import { formatMRN, nextMRNSeed } from "@/lib/utils/mrn";
 import { revalidatePath } from "next/cache";
 import type { PatientFormData, PhoneFormData, AddressFormData, AllergyFormData, InsuranceFormData } from "@/types/patient";
 
@@ -116,15 +116,19 @@ export async function getPatient(id: string) {
 // ─── CREATE PATIENT ─────────────────────────
 
 export async function createPatient(data: PatientFormData) {
-  // generateMRN() does "read max, +1" which races under concurrent
-  // creates. Retry on P2002 against `mrn` by regenerating the next
-  // number. Capped to avoid an infinite loop if the constraint is
-  // from a different field.
-  const MAX_ATTEMPTS = 5;
+  // The "read max, +1" pattern collides on two distinct failure modes:
+  //   1. Concurrent inserts both reading the same max
+  //   2. Pre-existing rows already at-or-above the proposed max
+  // A pure "re-read on P2002" retry only fixes (1) — under (2) the
+  // re-read returns the same max and we loop on the same value.
+  // Solution: read the seed once, then increment locally on every
+  // P2002 retry. Long-term fix is a Postgres SEQUENCE.
+  const MAX_ATTEMPTS = 20;
   let lastError: unknown;
+  let candidate = await nextMRNSeed();
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const mrn = await generateMRN();
+    const mrn = formatMRN(candidate);
 
     try {
       const patient = await prisma.patient.create({
@@ -177,17 +181,15 @@ export async function createPatient(data: PatientFormData) {
       return patient;
     } catch (err) {
       lastError = err;
-      // Retry on any P2002. Prisma's `meta.target` reports the mapped
-      // Postgres COLUMN name (which differs from the model field name
-      // when `@map` is used), so a strict equality check is brittle.
-      // The 5-attempt cap bounds the worst case.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         if (attempt === 0) {
           console.warn("[createPatient] P2002 on attempt 0", {
+            candidate,
             target: err.meta?.target,
             modelName: err.meta?.modelName,
           });
         }
+        candidate++;
         await new Promise((r) => setTimeout(r, 25 + Math.random() * 50));
         continue;
       }
