@@ -68,6 +68,7 @@ export async function getQueueCounts() {
     print: 0,
     scan: 0,
     verify: 0,
+    rph_rejected: 0,
     oos: 0,
     waiting_bin: 0,
     renewals: 0,
@@ -77,7 +78,9 @@ export async function getQueueCounts() {
     ok_to_charge: 0,
     decline: 0,
     ok_to_charge_clinic: 0,
-    mochi: 0,
+    compound_qa: 0,
+    telehealth: 0,
+    mochi: 0, // legacy
   };
 
   // Dual-mode: use DRX API when sync is enabled, otherwise read counts from
@@ -112,6 +115,7 @@ export async function getQueueCounts() {
         print: findCount("Print"),
         scan: findCount("Scan"),
         verify: findCount("Verify"),
+        rph_rejected: 0, // not in DRX — local-only queue added per pharmacist review
         oos: findCount("OOS"),
         waiting_bin: findCount("Waiting Bin"),
         renewals,
@@ -121,7 +125,9 @@ export async function getQueueCounts() {
         ok_to_charge: findCount("ok to charge"),
         decline: findCount("Decline"),
         ok_to_charge_clinic: findCount("ok to charge clinic"),
-        mochi: findCount("mochi"),
+        compound_qa: 0, // not in DRX — local-only queue
+        telehealth: 0,  // not in DRX — local-only queue
+        mochi: findCount("mochi"), // legacy DRX mapping
       };
     } catch (e) {
       console.error("[getQueueCounts] DRX API error, falling back to local DB:", e);

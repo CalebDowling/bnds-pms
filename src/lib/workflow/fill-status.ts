@@ -27,6 +27,10 @@ export const FILL_STATUSES = {
   hold: "hold",
   oos: "oos",
   rejected: "rejected",
+  // Pharmacist rejected at verify — separate from `rejected` (which is
+  // insurance-claim rejection). Added per pharmacist review so RPh-rejected
+  // fills don't get lost in the high-volume Print queue.
+  rph_rejected: "rph_rejected",
 
   // Custom queues (tag-based, but can also be a status for routing)
   price_check: "price_check",
@@ -34,6 +38,13 @@ export const FILL_STATUSES = {
   ok_to_charge: "ok_to_charge",
   decline: "decline",
   ok_to_charge_clinic: "ok_to_charge_clinic",
+  // Pharmacist QA/QC of compounds finalized by compounding technicians.
+  // Replaces the catch-all "mochi" queue per pharmacist review.
+  compound_qa: "compound_qa",
+  // Centralized queue for telehealth integrations (Lumi, Mochi, etc.).
+  telehealth: "telehealth",
+  // Legacy — kept so existing data still maps; new fills should use
+  // compound_qa or telehealth as appropriate.
   mochi: "mochi",
 
   // Terminal
@@ -67,12 +78,15 @@ export const FILL_STATUS_META: Record<string, FillStatusMeta> = {
   hold:                 { label: "Hold",                color: "#f97316", icon: "Pause",          isTerminal: false, isException: true,  queueKey: "hold" },
   oos:                  { label: "Out of Stock",        color: "#f97316", icon: "AlertTriangle",  isTerminal: false, isException: true,  queueKey: "oos" },
   rejected:             { label: "Rejected",            color: "#ef4444", icon: "XCircle",        isTerminal: false, isException: true,  queueKey: "reject" },
+  rph_rejected:         { label: "Rejected by RPh",     color: "#dc2626", icon: "ShieldAlert",    isTerminal: false, isException: true,  queueKey: "rph_rejected" },
   price_check:          { label: "Price Check",         color: "#ec4899", icon: "BadgeDollarSign",isTerminal: false, isException: true,  queueKey: "price_check" },
   prepay:               { label: "Prepay",              color: "#0ea5e9", icon: "CreditCard",     isTerminal: false, isException: true,  queueKey: "prepay" },
   ok_to_charge:         { label: "OK to Charge",        color: "#22c55e", icon: "DollarSign",     isTerminal: false, isException: true,  queueKey: "ok_to_charge" },
   decline:              { label: "Decline",             color: "#dc2626", icon: "ThumbsDown",     isTerminal: false, isException: true,  queueKey: "decline" },
   ok_to_charge_clinic:  { label: "OK to Charge Clinic", color: "#16a34a", icon: "Building2",      isTerminal: false, isException: true,  queueKey: "ok_to_charge_clinic" },
-  mochi:                { label: "Mochi",               color: "#d946ef", icon: "Cherry",         isTerminal: false, isException: true,  queueKey: "mochi" },
+  compound_qa:          { label: "Compound QA",         color: "#7c3aed", icon: "FlaskConical",   isTerminal: false, isException: true,  queueKey: "compound_qa" },
+  telehealth:           { label: "Telehealth",          color: "#0891b2", icon: "Stethoscope",    isTerminal: false, isException: true,  queueKey: "telehealth" },
+  mochi:                { label: "Mochi (legacy)",      color: "#d946ef", icon: "Cherry",         isTerminal: false, isException: true,  queueKey: "mochi" },
   cancelled:            { label: "Cancelled",           color: "#6b7280", icon: "X",              isTerminal: true,  isException: true,  queueKey: "cancelled" },
   pending:              { label: "Pending",             color: "#9ca3af", icon: "Clock",          isTerminal: false, isException: false, queueKey: "pending" },
 };
@@ -90,13 +104,17 @@ export const FILL_TRANSITIONS: Record<string, string[]> = {
   adjudicating:  ["print", "rejected", "hold", "price_check", "prepay", "cancelled"],
   print:         ["scan", "hold", "cancelled"],
   scan:          ["verify", "hold", "cancelled"],
-  verify:        ["waiting_bin", "hold", "scan"], // can send back to scan on failure
+  // Verify can now route to a dedicated rph_rejected queue when the pharmacist
+  // rejects the fill — keeps RPh-rejected fills from getting lost in Print on
+  // high-volume days (per pharmacist review #3.2).
+  verify:        ["waiting_bin", "hold", "scan", "rph_rejected"],
   waiting_bin:   ["sold", "hold", "cancelled"], // cancelled = return to stock (RTS)
 
   // Exception states can return to the workflow
   hold:          ["intake", "adjudicating", "print", "scan", "verify", "cancelled"],
   oos:           ["intake", "adjudicating", "cancelled"],
   rejected:      ["adjudicating", "price_check", "cancelled"], // rebill after fix
+  rph_rejected:  ["print", "scan", "hold", "cancelled"], // tech follow-up after RPh reject
 
   // Custom queues return to the main workflow after resolution
   price_check:   ["adjudicating", "hold", "cancelled"],
@@ -104,7 +122,9 @@ export const FILL_TRANSITIONS: Record<string, string[]> = {
   ok_to_charge:  ["adjudicating", "print", "cancelled"],
   decline:       ["cancelled", "adjudicating"],
   ok_to_charge_clinic: ["adjudicating", "print", "cancelled"],
-  mochi:         ["intake", "adjudicating", "cancelled"],
+  compound_qa:   ["waiting_bin", "rph_rejected", "hold", "cancelled"], // RPh QA gate
+  telehealth:    ["intake", "adjudicating", "cancelled"], // route to standard flow once triaged
+  mochi:         ["intake", "adjudicating", "compound_qa", "telehealth", "cancelled"], // legacy route
 
   // Terminal — no transitions out
   sold:          [],
@@ -233,6 +253,7 @@ export const QUEUE_TO_FILL_STATUS: Record<string, string[]> = {
   print:                ["print"],
   scan:                 ["scan"],
   verify:               ["verify"],
+  rph_rejected:         ["rph_rejected"],
   oos:                  ["oos"],
   waiting_bin:          ["waiting_bin"],
   price_check:          ["price_check"],
@@ -240,7 +261,9 @@ export const QUEUE_TO_FILL_STATUS: Record<string, string[]> = {
   ok_to_charge:         ["ok_to_charge"],
   decline:              ["decline"],
   ok_to_charge_clinic:  ["ok_to_charge_clinic"],
-  mochi:                ["mochi"],
+  compound_qa:          ["compound_qa"],
+  telehealth:           ["telehealth"],
+  mochi:                ["mochi"], // legacy — kept for backwards compat
   // "renewals" and "todo" are handled separately (not fill-status-based)
 };
 

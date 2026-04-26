@@ -9,6 +9,7 @@ export const QUEUE_LABELS: Record<string, string> = {
   print: "Print",
   scan: "Scan",
   verify: "Verify",
+  rph_rejected: "Rejected by RPh",
   oos: "Out of Stock",
   waiting_bin: "Waiting Bin",
   renewals: "Renewals",
@@ -18,7 +19,39 @@ export const QUEUE_LABELS: Record<string, string> = {
   ok_to_charge: "OK to Charge",
   decline: "Decline",
   ok_to_charge_clinic: "OK to Charge Clinic",
-  mochi: "Mochi",
+  compound_qa: "Compound QA",
+  telehealth: "Telehealth",
+  // Legacy — kept so existing fills tagged as "mochi" still surface; new fills
+  // route to compound_qa or telehealth instead.
+  mochi: "Mochi (legacy)",
+};
+
+// Plain-language description for each queue. Surfaced in tooltips and the
+// queue page header. Updated per pharmacist review (April 2026):
+//   - "Decline" was reading as "patient declined to fill" but is actually
+//     where a fill lands when a payment is declined.
+//   - "Mochi" was a catch-all in the original DRX docs but in practice is
+//     the RPh QA/QC queue for finished compounds — split out as compound_qa.
+export const QUEUE_DESCRIPTIONS: Record<string, string> = {
+  intake: "New prescriptions awaiting initial review and patient matching.",
+  sync: "Insurance claims being submitted/adjudicated with the PBM.",
+  reject: "Insurance claims that came back rejected. Resolve and re-bill.",
+  print: "Ready for label printing and physical fill (counting/measuring).",
+  scan: "Filled prescriptions awaiting NDC barcode verification scan.",
+  verify: "Awaiting pharmacist final verification (RPh check).",
+  rph_rejected: "Rx the pharmacist rejected at verify — needs technician follow-up before re-fill.",
+  oos: "Prescriptions that cannot be filled because the drug is not in stock.",
+  waiting_bin: "Verified Rx in the physical bin, ready for patient pickup.",
+  renewals: "Prescriptions flagged for renewal requests to the prescriber.",
+  todo: "General task list items requiring staff follow-up.",
+  price_check: "Prescriptions needing manual price verification before processing.",
+  prepay: "Prescriptions requiring patient prepayment before fill (most compounds land here).",
+  ok_to_charge: "Prescriptions approved for patient account charging.",
+  decline: "Prescriptions where a payment attempt was declined.",
+  ok_to_charge_clinic: "Clinic-billed prescriptions approved for facility charging.",
+  compound_qa: "Compound batches finalized by the technician, awaiting pharmacist QA/QC.",
+  telehealth: "Prescriptions originating from a telehealth integration (Lumi, Mochi, etc.) — source-tagged on the row.",
+  mochi: "Legacy queue. New fills route to Compound QA or Telehealth instead.",
 };
 
 export interface QueueFill {

@@ -1,0 +1,480 @@
+Pages: 20
+Metadata: {'/Producer': 'macOS Version 26.2 (Build 25C56) Quartz PDFContext, AppendMode 1.1', '/CreationDate': "D:20260417142542Z00'00'", '/Author': 'Un-named', '/ModDate': "D:20260418153111Z00'00'", '/Creator': 'Microsoft® Word for Microsoft 365'}
+================================================================================
+
+--- Annotation #1 (page 4) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423075317-07'00'
+  Rect: [360.0, 412.00003, 392.0, 425.00003]
+  Content:
+    Doesn't matter much: Everything in intake is typed on time it comes in unless there is a Waiter in the lobby.
+
+--- Annotation #2 (page 4) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423075317-07'00'
+  Rect: [360.0, 412.00003, 392.0, 425.00003]
+  Content:
+    I agree.
+
+--- Annotation #3 (page 4) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423075248-07'00'
+  Rect: [463.0, 156.0, 540.0, 169.00002]
+  Content:
+    Before print it is moved into Precheck. Then once prechecked must be in Print tp be bale to be charged.
+
+--- Annotation #4 (page 4) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423075248-07'00'
+  Rect: [463.0, 156.0, 540.0, 169.00002]
+  Content:
+    Is this a process just because of DRX? Like, is this something that you guys do that can be change this way in the new PMS?
+
+--- Annotation #5 (page 4) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423075504-07'00'
+  Rect: [244.0, 493.99997, 286.0, 507.0]
+  Content:
+    In DRX there is an option to generate a prescription under pt profile. I use this majorty of the time unless pt is new. It generates a prescriptoin based on the entries.
+    In which it eliminates the scanning in by clerk and typing by tech. It moves straight into Precheck
+
+--- Annotation #6 (page 4) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423075504-07'00'
+  Rect: [244.0, 493.99997, 286.0, 507.0]
+  Content:
+    Is there a process that you think would make it more simple?
+
+--- Annotation #7 (page 4) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260418084408-07'00'
+  Rect: [442.0, 174.00003, 474.0, 187.0]
+  Content:
+    The technican must type and analyze the prescription to ensure that it includes all the correct things. They must also be able to tag the prescriptions based on where it is being charged and shipped to. May also be picked up or delivered. 
+    The delivery must be noted in the profile ans shown on the prescription label.
+
+--- Annotation #8 (page 4) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260418083732-07'00'
+  Rect: [403.0, 510.0, 488.0, 524.00006]
+  Content:
+    It is scanned in by clerk
+
+--- Annotation #9 (page 4) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423075406-07'00'
+  Rect: [370.0, 477.00003, 402.0, 490.99997]
+  Content:
+    Via phone system i think. Im not sure what IVR in drx comes from.
+
+--- Annotation #10 (page 4) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423075406-07'00'
+  Rect: [370.0, 477.00003, 402.0, 490.99997]
+  Content:
+    The Patient Portal will be a new feature that we would have to give the patients to get refills online.
+
+--- Annotation #11 (page 5) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423081330-07'00'
+  Rect: [270.0, 280.99997, 297.0, 295.0]
+  Content:
+    Once label is printed it is moved to scan queue. In scan the tech must scan the NDC/Batch number to be able to move it to verify for the pharmacist.
+
+--- Annotation #12 (page 5) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423081330-07'00'
+  Rect: [270.0, 280.99997, 297.0, 295.0]
+  Content:
+    I will confirm that, that is in the process of the Scan queue
+
+--- Annotation #13 (page 5) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423080939-07'00'
+  Rect: [224.0, 311.0, 260.0, 325.0]
+  Content:
+    This must be done in the system to verify it is correct before reaching pharmacist. If there is an equivalent NDC that it can be changed to it may prompt it to readjuticate the claim and switched manually by system.
+
+--- Annotation #14 (page 5) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423080939-07'00'
+  Rect: [224.0, 311.0, 260.0, 325.0]
+  Content:
+    Correct, are you saying that the process in this new PMS does not indicate that? Or are you just clarifying?
+
+--- Annotation #15 (page 5) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423075750-07'00'
+  Rect: [315.0, 342.0, 346.0, 355.00003]
+  Content:
+    is for the backtag on hard copy prescriptions that are brought in for our records.
+
+--- Annotation #16 (page 5) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423075750-07'00'
+  Rect: [315.0, 342.0, 346.0, 355.00003]
+  Content:
+    I do not follow..
+
+--- Annotation #17 (page 6) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423083123-07'00'
+  Rect: [191.0, 425.99997, 323.0, 439.0]
+  Content:
+    majortiy of our prescriptions are compounds so it is already paid for before being made. Rx must have been flipped back to print by clerk or billingfor the cycle to start.. Something to note. Copays are normally for retail prescriptions. 
+    Hopefully we can create a better system for this??
+
+--- Annotation #18 (page 6) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423083123-07'00'
+  Rect: [191.0, 425.99997, 323.0, 439.0]
+  Content:
+    To me there is defiantly a better way that we can do this. 
+    I can take out the Copay process. 
+    Do you have any ideas on what we can do to build this better for that process?
+
+--- Annotation #19 (page 6) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423081540-07'00'
+  Rect: [391.0, 663.0, 426.0, 676.0]
+  Content:
+    I wonder if theres a queue that cna be made for rejected rx by rph.. It can get lost in print with our high volume!
+
+--- Annotation #20 (page 6) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423081540-07'00'
+  Rect: [391.0, 663.0, 426.0, 676.0]
+  Content:
+    This is why I got you to look at this!!! that is a great idea. I will make a note and get it on the roadmap. Could you give me a very brief explanation on how you think we can make that Queue be the most efficient?
+
+--- Annotation #21 (page 6) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423082528-07'00'
+  Rect: [288.0, 517.0, 388.0, 530.0]
+  Content:
+    Would be ideal if the pharmacy can do this. Currently is just by last name in yellow bins.. (A-H and so on)
+
+--- Annotation #22 (page 6) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423082528-07'00'
+  Rect: [288.0, 517.0, 388.0, 530.0]
+  Content:
+    Yeah, this is one of those features that I have in place but it will not be fully used until we figure out a situation like that inside the physical location. It will not be a required field within the verified prescription, so it should not cause any issues.
+
+--- Annotation #23 (page 7) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423084848-07'00'
+  Rect: [79.00001, 400.00003, 499.16104, 417.30127]
+  Content:
+    Lab manager: Amanda is able to as well. Actually she creates majority of formulas.
+
+--- Annotation #24 (page 7) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423084848-07'00'
+  Rect: [79.00001, 400.00003, 499.16104, 417.30127]
+  Content:
+    Got it, making a note of that. Should just be a permission change.
+
+--- Annotation #25 (page 7) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423084930-07'00'
+  Rect: [194.0, 217.00002, 232.0, 229.99998]
+  Content:
+    The syringes of liquids must be pictured. Also the filters must be pictured.
+
+--- Annotation #26 (page 7) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423084930-07'00'
+  Rect: [194.0, 217.00002, 232.0, 229.99998]
+  Content:
+    Got it, adding to my notes.
+
+--- Annotation #27 (page 7) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260418150322-07'00'
+  Rect: [248.0, 169.00002, 306.0, 181.99998]
+  Content:
+    Must be able to print for rph to review.
+
+--- Annotation #28 (page 7) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085005-07'00'
+  Rect: [129.0, 169.00002, 158.00002, 181.99998]
+  Content:
+    There must be a notes section to record the lots of the vials, cappers, stoppers. Also to note psi and such things (can show you in drx)
+
+--- Annotation #29 (page 7) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085005-07'00'
+  Rect: [129.0, 169.00002, 158.00002, 181.99998]
+  Content:
+    Yes, I would like to see and also even add a screenshot of this to my notes too.
+
+--- Annotation #30 (page 7) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423084823-07'00'
+  Rect: [181.0, 493.99997, 304.0, 507.0]
+  Content:
+    Add a section on each ingredient to be able to exclude BUD from final compound. Some formulas are used within formuals for PH checks etc (but doesn't count for BUD)
+
+--- Annotation #31 (page 7) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423084823-07'00'
+  Rect: [181.0, 493.99997, 304.0, 507.0]
+  Content:
+    Roger that.
+
+--- Annotation #32 (page 8) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085056-07'00'
+  Rect: [224.0, 544.0, 238.0, 557.0]
+  Content:
+    Storage and Lot do not need to be on label for batch containers.
+
+--- Annotation #33 (page 8) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085056-07'00'
+  Rect: [224.0, 544.0, 238.0, 557.0]
+  Content:
+    Is the green area false then?
+
+--- Annotation #34 (page 8) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260418150344-07'00'
+  Rect: [239.0, 635.0, 283.0, 648.0]
+  Content:
+    BUD is already assigned.
+
+--- Annotation #35 (page 11) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085130-07'00'
+  Rect: [154.00002, 623.0, 204.0, 638.0]
+  Content:
+    KPIs for pharmacist & Shippers?
+
+--- Annotation #36 (page 11) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085130-07'00'
+  Rect: [154.00002, 623.0, 204.0, 638.0]
+  Content:
+    Yes, this will be a feature and be able to be filtered, pulled, and extracted whenever and whoever needed.
+
+--- Annotation #37 (page 11) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085138-07'00'
+  Rect: [107.0, 427.0, 162.00002, 440.00003]
+  Content:
+    Should also include how many rx were typed.
+
+--- Annotation #38 (page 11) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085138-07'00'
+  Rect: [107.0, 427.0, 162.00002, 440.00003]
+  Content:
+    Got it.
+
+--- Annotation #39 (page 12) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085228-07'00'
+  Rect: [271.0, 320.0, 335.0, 334.99997]
+  Content:
+    Add option on pt profile to store card so it can be charged for compounds since alot of pts are prepaying for their medications before hand.
+
+--- Annotation #40 (page 12) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085228-07'00'
+  Rect: [271.0, 320.0, 335.0, 334.99997]
+  Content:
+    Absolutely, adding to notes.
+
+--- Annotation #41 (page 12) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085149-07'00'
+  Rect: [435.0, 567.0, 476.0, 581.0]
+  Content:
+    Add option for multiple plans. Primary and Secondary
+
+--- Annotation #42 (page 12) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085149-07'00'
+  Rect: [435.0, 567.0, 476.0, 581.0]
+  Content:
+    Adding to notes.
+
+--- Annotation #43 (page 12) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085240-07'00'
+  Rect: [227.0, 189.00002, 281.0, 201.0]
+  Content:
+    everyone should be able to use POS
+
+--- Annotation #44 (page 12) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085240-07'00'
+  Rect: [227.0, 189.00002, 281.0, 201.0]
+  Content:
+    Got it.
+
+--- Annotation #45 (page 14) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085716-07'00'
+  Rect: [77.00001, 198.0, 106.0, 209.99998]
+  Content:
+    Add Lumi Meds
+
+--- Annotation #46 (page 14) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085716-07'00'
+  Rect: [77.00001, 198.0, 106.0, 209.99998]
+  Content:
+    Got it, what if we did some typr of centralized queue for our integrated Telehealths? Maybe called "Telehealths? Does it matter what the company is?
+
+--- Annotation #47 (page 14) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085607-07'00'
+  Rect: [455.0, 243.0, 503.0, 255.0]
+  Content:
+    Billing
+
+--- Annotation #48 (page 14) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085607-07'00'
+  Rect: [455.0, 243.0, 503.0, 255.0]
+  Content:
+    Got it.
+
+--- Annotation #49 (page 14) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085501-07'00'
+  Rect: [167.0, 243.0, 351.0, 255.0]
+  Content:
+    Wrong Description: This is where rx  are tagged when payments are declined.
+
+--- Annotation #50 (page 14) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085501-07'00'
+  Rect: [167.0, 243.0, 351.0, 255.0]
+  Content:
+    Got it.
+
+--- Annotation #51 (page 14) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085553-07'00'
+  Rect: [77.00001, 322.0, 102.0, 334.0]
+  Content:
+    This is normally where a rph can go to do the QA/QC of compounds that are finalized by the compounding technicans
+
+--- Annotation #52 (page 14) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085553-07'00'
+  Rect: [77.00001, 322.0, 102.0, 334.0]
+  Content:
+    Okay, i will clarify if that queue is what we are normally doing and not a follow up type of queue.
+
+--- Annotation #53 (page 16) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423090216-07'00'
+  Rect: [107.0, 248.00002, 335.0, 259.00003]
+  Content:
+    Think is is redundent since the BUD is on the rx 
+    Date it was created is in compounding record 
+    Maybe find a different system for batch numbers??
+    There is alot of things made in one day.
+
+--- Annotation #54 (page 16) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423090216-07'00'
+  Rect: [107.0, 248.00002, 335.0, 259.00003]
+  Content:
+    The Batching and Compounding Sections in the PMS defiantly need to be looked at. I am very unfamiliar with those processes.
+    
+    Do you have any ideas?
+
+--- Annotation #55 (page 16) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423085726-07'00'
+  Rect: [129.0, 416.0, 184.0, 428.99997]
+  Content:
+    Also NDC of drug
+
+--- Annotation #56 (page 16) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423085726-07'00'
+  Rect: [129.0, 416.0, 184.0, 428.99997]
+  Content:
+    Got it.
+
+--- Annotation #57 (page 18) ---
+  Type: /Highlight
+  Author: Alexis Nguyen
+  Modified: D:20260423090254-07'00'
+  Rect: [197.0, 563.0, 231.0, 576.0]
+  Content:
+    dont use
+
+--- Annotation #58 (page 18) ---
+  Type: /Text
+  Author: Caleb Dowling
+  Modified: D:20260423090254-07'00'
+  Rect: [197.0, 563.0, 231.0, 576.0]
+  Content:
+    We do not use the Carrier options?
+
+================================================================================
+TOTAL ANNOTATIONS: 58

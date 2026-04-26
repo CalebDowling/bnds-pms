@@ -1,0 +1,740 @@
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+BNDS Pharmacy Management
+                System
+
+             Complete Workflow Guide
+
+                            Internal Operations Manual
+
+                   Boudreaux's New Drug Store
+
+                    404 E Prien Lake Rd, Lake Charles, LA 70601
+                                  Prepared: April 16, 2026
+
+                           CONFIDENTIAL -- For Internal Use Only
+
+Boudreaux's New Drug Store                                        Page 1
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+Table of Contents
+
+1. Prescription Intake & Fill Process ........................................................................................... 4
+   1.1 Prescription Entry Channels ............................................................................................. 4
+   1.2 Intake Queue Processing ................................................................................................. 4
+   1.3 Adjudication & Claims Processing .................................................................................... 5
+   1.4 Label Printing & Fill........................................................................................................... 5
+   1.5 Scan & Pharmacist Verification......................................................................................... 5
+   1.6 Waiting Bin & Patient Pickup ............................................................................................ 6
+
+2. Compounding & Drug Manufacturing ..................................................................................... 7
+   2.1 Formula Creation & Management ..................................................................................... 7
+   2.2 Batch Production .............................................................................................................. 7
+   2.3 Quality Assurance & Release ........................................................................................... 8
+
+3. Hardware Integration.............................................................................................................. 9
+   3.1 Pharmacy Scales.............................................................................................................. 9
+   3.2 Label Printers ................................................................................................................... 9
+   3.3 Barcode Scanners ............................................................................................................ 9
+   3.4 Receipt Printers & Signature Pads.................................................................................... 9
+
+4. Reports & Analytics...............................................................................................................11
+   4.1 Available Reports ............................................................................................................11
+   4.2 Analytics Dashboard........................................................................................................11
+
+5. Customer Service, Billing & Account Management................................................................12
+   5.1 Insurance Plan Setup ......................................................................................................12
+   5.2 Claims Lifecycle...............................................................................................................12
+   5.3 Point of Sale (POS) & Copay Collection ..........................................................................12
+   5.4 AR Aging & Account Management...................................................................................12
+
+6. The Workflow Queue System................................................................................................14
+   6.1 Queue Stages .................................................................................................................14
+   6.2 Queue Navigation & Actions ............................................................................................14
+
+7. Compounding Processes (Detailed) ......................................................................................16
+   7.1 Formula Versioning .........................................................................................................16
+   7.2 Ingredient Lot Tracking ....................................................................................................16
+   7.3 Batch Numbering.............................................................................................................16
+   7.4 Beyond-Use Dating (BUD)...............................................................................................16
+   7.5 Compliance Documentation.............................................................................................17
+
+8. Shipping Processes ..............................................................................................................18
+
+Boudreaux's New Drug Store           Page 2
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+   8.1 Creating a Shipment ........................................................................................................18
+   8.2 Shipment Status Lifecycle ...............................................................................................18
+   8.3 Shipping Routes ..............................................................................................................18
+9. Patient Messaging & Communications ..................................................................................19
+   9.1 Notification Templates .....................................................................................................19
+   9.2 Sending Notifications .......................................................................................................19
+   9.3 Communication Log & Compliance..................................................................................19
+   9.4 IVR Phone System Integration.........................................................................................20
+   9.5 Campaign Management ..................................................................................................20
+
+Boudreaux's New Drug Store           Page 3
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+1. Prescription Intake & Fill Process
+
+This section covers the complete lifecycle of a prescription from the moment it enters the BNDS
+PMS through final dispensing to the patient. The system supports multiple intake channels and
+guides each prescription through a structured workflow to ensure accuracy, safety, and
+regulatory compliance.
+
+1.1 Prescription Entry Channels
+
+Prescriptions enter the system through one of five channels. Each source is tracked for
+reporting and audit purposes.
+
+    · eRx via SureScripts -- Electronic prescriptions received directly from prescriber EMR
+         systems
+
+    · Prescriber Portal -- Prescriptions submitted by providers through the BNDS web portal
+    · Walk-in -- Paper prescriptions presented at the counter and manually entered by staff
+    · Phone/Fax -- Prescriptions called in or faxed by the prescriber's office
+    · Patient Portal -- Refill requests submitted by patients online
+
+System Action (Automated)
+
+When an eRx or portal prescription arrives, the system automatically creates an Intake Queue entry,
+attempts patient matching by name/DOB/phone, and assigns a priority level (Normal, Urgent, or
+STAT).
+
+1.2 Intake Queue Processing
+
+All incoming prescriptions land in the Intake Queue where they await review and processing by
+pharmacy staff.
+
+    1. Staff opens the Intake Queue from the sidebar navigation.
+    2. Each entry shows: patient name, prescriber, medication, source, priority badge, and
+
+         current status.
+    3. Staff reviews the prescription details for completeness and clinical appropriateness.
+    4. If the patient is not already in the system, staff creates a new patient record with
+
+         demographics, allergies, insurance, and phone numbers.
+    5. Staff matches the prescription to an existing patient record using MRN, name, or phone
+
+         lookup.
+    6. Staff verifies insurance eligibility and selects the appropriate plan for billing.
+    7. The prescription is moved from Intake to the appropriate workflow queue (typically Print).
+
+  Staff Role: Pharmacy Technician
+  Reviews intake entries, creates/matches patient records, verifies insurance, and advances
+  prescriptions into the workflow queue.
+
+Boudreaux's New Drug Store           Page 4
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+1.3 Adjudication & Claims Processing
+
+Before a prescription can be filled, the system submits a claim to the patient's insurance for
+adjudication.
+
+    1. The system builds an NCPDP claim transaction with drug NDC, quantity, days supply,
+         prescriber NPI, and patient insurance details.
+
+    2. The claim is submitted electronically to the payer/PBM.
+    3. The system receives a response: Paid, Rejected, or Pending.
+    4. If Paid: the copay amount is stored on the fill record. The prescription advances to Print.
+    5. If Rejected: the prescription moves to the Reject queue with the rejection code and
+
+         message. Staff reviews and resolves (e.g., prior auth, DAW change, plan override).
+    6. If Pending: the prescription remains in an adjudicating state until a response is received.
+
+System Action (Automated)
+
+Claims are submitted automatically when a prescription enters the adjudication stage. Rejection codes
+are parsed and displayed with human-readable descriptions. Claim history is logged for audit.
+
+1.4 Label Printing & Fill
+
+    1. Staff selects a prescription from the Print queue.
+    2. The system generates a label with: patient name, medication name/strength, directions
+
+         (SIG), quantity, refills remaining, prescriber, pharmacy info, lot number, expiration, and
+         required warnings.
+    3. The label prints to the configured Zebra or Dymo label printer.
+    4. The technician selects the correct drug stock from inventory, verifies the NDC barcode
+         against the prescription record, counts or measures the medication, and affixes the
+         label.
+    5. The prescription advances to the Scan queue.
+
+  Staff Role: Pharmacy Technician
+  Prints labels, selects drug stock, performs NDC verification scan, counts/measures medication, and
+  affixes labels to containers.
+
+1.5 Scan & Pharmacist Verification
+
+    1. Staff scans the filled prescription's barcode at the Scan station.
+    2. The system displays the prescription details alongside the scanned product for visual
+
+         comparison.
+    3. The prescription moves to the Verify queue.
+
+Boudreaux's New Drug Store           Page 5
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+4. The pharmacist (RPh) reviews the filled prescription: correct drug, correct strength,
+    correct quantity, correct patient, correct label, and no drug interactions or clinical
+    concerns.
+
+5. The pharmacist either approves (moves to Waiting Bin) or rejects (sends back to Print
+    with notes).
+
+Staff Role: Pharmacist (RPh)
+
+Performs final verification: drug/dose/patient check, DUR review, clinical judgment. This step is legally
+required and cannot be performed by technicians.
+
+1.6 Waiting Bin & Patient Pickup
+
+    1. Verified prescriptions are assigned a physical bin location (e.g., A1, B3, Z12) and placed
+         in the waiting bin area.
+
+    2. The system tracks how long each prescription has been in the bin. Items over 14 days
+         are flagged as overdue.
+
+    3. When the patient arrives, staff searches by name, Rx number, or MRN on the Pickup
+         screen.
+
+    4. Staff collects the copay via the POS module (cash, credit card, or insurance-only).
+    5. The patient signs for receipt (via signature pad if configured).
+    6. The prescription status changes to Sold. The fill is complete.
+
+  System Action (Automated)
+  The system sends an automated notification (email/SMS) to the patient when their prescription enters
+  the waiting bin, informing them it is ready for pickup. Overdue items trigger return-to-stock (RTS)
+  workflows after the configured threshold.
+
+Boudreaux's New Drug Store           Page 6
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+2. Compounding & Drug Manufacturing
+
+This section describes how custom-compounded medications are created within the PMS, from
+formula design through batch production and quality release. The compounding module
+maintains full traceability for every batch produced.
+
+2.1 Formula Creation & Management
+
+    1. Navigate to Compounding > Formulas > New Formula.
+    2. Enter the formula name, formula code, dosage form (cream, capsule, suspension, etc.),
+
+         and route of administration.
+    3. Add each ingredient: select from the inventory catalog, specify the quantity and unit of
+
+         measure, and mark whether it is an active or inactive ingredient.
+    4. Define compounding instructions as step-by-step text entries (e.g., "Weigh Active A to
+
+         5.0g", "Levigate with base", "Mix 10 minutes at medium speed").
+    5. Set the default Beyond-Use Date (BUD) in days based on USP <795>/<797> stability
+
+         data.
+    6. Save the formula. A version 1.0 is automatically created.
+
+Staff Role: Pharmacist (RPh)
+
+Creates and approves all formulas. Only pharmacists can modify active formulas or create new
+versions.
+
+2.2 Batch Production
+
+    1. Navigate to Compounding > Batches > New Batch.
+    2. Select the formula and version. Enter the desired batch quantity and unit.
+    3. The system generates a unique batch number in the format BYYYYMMDD-### (e.g.,
+
+         B20260416-001).
+    4. The system calculates scaled ingredient quantities based on the batch size.
+    5. The compounder weighs/measures each ingredient. If a pharmacy scale is connected,
+
+         the measured weight is captured automatically via the Web Serial API.
+    6. The compounder records the lot number and expiration date for each ingredient used
+
+         (for full traceability).
+    7. The compounder follows each compounding step, marking each as complete.
+    8. The batch status changes to Completed.
+
+  Staff Role: Pharmacy Technician (Compounder)
+  Performs the physical compounding: weighing, mixing, encapsulating, or preparing the dosage form
+  according to the formula instructions.
+
+Boudreaux's New Drug Store           Page 7
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+2.3 Quality Assurance & Release
+
+    1. The pharmacist opens the completed batch record for QA review.
+
+    2. The pharmacist verifies: correct formula version, correct ingredient quantities, lot
+         numbers recorded, all steps completed, visual/physical inspection acceptable.
+
+    3. The pharmacist assigns or confirms the Beyond-Use Date.
+
+    4. If QA passes: the batch status changes to Verified, then Released. The batch is now
+         available for dispensing.
+
+    5. If QA fails: the batch is marked as Failed with a reason. The batch is quarantined and
+         cannot be dispensed.
+
+    6. Labels are printed for the batch containers with batch number, formula name, BUD,
+         storage conditions, and lot info.
+
+Staff Role: Pharmacist (RPh)
+
+Performs QA verification, assigns BUD, and releases or rejects the batch. This is a legally required
+pharmacist-only function.
+
+Boudreaux's New Drug Store           Page 8
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+3. Hardware Integration
+
+The PMS supports direct integration with pharmacy hardware devices through the browser's
+Web Serial API and standard USB/network protocols. All hardware configuration is managed
+from Settings > Hardware.
+
+3.1 Pharmacy Scales
+
+    1. Connect the scale to the workstation via USB or RS-232 serial cable.
+    2. Navigate to Settings > Hardware > Scales.
+    3. Click "Add Scale" and select the serial port from the browser's device picker (Web Serial
+
+         API).
+    4. Configure the baud rate, data bits, and protocol to match the scale manufacturer
+
+         (common: 9600 baud, 8N1).
+    5. Test the connection by placing a known weight on the scale and verifying the reading
+
+         appears in the PMS.
+    6. Once configured, weights are automatically captured during compounding batch
+
+         production when the compounder clicks "Read Scale" at each ingredient step.
+
+3.2 Label Printers
+
+The PMS generates prescription labels in standard pharmacy label formats compatible with
+Zebra and Dymo thermal printers.
+
+    · Zebra printers: Connect via USB or network. Configure in Settings > Hardware > Label
+         Printers. Select the printer model, label width (standard 4), and print density.
+
+    · Dymo printers: Connect via USB. The system auto-detects Dymo LabelWriter models.
+    · Labels include: patient name, medication, SIG, quantity, refills, prescriber, warnings,
+
+         barcode, and pharmacy information.
+
+3.3 Barcode Scanners
+
+Barcode scanners are used for NDC verification during the fill process and for patient lookup at
+pickup.
+
+    · Any USB HID barcode scanner works out of the box (keyboard wedge mode).
+    · Scan an NDC barcode during the fill process to verify the correct drug product matches
+
+         the prescription.
+    · Scan a prescription barcode at the pickup counter to quickly locate the patient's order.
+
+3.4 Receipt Printers & Signature Pads
+
+    · Receipt printers: Configured in Settings > Hardware > Receipt Printers. Used at the POS
+         for transaction receipts.
+
+Boudreaux's New Drug Store           Page 9
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+· Signature pads: Connected via USB. Configured in Settings > Hardware > Signature
+    Capture. Used at pickup to capture patient signature for receipt acknowledgment and
+    controlled substance logs.
+
+Boudreaux's New Drug Store           Page 10
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+4. Reports & Analytics
+
+The Reports and Analytics modules provide pharmacy leadership with operational intelligence,
+performance metrics, and compliance data. Reports can be filtered by date range and exported
+to CSV or PDF.
+
+4.1 Available Reports
+
+    · Daily Fill Report -- All prescriptions filled on a given date, with patient, drug, quantity,
+         copay, and fill technician.
+
+    · Rx Volume Trends -- Bar/line charts showing prescription volume over time (7 days, 30
+         days, 90 days, YTD).
+
+    · Revenue by Category -- Breakdown of revenue by payment type (insurance, cash,
+         copay) with dollar amounts and percentages.
+
+    · Top Drugs Dispensed -- Ranked list of the most-filled medications by fill count and
+         revenue.
+
+    · Turnaround Times -- Average time prescriptions spend in each workflow stage (intake
+         to sold).
+
+    · Claim Acceptance Rate -- Percentage of claims accepted vs. rejected, with top rejection
+         codes.
+
+    · Technician Productivity -- Fills per technician per day, ranked by volume.
+    · Patient Metrics -- New patients, active/inactive counts, active ratio, and top patients by
+
+         Rx count.
+    · Compounding Batch Log -- All batches produced with formula, quantity, compounder,
+
+         verifier, and QA status.
+    · Inventory Report -- Current stock levels, expiration alerts, low-stock items, and reorder
+
+         status.
+
+4.2 Analytics Dashboard
+
+The Analytics Dashboard (accessible from the Analytics tab) provides a unified view of all KPIs:
+    8. Select a date range using the period selector (7d, 30d, 90d, YTD).
+    9. Review the KPI summary cards: Total Fills, Revenue, Average Fills/Day, Claim
+         Acceptance Rate, Active Patients.
+    10. Scroll through interactive sections: Dispensing Trends, Revenue Breakdown, Top 10
+         Drugs, Claims Performance, Payer Mix, Productivity, Patient Metrics, and Compounding.
+    11. Export any report to CSV or PDF using the Export button on each section.
+
+  Staff Role: Pharmacist / Manager
+  Reviews analytics dashboards and reports. Only users with the "reports:read" permission can access
+  the Analytics and Reports modules.
+
+Boudreaux's New Drug Store           Page 11
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+5. Customer Service, Billing & Account Management
+
+This section covers insurance plan management, claims processing, copay collection, payment
+tracking, and patient account management.
+
+5.1 Insurance Plan Setup
+
+    7. Navigate to Insurance > Add Plan.
+    8. Enter plan details: Plan Name, BIN, PCN, Group, Plan Type (commercial, Medicaid,
+
+         Medicare Part D, workers comp), and help desk phone number.
+    9. Save the plan. It is now available when adding insurance to patient records.
+    10. When adding insurance to a patient, select the plan and enter the patient's member ID,
+
+         person code, and relationship code.
+
+5.2 Claims Lifecycle
+
+The claims lifecycle tracks each insurance claim from submission through final payment:
+
+    · Pending -- Claim created, awaiting submission to the PBM.
+    · Submitted -- Claim sent electronically to the payer.
+    · Accepted -- Payer has accepted the claim and provided a reimbursement amount.
+    · Paid -- Payment received from the payer.
+    · Rejected -- Claim denied. Rejection code and reason displayed for staff to resolve.
+    · Reversed -- Previously paid claim reversed (e.g., patient returned medication).
+
+5.3 Point of Sale (POS) & Copay Collection
+
+    6. When a patient picks up their prescription, the cashier opens the POS module.
+    7. The system displays the patient's prescriptions ready for pickup with copay amounts.
+    8. The cashier scans each prescription barcode to add it to the transaction.
+    9. The patient pays via cash, credit card, debit, FSA/HSA card, or account charge.
+    10. A receipt is printed (or emailed). The prescriptions are marked as Sold.
+
+  Staff Role: Cashier / Pharmacy Technician
+  Processes POS transactions, collects copays, handles returns, and manages register sessions
+  (open/close with cash counts).
+
+5.4 AR Aging & Account Management
+
+The Billing module tracks accounts receivable and provides aging reports:
+    · AR Aging Report -- Outstanding balances grouped by 30/60/90/120+ day buckets.
+
+Boudreaux's New Drug Store           Page 12
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+· DIR Fee Tracking -- Direct and Indirect Remuneration fee estimates from PBMs.
+
+· Reconciliation -- Match PBM remittance payments against submitted claims to identify
+    discrepancies.
+
+· Patient Account Balances -- View outstanding balances per patient, apply payments,
+    and send billing notifications.
+
+Boudreaux's New Drug Store           Page 13
+BNDS PMS -- Complete Workflow Guide                                                 Confidential
+
+6. The Workflow Queue System
+
+The Workflow Queue is the backbone of prescription processing in the PMS. It consists of 16
+stages that a prescription may pass through during its lifecycle. The Queue Bar on the
+dashboard shows live counts for each stage, updated every 30 seconds.
+
+6.1 Queue Stages
+
+Each stage represents a specific step in the fill process. Prescriptions move forward through
+stages as staff complete their tasks:
+
+Stage         Description                                                           Handled By
+Intake                                                                              Technician
+Sync          New prescriptions awaiting initial review and patient matching.       System/Tech
+
+Reject        Prescriptions pending synchronization with the patient's fill         Technician
+              schedule.
+Print                                                                               Technician
+Scan          Insurance claims that were rejected. Staff reviews the rejection      Technician
+Verify        code and resolves.                                                    Pharmacist
+
+Out of Stock  Ready for label printing and physical fill (counting/measuring).      Technician
+              Filled prescriptions awaiting barcode scan for product verification.
+Waiting Bin                                                                         Clerk/Tech
+              Scanned prescriptions awaiting pharmacist final verification (RPh
+Renewals      check).                                                               Technician
+Todo                                                                                Any
+Price Check   Prescriptions that cannot be filled because the drug is not in        Technician
+              stock.
+Prepay                                                                              Cashier
+OK to Charge  Verified prescriptions placed in the physical bin, ready for patient  Billing
+Decline       pickup.                                                               Technician
+OK to Charge                                                                        Billing
+Clinic        Prescriptions flagged for renewal requests to the prescriber.
+Mochi
+              General task list items requiring staff follow-up.
+
+              Prescriptions needing manual price verification before
+              processing.
+
+              Prescriptions requiring patient prepayment before fill.
+              Prescriptions approved for patient account charging.
+
+              Prescriptions the patient has declined to fill.
+
+              Clinic-billed prescriptions approved for facility charging.
+
+              Specialty/custom queue for Mochi-specific workflows.                  Technician
+
+6.2 Queue Navigation & Actions
+
+Staff interact with the queue through the Queue page:
+    · Click any queue stage pill at the top to filter the table to that stage.
+    · Each pill shows a live count badge with the number of prescriptions in that stage.
+
+Boudreaux's New Drug Store                                                          Page 14
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+· The table shows Rx number, patient name, medication, prescriber, date, and status for
+    each fill.
+
+· Clicking a row opens the fill detail where staff can take action (advance, reject, hold,
+    cancel).
+
+· The dashboard's Workflow Queue card also shows all 16 stage counts in a compact
+    view.
+
+System Action (Automated)
+
+Queue counts auto-refresh every 30 seconds on the dashboard and every page load on the Queue
+page. The queue bar on the dashboard pulls counts from the system's fill status records in real-time.
+
+Boudreaux's New Drug Store           Page 15
+BNDS PMS -- Complete Workflow Guide                                         Confidential
+
+7. Compounding Processes (Detailed)
+
+This section provides a detailed reference for the compounding module's advanced features
+including formula versioning, lot tracking, batch numbering, and compliance documentation.
+
+7.1 Formula Versioning
+
+Every formula change creates a new version. This maintains a complete audit trail:
+
+    · Version 1.0 is created when the formula is first saved.
+    · Editing a formula (adding/removing ingredients, changing quantities, updating
+
+         instructions) creates a new version (1.1, 1.2, etc.).
+    · Previous versions remain accessible for historical reference.
+    · Batches are always linked to a specific formula version, so you can trace exactly what
+
+         recipe was used.
+
+7.2 Ingredient Lot Tracking
+
+For every ingredient used in a batch, the system records:
+
+    · The ingredient item from the PMS inventory catalog.
+    · The lot number of the physical stock used.
+    · The expiration date of that lot.
+    · The quantity used (and the actual measured weight if captured from a connected scale).
+This enables full forward and backward traceability: from a batch to its ingredients, or from an
+ingredient lot to all batches that used it.
+
+7.3 Batch Numbering
+
+Batches are automatically numbered using the format BYYYYMMDD-### where:
+
+    · B = fixed prefix indicating a compounding batch
+    · YYYYMMDD = the date the batch was created
+    · ### = a sequential number that increments per day (001, 002, 003...)
+Example: B20260416-003 is the third batch created on April 16, 2026.
+
+7.4 Beyond-Use Dating (BUD)
+
+The BUD is the date after which a compounded preparation should not be used. The PMS
+enforces BUD assignment:
+
+    · The default BUD is set on the formula (e.g., 180 days for non-sterile, 14 days for sterile).
+    · The pharmacist may adjust the BUD at QA based on the earliest ingredient expiration or
+
+         stability data.
+
+Boudreaux's New Drug Store                                                  Page 16
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+· The BUD prints on the batch label and is tracked in the system for expiration alerts.
+
+7.5 Compliance Documentation
+
+The compounding module generates all records required for USP <795> and <797>
+compliance:
+
+    · Master Formula Record (MFR) -- The approved formula with all versions.
+    · Compounding Record (CR) -- The batch record with actual quantities, lot numbers,
+
+         compounder, verifier, and QA results.
+    · Batch labels with NDC, lot, BUD, and storage conditions.
+    · All records are retained in the system for the required retention period.
+
+Boudreaux's New Drug Store           Page 17
+BNDS PMS -- Complete Workflow Guide  Confidential
+
+8. Shipping Processes
+
+The Shipping module manages the preparation, dispatch, and tracking of prescription deliveries
+to patients who cannot pick up in-store.
+
+8.1 Creating a Shipment
+
+    7. Navigate to Shipping > New Shipment.
+    8. Select the patient and the prescriptions to include.
+    9. Confirm or update the shipping address from the patient's record.
+    10. Select the carrier: USPS, UPS, or FedEx.
+    11. Enable cold chain tracking if the shipment contains refrigerated medications.
+    12. Enable signature required if the shipment contains controlled substances or high-value
+
+         items.
+    13. Save the shipment. Status is set to Pending.
+
+8.2 Shipment Status Lifecycle
+
+Each shipment progresses through these stages:
+    · Pending -- Shipment created, awaiting packing.
+    · Packed -- Medications packed and ready for carrier pickup.
+    · Shipped -- Carrier has picked up the package. Tracking number entered.
+    · In Transit -- Package is in the carrier's delivery network.
+    · Delivered -- Package delivered to the patient. Confirmation recorded.
+    · Returned -- Package returned to pharmacy (undeliverable, refused, etc.).
+
+  Staff Role: Shipping Clerk
+  Packs shipments, enters tracking numbers, manages carrier pickups, and confirms deliveries.
+
+8.3 Shipping Routes
+
+The Shipping Routes page allows management of recurring delivery routes for local patients:
+
+    · Define routes with a name, driver, and list of delivery stops.
+    · Assign shipments to routes for bulk local delivery.
+    · Track delivery status per stop on the route.
+
+Boudreaux's New Drug Store                                                                     Page 18
+BNDS PMS -- Complete Workflow Guide                               Confidential
+
+9. Patient Messaging & Communications
+
+The Messaging module enables pharmacy staff to send notifications to patients via email and
+SMS, manage communication preferences, and maintain a complete audit log for HIPAA
+compliance.
+
+9.1 Notification Templates
+
+The system includes five pre-built notification templates:
+
+    · Ready for Pickup -- Sent when a prescription enters the waiting bin. Includes patient
+         name, medication, and pharmacy address.
+
+    · Refill Due -- Sent when a patient's medication supply is running low based on days
+         supply calculation.
+
+    · Refill Processed -- Sent when a refill request has been approved and filled.
+    · Shipping Update -- Sent when a shipment status changes (shipped, in transit,
+
+         delivered).
+    · Prescription Expiring -- Sent when a prescription is nearing its expiration date with no
+
+         remaining refills.
+
+9.2 Sending Notifications
+
+    9. Navigate to Messaging from the sidebar.
+    10. Enter the patient's ID or MRN.
+    11. Select the notification template.
+    12. Choose the delivery channels: Email, SMS, or both.
+    13. Click Send Notification.
+    14. The system sends the message through the configured email provider and/or Twilio
+
+         SMS gateway.
+
+  System Action (Automated)
+  Automated notifications (Ready for Pickup, Refill Due, Shipping Updates) are sent automatically by
+  the system based on prescription status changes. Manual notifications can also be sent by staff from
+  the Messaging page.
+
+9.3 Communication Log & Compliance
+
+Every notification sent is logged in the Communication Log with:
+
+    · Patient name and ID
+    · Message template used
+    · Channel (email/SMS)
+    · Timestamp of send
+
+Boudreaux's New Drug Store                                        Page 19
+BNDS PMS -- Complete Workflow Guide                                             Confidential
+
+    · Delivery status (sent, delivered, failed)
+    · Staff member who initiated (if manual)
+This log satisfies HIPAA requirements for tracking all patient communications.
+
+9.4 IVR Phone System Integration
+
+The PMS includes an integrated IVR (Interactive Voice Response) phone system powered by
+Twilio:
+
+    · Patients can call the pharmacy and navigate a phone menu to check prescription status,
+         request refills, or reach a department.
+
+    · Incoming calls are displayed on the Phone Dashboard with caller ID, patient match, and
+         call reason.
+
+    · Staff can place calls on hold, transfer between departments, and end calls directly from
+         the PMS.
+
+    · All calls are logged in the Communication Log with duration, outcome, and assigned
+         staff.
+
+9.5 Campaign Management
+
+For bulk messaging (e.g., flu shot reminders, pharmacy closure notices):
+    7. Navigate to Messaging > Campaigns.
+    8. Create a campaign with a name, target audience (all patients, active patients, patients
+         on a specific drug class, etc.).
+    9. Compose the message or select a template.
+    10. Choose channels and schedule the send time.
+    11. Review and confirm. Messages are sent in batches to avoid rate limits.
+
+  Staff Role: Pharmacist / Manager
+  Creates and approves campaigns. Only users with "communications:write" permission can send bulk
+  messages.
+
+Boudreaux's New Drug Store                                                      Page 20
+

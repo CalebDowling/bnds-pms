@@ -17,21 +17,31 @@ interface QueueItem {
 // for the DRX integration status.
 const defaultQueueItems: QueueItem[] = [
   { label: "Intake", status: "intake", count: 0, tooltip: "View Intake Queue" },
-  { label: "Sync", status: "sync", count: 0, tooltip: "View Sync Queue" },
+  { label: "Sync", status: "sync", count: 0, tooltip: "View Adjudication Queue" },
   { label: "Reject", status: "reject", count: 0, tooltip: "View Rejected Claims" },
   { label: "Print", status: "print", count: 0, tooltip: "View Print Queue" },
   { label: "Scan", status: "scan", count: 0, tooltip: "View Scan Queue" },
   { label: "Verify", status: "verify", count: 0, tooltip: "View Verification Queue" },
+  // Per pharmacist review: pharmacist-rejected fills get their own queue so they
+  // don't get lost in Print on high-volume days.
+  { label: "RPh Rejected", status: "rph_rejected", count: 0, tooltip: "Rx rejected by pharmacist" },
   { label: "OOS", status: "oos", count: 0, tooltip: "View Out of Stock" },
   { label: "Waiting Bin", status: "waiting_bin", count: 0, tooltip: "View Waiting Bin" },
   { label: "Renewals", status: "renewals", count: 0, tooltip: "View Renewals" },
   { label: "Todo", status: "todo", count: 0, tooltip: "View Todo Queue" },
-  { label: "price check", status: "price_check", count: 0, tooltip: "View Price Check Queue" },
-  { label: "prepay", status: "prepay", count: 0, tooltip: "View Prepay Queue" },
-  { label: "ok to charge", status: "ok_to_charge", count: 0, tooltip: "View OK to Charge Queue" },
-  { label: "Decline", status: "decline", count: 0, tooltip: "View Decline Queue" },
-  { label: "ok to charge clinic", status: "ok_to_charge_clinic", count: 0, tooltip: "View OK to Charge Clinic" },
-  { label: "mochi", status: "mochi", count: 0, tooltip: "View Mochi Queue" },
+  { label: "Price Check", status: "price_check", count: 0, tooltip: "View Price Check Queue" },
+  { label: "Prepay", status: "prepay", count: 0, tooltip: "View Prepay Queue" },
+  { label: "OK to Charge", status: "ok_to_charge", count: 0, tooltip: "View OK to Charge Queue" },
+  // Per pharmacist review: "Decline" is for *payment-declined* prescriptions,
+  // not patient-declined.
+  { label: "Decline", status: "decline", count: 0, tooltip: "Rx where payment was declined" },
+  { label: "OK to Charge Clinic", status: "ok_to_charge_clinic", count: 0, tooltip: "View OK to Charge Clinic" },
+  // Per pharmacist review: this is the RPh QA/QC queue for compounds finalized
+  // by compounding technicians, not a generic catch-all. Replaced the legacy
+  // "Mochi" label/key so the queue intent is clear.
+  { label: "Compound QA", status: "compound_qa", count: 0, tooltip: "RPh QA/QC for finished compounds" },
+  // Centralized telehealth queue (Lumi, Mochi, etc. — single queue, source-tagged).
+  { label: "Telehealth", status: "telehealth", count: 0, tooltip: "Lumi / Mochi / other telehealth Rx" },
 ];
 
 export default function QueueBar() {

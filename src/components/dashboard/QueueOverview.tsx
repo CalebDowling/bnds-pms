@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getQueueCounts } from "@/app/(dashboard)/dashboard/actions";
 
+// Queue groupings updated April 2026 per pharmacist review:
+//   - "RPh Rejected" surfaced under Attention Needed (was implicitly in Print).
+//   - "Compound QA" replaces the catch-all "Mochi" key for compound RPh QA/QC.
+//   - "Telehealth" added as the centralized queue for Lumi/Mochi/etc. partners.
 const QUEUE_GROUPS = [
   {
     title: "Workflow",
@@ -19,8 +23,9 @@ const QUEUE_GROUPS = [
     title: "Attention Needed",
     queues: [
       { key: "reject", label: "Reject", color: "#ef4444" },
+      { key: "rph_rejected", label: "RPh Rejected", color: "#dc2626" },
       { key: "oos", label: "OOS", color: "#f59e0b" },
-      { key: "decline", label: "Decline", color: "#ef4444" },
+      { key: "decline", label: "Decline (Payment)", color: "#ef4444" },
     ],
   },
   {
@@ -30,7 +35,8 @@ const QUEUE_GROUPS = [
       { key: "prepay", label: "Prepay", color: "#14b8a6" },
       { key: "ok_to_charge", label: "OK to Charge", color: "#40721D" },
       { key: "ok_to_charge_clinic", label: "Clinic Charge", color: "#40721D" },
-      { key: "mochi", label: "Mochi", color: "#6366f1" },
+      { key: "compound_qa", label: "Compound QA", color: "#7c3aed" },
+      { key: "telehealth", label: "Telehealth", color: "#0891b2" },
     ],
   },
   {
