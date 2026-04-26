@@ -470,19 +470,31 @@ export interface VerifyChecklistInput {
   pdmpChecked?: boolean; // only required for controlled substances
 }
 
+/**
+ * Result envelope for the verify-checklist save. Mirrors {@link ProcessFillResult}
+ * — we return `{ success, error }` instead of throwing because Next.js production
+ * sanitizes server-action throws to the generic "Server Components render" error,
+ * which hides the actionable validation message ("PDMP check is required for
+ * controlled substances", etc.) from the pharmacist.
+ */
+export interface RecordChecklistResult {
+  success: boolean;
+  error?: string;
+}
+
 export async function recordVerifyChecklist(
   fillId: string,
   checklist: VerifyChecklistInput
-) {
+): Promise<RecordChecklistResult> {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Not authenticated");
+  if (!user) return { success: false, error: "Not authenticated" };
 
   const fill = await prisma.prescriptionFill.findUnique({
     where: { id: fillId },
     select: { metadata: true, item: { select: { isControlled: true, deaSchedule: true } } },
   });
 
-  if (!fill) throw new Error("Fill not found");
+  if (!fill) return { success: false, error: "Fill not found" };
 
   // For controlled substances the PDMP check is required. `deaSchedule` is a
   // VARCHAR in the DB ("II", "III", "II"), not a number — so just treating any
@@ -490,7 +502,10 @@ export async function recordVerifyChecklist(
   const isControlled =
     !!fill.item?.isControlled || fill.item?.deaSchedule != null;
   if (isControlled && !checklist.pdmpChecked) {
-    throw new Error("PDMP check is required for controlled substances");
+    return {
+      success: false,
+      error: "PDMP check is required for controlled substances",
+    };
   }
 
   const allChecked =
@@ -502,7 +517,10 @@ export async function recordVerifyChecklist(
     (!isControlled || checklist.pdmpChecked);
 
   if (!allChecked) {
-    throw new Error("All review items must be checked before verification");
+    return {
+      success: false,
+      error: "All review items must be checked before verification",
+    };
   }
 
   const existingMetadata = (fill.metadata as Record<string, unknown>) || {};
@@ -614,12 +632,27 @@ export interface PickupChecklistInput {
   pickupNotes?: string;
 }
 
+/**
+ * Persist the pickup checklist as fill metadata + a FillEvent audit row.
+ *
+ * Returns {@link RecordChecklistResult} — `{ success, error }` envelope. We
+ * intentionally don't throw for validation failures because Next.js production
+ * sanitizes server-action throws to the generic "Server Components render"
+ * error, hiding the actionable message ("Counseling must be offered before
+ * dispense (OBRA-90).") from the pharmacist. The caller (Process page) reads
+ * `result.error` and surfaces it in the soldGateError banner.
+ *
+ * Validation here is a UI-friendly gate; the workflow guard
+ * (advanceFillStatus → "Pickup checklist incomplete — Counseling not offered,
+ * Signature missing") is the authoritative gate at the transition layer and
+ * also returns the same envelope shape.
+ */
 export async function recordPickupChecklist(
   fillId: string,
   checklist: PickupChecklistInput
-) {
+): Promise<RecordChecklistResult> {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Not authenticated");
+  if (!user) return { success: false, error: "Not authenticated" };
 
   const fill = await prisma.prescriptionFill.findUnique({
     where: { id: fillId },
@@ -633,22 +666,23 @@ export async function recordPickupChecklist(
     },
   });
 
-  if (!fill) throw new Error("Fill not found");
+  if (!fill) return { success: false, error: "Fill not found" };
   if (fill.status !== "waiting_bin") {
-    throw new Error(
-      `Cannot record pickup checklist for a fill in "${fill.status}" — must be in Waiting Bin first.`
-    );
+    return {
+      success: false,
+      error: `Cannot record pickup checklist for a fill in "${fill.status}" — must be in Waiting Bin first.`,
+    };
   }
 
-  if (!checklist.counselOffered) {
-    throw new Error("Counseling must be offered before dispense (OBRA-90).");
-  }
-  if (!checklist.signatureCaptured) {
-    throw new Error("Patient signature is required before dispense.");
-  }
-  if (!checklist.paymentReceived) {
-    throw new Error("Payment must be collected before dispense.");
-  }
+  // Aggregate missing items into a single readable banner — same shape as the
+  // workflow guard's "Pickup checklist incomplete — Counseling not offered,
+  // Signature missing, Payment not collected." so the regex in
+  // surfaceWorkflowError() routes the message into the sold-gate banner with
+  // an override path instead of the generic error toast.
+  const missing: string[] = [];
+  if (!checklist.counselOffered) missing.push("Counseling not offered");
+  if (!checklist.signatureCaptured) missing.push("Signature missing");
+  if (!checklist.paymentReceived) missing.push("Payment not collected");
 
   // Controlled-substance ID gate (R6-#20). DEA Schedule II–V drugs require
   // a government-issued ID check at the register before dispense. Fall back
@@ -661,9 +695,14 @@ export async function recordPickupChecklist(
       (schedule.startsWith("C") ||
         ["II", "III", "IV", "V"].includes(schedule)));
   if (isControlled && !checklist.idVerified) {
-    throw new Error(
-      "Government-issued ID check is required for controlled substances."
-    );
+    missing.push("ID not verified (controlled substance)");
+  }
+
+  if (missing.length > 0) {
+    return {
+      success: false,
+      error: `Pickup checklist incomplete — ${missing.join(", ")}.`,
+    };
   }
 
   const existingMetadata = (fill.metadata as Record<string, unknown>) || {};

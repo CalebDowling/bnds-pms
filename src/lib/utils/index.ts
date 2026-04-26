@@ -5,6 +5,8 @@ export {
   formatPatientName,
   formatPrescriberName,
   formatDrugName,
+  formatDrugWithStrength,
+  formatSpecialty,
   formatFillNumber,
   formatDate,
   formatDOB,

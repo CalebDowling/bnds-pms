@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import bwipjs from "bwip-js";
+import { toTitleCase as sharedToTitleCase } from "@/lib/utils/formatters";
 
 /**
  * Generic DRX template PDF renderer.
@@ -131,6 +132,65 @@ const LIST_STYLE_KEYS = new Set([
   "aux_labels",
   "in_pack_items",
   "days",
+]);
+
+// Human-readable elementData keys that should render in Title Case on the
+// printed label, even when the DRX template element has `forceUpperCase`
+// flagged. The template feed comes from DRX with ALL CAPS body sections
+// (vial body, bag, receipt body) because that's the legacy DRX style; for our
+// patient-facing labels we want first-letter caps for readability while still
+// honoring genuinely-uppercase fields (state code, NDC, DEA #, barcode payloads).
+//
+// The data mapper Title-Cases these keys on the way in via formatPatientName /
+// formatDrugName / formatPrescriberName / toTitleCase; the renderer's
+// forceUpperCase pass would otherwise undo that. We re-Title-Case after
+// forceUpperCase so the template's flag is effectively a no-op for these keys.
+const TITLE_CASE_KEYS = new Set([
+  // Patient — names + address
+  "patient.first_name",
+  "patient.last_name",
+  "patient.first_name|patient.last_name",
+  "patient.default_address.lineOne",
+  "patient.default_address.lineTwo",
+  "patient.default_address.lineOne|patient.default_address.lineTwo",
+  "patient.default_address.city",
+  "patient.default_address.city|patient.default_address.state|patient.default_address.zip",
+  "patient.default_address.lineOne|patient.default_address.lineTwo|patient.default_address.city|patient.default_address.state|patient.default_address.zip",
+  // Prescriber — names + address
+  "prescription.doctor.first_name",
+  "prescription.doctor.last_name",
+  "prescription.doctor.first_name|prescription.doctor.last_name",
+  "prescription.doctor.default_address.lineOne",
+  "prescription.doctor.default_address.lineTwo",
+  "prescription.doctor.default_address.lineOne|prescription.doctor.default_address.lineTwo",
+  "prescription.doctor.default_address.city",
+  "prescription.doctor.default_address.city|prescription.doctor.default_address.state|prescription.doctor.default_address.zip",
+  "prescription.doctor.default_address.lineOne|prescription.doctor.default_address.lineTwo|prescription.doctor.default_address.city|prescription.doctor.default_address.state|prescription.doctor.default_address.zip",
+  // Drug — name + manufacturer (NDC, DEA #, etc. stay uppercase)
+  "item.name",
+  "item.print_name",
+  "item.manufacturer",
+  // SIG — directions like "Take one tablet by mouth daily" read terribly in
+  // ALL CAPS on a vial label.
+  "prescription.sig_translated",
+  // Insurance plan name (display field, not a code)
+  "primary_third_party.name",
+]);
+
+// elementData keys whose `falsey_override` should be ignored — DRX's legacy
+// templates encode boolean flags by emitting a 3-character abbreviation
+// ("ESY" for "easy open: NO", etc.) when the value is falsy. Our labels
+// don't surface those flags as text, so an empty value should render
+// nothing at all rather than the legacy short code.
+//
+// Symptom this fixes: the "ESY" artifact between DOB and SIG on the vial
+// label was the falsey_override on `patient.easy_open` being substituted
+// because the data mapper sets that key to "" (we don't track easy-open
+// preference). Suppressing the override here keeps the slot blank.
+const SUPPRESS_FALSEY_OVERRIDE_KEYS = new Set([
+  "patient.easy_open",
+  "patient.delivery_method",
+  "patient.comments",
 ]);
 
 // Substring fingerprint of the compound-disclaimer template text. We use this
@@ -304,9 +364,27 @@ function resolveValue(
     }
   }
 
+  // Label-text overrides — patch legacy DRX label copy that maps to misleading
+  // semantics in our system. The "Qty Rem: N" element is bound to refills
+  // remaining (not pill count), so the label text is misleading; replace it
+  // with "Refills Rem: N". We patch after template substitution but before
+  // case transforms so the override participates in forceUpperCase normally.
+  if (val && /qty\s*rem/i.test(val) && key === "prescription.total_qty_remaining") {
+    val = val.replace(/qty\s*rem/gi, "Refills Rem");
+  }
+
   // Apply text transforms
   if (element.forceUpperCase && val) val = val.toUpperCase();
   if (element.forceLowerCase && val) val = val.toLowerCase();
+  // Re-apply Title Case for human-readable keys whose DRX template forces
+  // ALL CAPS (legacy DRX vial-body / bag / receipt-body convention). The data
+  // mapper produces Title Case via formatPatientName / formatDrugName /
+  // formatPrescriberName; we run sharedToTitleCase here as a belt-and-
+  // suspenders pass so a forced-uppercase template element is overridden for
+  // these keys without touching the template feed itself.
+  if (TITLE_CASE_KEYS.has(key) && val) {
+    val = sharedToTitleCase(val);
+  }
   if (element.maxTextLength && val && val.length > element.maxTextLength) {
     val = val.substring(0, element.maxTextLength);
   }
@@ -315,7 +393,14 @@ function resolveValue(
   if (element.truthyOverride && val && val !== "0" && val.toLowerCase() !== "false") {
     val = element.truthyOverride;
   }
-  if (element.falseyOverride && (!val || val === "0" || val.toLowerCase() === "false")) {
+  // Suppress the falsey_override for keys we don't surface — otherwise the
+  // legacy DRX boolean abbreviations ("ESY" for easy_open=NO, etc.) leak onto
+  // the label as a 3-character artifact between DOB and SIG.
+  if (
+    element.falseyOverride &&
+    !SUPPRESS_FALSEY_OVERRIDE_KEYS.has(key) &&
+    (!val || val === "0" || val.toLowerCase() === "false")
+  ) {
     val = element.falseyOverride;
   }
 

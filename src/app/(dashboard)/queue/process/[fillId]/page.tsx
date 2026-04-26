@@ -53,6 +53,7 @@ import {
   formatPatientName,
   formatPrescriberName,
   formatDrugName,
+  formatDrugWithStrength,
   formatFillNumber,
 } from "@/lib/utils/formatters";
 import { formatPhone } from "@/lib/utils";
@@ -65,6 +66,64 @@ function statusColor(status: string): string {
 
 function statusLabel(status: string): string {
   return FILL_STATUS_META[status]?.label || status;
+}
+
+/**
+ * Activity log notes are stored as JSON-stringified payloads (verify checklist,
+ * pickup checklist, sold-override reason, etc.) so the audit trail keeps the
+ * full attestation. Rendering the raw JSON in the sidebar — `{"drugCorrect":true,
+ * "soldBy":"ed726143-…"}` — is hostile to a pharmacist glancing at the log.
+ *
+ * This helper converts known event payloads into human-readable bullet lines:
+ *   verify_checklist  → "Drug correct ✓, Qty correct ✓, …"
+ *   pickup_checklist  → "Counsel offered ✓, Signature ✓, …  Notes: …"
+ *   SOLD_OVERRIDE     → "Bypassed: counseling. Reason: …"
+ *
+ * Falls back to the raw notes string if the payload doesn't parse — we never
+ * want to drop information from the audit log just because of a display bug.
+ */
+function formatEventNotes(eventType: string | null | undefined, notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  // Non-JSON notes (free-form text like "Pickup-ready SMS sent to …") render as-is.
+  if (!notes.startsWith("{") && !notes.startsWith("[")) return notes;
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(notes);
+  } catch {
+    return notes;
+  }
+  const labels: Record<string, string> = {
+    drugCorrect: "Drug correct",
+    quantityCorrect: "Qty correct",
+    sigCorrect: "SIG correct",
+    noInteractions: "No interactions",
+    ndcVerified: "NDC verified",
+    pdmpChecked: "PDMP checked",
+    counselOffered: "Counseling offered",
+    counselAccepted: "Counseling accepted",
+    signatureCaptured: "Signature captured",
+    paymentReceived: "Payment received",
+    idVerified: "ID verified",
+  };
+  const checks: string[] = [];
+  for (const [k, v] of Object.entries(parsed)) {
+    if (typeof v === "boolean" && labels[k]) {
+      checks.push(`${labels[k]} ${v ? "\u2713" : "\u2717"}`);
+    }
+  }
+  const tail: string[] = [];
+  if (typeof parsed.pickupNotes === "string" && parsed.pickupNotes) {
+    tail.push(`Notes: ${parsed.pickupNotes}`);
+  }
+  if (typeof parsed.reason === "string" && parsed.reason) {
+    tail.push(`Reason: ${parsed.reason}`);
+  }
+  if (eventType === "SOLD_OVERRIDE" && parsed.bypassed) {
+    const bypassed = Array.isArray(parsed.bypassed) ? parsed.bypassed.join(", ") : String(parsed.bypassed);
+    tail.unshift(`Bypassed: ${bypassed}`);
+  }
+  const out = [...checks, ...tail].filter(Boolean);
+  return out.length > 0 ? out.join("  \u00b7  ") : null;
 }
 
 // ─── Main Page ────────────────────────────────────────────────────
@@ -288,21 +347,35 @@ export default function FillProcessPage() {
     try {
       // If the pharmacist is moving from Verify → Waiting Bin, persist the
       // checklist first so the audit trail records who attested to each item.
+      // recordVerifyChecklist returns an envelope ({ success, error }) so the
+      // production Next.js runtime can't sanitize a thrown validation message
+      // ("All review items must be checked before verification") into the
+      // generic Server Components render error.
       if (newStatus === "waiting_bin" && fill.status === "verify") {
-        await recordVerifyChecklist(fill.id, checklist);
+        const verifyResult = await recordVerifyChecklist(fill.id, checklist);
+        if (!verifyResult.success) {
+          setError(verifyResult.error || "Verify checklist failed");
+          setProcessing(false);
+          return;
+        }
       }
       // For waiting_bin → sold, persist the pickup checklist (counsel /
       // signature / payment / id) before the workflow guard checks for it.
+      // Like recordVerifyChecklist, this returns an envelope so production
+      // doesn't strip "Pickup checklist incomplete — Counseling not offered,
+      // Signature missing, Payment not collected." down to the generic
+      // "Server Components render error". The message shape matches the
+      // surfaceWorkflowError() regex so it routes into the soldGateError
+      // banner (which renders the override-with-reason modal) instead of
+      // the inline error toast.
       if (newStatus === "sold" && fill.status === "waiting_bin") {
-        try {
-          await recordPickupChecklist(fill.id, pickup);
-        } catch (e) {
-          // Surface checklist failures as sold-gate errors so the override
-          // modal can offer a bypass path (R6-#20). The recorded checklist
-          // is metadata, not a hard gate, so we still proceed to attempt
-          // processFill — the workflow guard owns the hard gate.
-          const msg = e instanceof Error ? e.message : "Pickup checklist failed";
-          setSoldGateError(msg);
+        const pickupResult = await recordPickupChecklist(fill.id, pickup);
+        if (!pickupResult.success) {
+          surfaceWorkflowError(
+            pickupResult.error || "Pickup checklist failed",
+            newStatus,
+            fill.status
+          );
           setProcessing(false);
           return;
         }
@@ -644,24 +717,14 @@ export default function FillProcessPage() {
 
   return (
     <div>
+      {/* The dashboard layout's <Breadcrumbs /> already renders the
+          Home › Queue › <fillId> trail. We register a friendly label
+          for the fillId segment via BreadcrumbLabel so the global
+          breadcrumb shows "Patient — Drug (Fill #N)" instead of a
+          UUID. We previously also rendered an inline breadcrumb here,
+          which produced two visually identical breadcrumb rows on the
+          process page; that copy is removed. */}
       <BreadcrumbLabel segment={fillId} label={fillBreadcrumbLabel} />
-      {/* Breadcrumb — friendly label "Patient Name — Drug Name (Fill #N)"
-          instead of the fill UUID, so a tech glancing at the URL chrome
-          sees what they're looking at. */}
-      <div className="px-6 py-2.5 text-xs flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
-        <Link href="/dashboard" className="no-underline font-medium hover:underline" style={{ color: "var(--green-700)" }}>Home</Link>
-        <span style={{ color: "#c5d5c9" }}>&rsaquo;</span>
-        <Link href="/queue" className="no-underline font-medium hover:underline" style={{ color: "var(--green-700)" }}>Queue</Link>
-        <span style={{ color: "#c5d5c9" }}>&rsaquo;</span>
-        <span className="font-semibold" style={{ color: "var(--text-secondary)" }}>
-          {formatPatientName(fill.patient)}
-          {" \u2014 "}
-          {formatDrugName(fill.item?.name) || "Compound"}
-          {" (Fill #"}
-          {formatFillNumber(fill.fillNumber)}
-          {")"}
-        </span>
-      </div>
 
       <div className="px-6 pb-6">
         {/* Header */}
@@ -718,7 +781,7 @@ export default function FillProcessPage() {
                   )}
                   {fill.patient.phoneNumbers[0] && (
                     <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                      {fill.patient.phoneNumbers[0].number}
+                      {formatPhone(fill.patient.phoneNumbers[0].number)}
                     </p>
                   )}
                   {fill.patient.insurance.length > 0 && (
@@ -736,11 +799,13 @@ export default function FillProcessPage() {
                     <Pill className="w-3.5 h-3.5" /> Drug
                   </h3>
                   <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-                    {fill.item?.name ? formatDrugName(fill.item.name) : "Unknown"}
+                    {fill.item?.name
+                      ? formatDrugWithStrength(fill.item.name, fill.item.strength)
+                      : "Compound"}
                   </p>
-                  {fill.item?.strength && (
+                  {fill.item?.dosageForm && (
                     <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                      {fill.item.strength} {fill.item.dosageForm || ""}
+                      {formatDrugName(fill.item.dosageForm)}
                     </p>
                   )}
                   <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
@@ -907,7 +972,23 @@ export default function FillProcessPage() {
                   </button>
                   {fill.patient.insurance.length === 0 && (
                     <p className="text-[11px] text-amber-700">
-                      No active insurance on file — add a plan or send to Prepay.
+                      No active insurance on file —{" "}
+                      <Link
+                        href={`/patients/${fill.patient.id}`}
+                        className="underline font-semibold hover:text-amber-900"
+                      >
+                        add a plan
+                      </Link>{" "}
+                      or{" "}
+                      <button
+                        type="button"
+                        onClick={() => handleAdvance("prepay")}
+                        disabled={processing}
+                        className="underline font-semibold hover:text-amber-900 disabled:opacity-50"
+                      >
+                        send to Prepay
+                      </button>
+                      .
                     </p>
                   )}
                 </div>
@@ -1736,21 +1817,24 @@ export default function FillProcessPage() {
                 <p className="text-xs italic" style={{ color: "var(--text-muted)" }}>No events yet</p>
               ) : (
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {fill.events.map((event, i) => (
-                    <div key={i} className="text-xs border-l-2 pl-2 py-0.5" style={{ borderColor: "var(--border)" }}>
-                      <p className="font-medium" style={{ color: "var(--text-primary)" }}>
-                        {event.fromValue && event.toValue
-                          ? `${statusLabel(event.fromValue)} → ${statusLabel(event.toValue)}`
-                          : event.eventType}
-                      </p>
-                      <p style={{ color: "var(--text-muted)" }}>
-                        {event.performerName} &middot; {formatDateTime(event.createdAt)}
-                      </p>
-                      {event.notes && (
-                        <p className="italic" style={{ color: "var(--text-secondary)" }}>{event.notes}</p>
-                      )}
-                    </div>
-                  ))}
+                  {fill.events.map((event, i) => {
+                    const humanNotes = formatEventNotes(event.eventType, event.notes);
+                    return (
+                      <div key={i} className="text-xs border-l-2 pl-2 py-0.5" style={{ borderColor: "var(--border)" }}>
+                        <p className="font-medium" style={{ color: "var(--text-primary)" }}>
+                          {event.fromValue && event.toValue
+                            ? `${statusLabel(event.fromValue)} \u2192 ${statusLabel(event.toValue)}`
+                            : event.eventType}
+                        </p>
+                        <p style={{ color: "var(--text-muted)" }}>
+                          {event.performerName} &middot; {formatDateTime(event.createdAt)}
+                        </p>
+                        {humanNotes && (
+                          <p className="italic" style={{ color: "var(--text-secondary)" }}>{humanNotes}</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

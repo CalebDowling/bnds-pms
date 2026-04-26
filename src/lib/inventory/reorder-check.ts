@@ -233,6 +233,19 @@ export async function getReorderStatus() {
     const critical: ReorderItemResult[] = [];
     const low: ReorderItemResult[] = [];
 
+    // Dedup key: NDC when present (the canonical drug identifier), otherwise
+    // a normalized name. Pharmacies routinely have multiple Item rows for the
+    // same drug — different package sizes, brand-vs-generic re-imports, or
+    // import-time name spellings (e.g. "LISINOPRIL 10 MG TABLET" vs
+    // "Lisinopril 10mg Tab"). The dashboard alert widget is a glanceable
+    // summary, not a per-SKU report; showing the same drug twice trains the
+    // pharmacist to ignore the panel. We keep the row with the lowest
+    // currentStock so the worst case wins (e.g. one SKU at 0 + another at 5
+    // surfaces as the critical row, not the low one).
+    const dedupKey = (item: { ndc: string | null; name: string }) =>
+      (item.ndc?.trim() || item.name.trim().toLowerCase()).replace(/\s+/g, " ");
+    const seen = new Map<string, ReorderItemResult>();
+
     for (const item of items) {
       const currentStock = item.lots.reduce(
         (sum, lot) => sum + Number(lot.quantityOnHand || 0),
@@ -252,11 +265,19 @@ export async function getReorderStatus() {
           severity: currentStock === 0 ? "critical" : "low",
         };
 
-        if (currentStock === 0) {
-          critical.push(reorderItem);
-        } else {
-          low.push(reorderItem);
+        const key = dedupKey(item);
+        const existing = seen.get(key);
+        if (!existing || reorderItem.currentStock < existing.currentStock) {
+          seen.set(key, reorderItem);
         }
+      }
+    }
+
+    for (const reorderItem of seen.values()) {
+      if (reorderItem.isCritical) {
+        critical.push(reorderItem);
+      } else {
+        low.push(reorderItem);
       }
     }
 

@@ -111,6 +111,33 @@ export function formatPrescriberName(
 }
 
 /**
+ * Format a prescriber specialty / type string from the DRX feed.
+ *
+ * The DRX feed encodes prescriber types with literal asterisks as
+ * delimiters (and sometimes as wrappers), so a record can ship with
+ * `"*Syr**Sp*"` meaning "Surgery, Sp(ecialist)". Rendering that raw
+ * gives a hostile "*Syr**Sp*" on the prescriber sidebar.
+ *
+ * We:
+ *   - strip leading/trailing whitespace
+ *   - split on runs of one-or-more asterisks (so "*A**B*" → ["A","B"])
+ *   - drop empties (so "**A**" → ["A"])
+ *   - title-case each token (so "DERM" → "Derm")
+ *   - join with ", "
+ *
+ * If the input has no asterisks, just title-case it.
+ */
+export function formatSpecialty(specialty: string | null | undefined): string {
+  if (!specialty) return "";
+  const tokens = specialty
+    .split(/\*+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (tokens.length === 0) return "";
+  return tokens.map(toTitleCase).join(", ");
+}
+
+/**
  * Title-case a drug / item name. Special-cases common dosage form
  * tokens (mg, ML, MG/ML, etc.) and DEA-schedule indicators so they
  * stay uppercase / lower-case as expected.
@@ -133,6 +160,36 @@ export function formatDrugName(name: string | null | undefined): string {
     .replace(/\bSr\b/g, "SR")
     .replace(/\bIr\b/g, "IR")
     .replace(/\bOdt\b/g, "ODT");
+}
+
+/**
+ * Compose a drug display label from `name` + optional `strength`, suppressing
+ * the strength suffix when it's already embedded inside the name.
+ *
+ * The DRX feed often stores the strength inside `name` (e.g.
+ * "Lisinopril 1.25 mg Capsule") AND repeats it in the dedicated `strength`
+ * column ("1.25 MG"). A naive `${name} ${strength}` concat then renders
+ * "Lisinopril 1.25 mg Capsule 1.25 MG", which looks like a typo to a
+ * pharmacist. This formatter normalises both sides (case-insensitive,
+ * whitespace-collapsed, units stripped of separators) and skips the suffix
+ * when the strength is already represented in the name.
+ *
+ * Used by the drug picker (intake) AND the Rx detail header so they render
+ * the same composed label everywhere.
+ */
+export function formatDrugWithStrength(
+  name: string | null | undefined,
+  strength: string | null | undefined
+): string {
+  const formattedName = formatDrugName(name);
+  if (!strength) return formattedName;
+  const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  const stripUnits = (s: string) => normalize(s).replace(/[\s.]+/g, "");
+  const nameNorm = stripUnits(formattedName);
+  const strengthNorm = stripUnits(strength);
+  // Strength already embedded in name — don't repeat.
+  if (strengthNorm && nameNorm.includes(strengthNorm)) return formattedName;
+  return `${formattedName} ${strength}`;
 }
 
 // ─── Fill numbers ─────────────────────────────────────────────────────

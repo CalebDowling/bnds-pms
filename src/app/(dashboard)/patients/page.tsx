@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
-import { getPatients } from "./actions";
+import { Plus, AlertTriangle } from "lucide-react";
+import { getPatients, findDuplicatePatients } from "./actions";
 import { formatDate, formatPhone, calculateAge, getInitials } from "@/lib/utils";
 import { formatPatientName } from "@/lib/utils/formatters";
 import SearchBar from "@/components/ui/SearchBar";
@@ -22,6 +22,12 @@ export default async function PatientsPage({
   const status = params.status || "active";
 
   const { patients, total, pages } = await getPatients({ search, status, page });
+
+  // Surface duplicate-patient clusters so an admin can review and merge.
+  // Detection is non-destructive — we only flag, never auto-merge, since
+  // each row may carry distinct prescription / claim history.
+  // Round 9 found "Broussard-Walker, Greta x2" and "Chesson Walker x2".
+  const duplicateClusters = await findDuplicatePatients();
 
   const content = (
     <PageShell
@@ -75,6 +81,45 @@ export default async function PatientsPage({
         />
       }
     >
+      {duplicateClusters.length > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-amber-900">
+                {duplicateClusters.length} possible duplicate{duplicateClusters.length === 1 ? "" : "s"} on file
+              </p>
+              <p className="text-xs text-amber-800 mt-0.5">
+                The following patients share the same name and date of birth. Review each pair and merge manually if they refer to the same person.
+              </p>
+              <ul className="mt-2 space-y-1.5">
+                {duplicateClusters.slice(0, 5).map((cluster) => (
+                  <li key={cluster.key} className="text-xs">
+                    <span className="font-semibold text-amber-900">
+                      {formatPatientName({ firstName: cluster.firstName, lastName: cluster.lastName }, { format: "last-first" })}
+                    </span>
+                    <span className="text-amber-800"> &middot; DOB {formatDate(cluster.dateOfBirth)} &middot; </span>
+                    {cluster.patients.map((p, i) => (
+                      <span key={p.id}>
+                        {i > 0 && ", "}
+                        <Link href={`/patients/${p.id}`} className="underline hover:text-amber-900">
+                          {p.mrn}
+                        </Link>
+                      </span>
+                    ))}
+                  </li>
+                ))}
+                {duplicateClusters.length > 5 && (
+                  <li className="text-xs italic text-amber-800">
+                    +{duplicateClusters.length - 5} more
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div
         className="rounded-xl overflow-hidden"
         style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}

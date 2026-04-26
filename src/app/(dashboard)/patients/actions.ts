@@ -71,6 +71,81 @@ export async function getPatients({
   };
 }
 
+// ─── DUPLICATE DETECTION ────────────────────
+//
+// Round 9 pharmacist test surfaced obvious duplicate patient rows
+// ("Broussard-Walker, Greta" x2, "Chesson Walker" x2). The DRX import
+// occasionally creates a fresh patient instead of matching when the
+// external ID changes mid-stream, or when a name spelling shifts.
+//
+// We do NOT auto-merge — every patient row may have prescriptions,
+// claims, encounters, allergies pinned to it, and a wrong merge
+// destroys clinical history. Instead we surface clusters so an admin
+// can review and merge in a future tool.
+//
+// Cluster key: lowercased+trimmed firstName + lastName + ISO DOB. This
+// catches the common case (same name + DOB) without false-positives
+// from twins (which would also need the same DOB but we'd surface them
+// regardless — the admin can dismiss).
+
+export interface PatientDuplicateCluster {
+  key: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: Date;
+  patients: Array<{
+    id: string;
+    mrn: string;
+    firstName: string;
+    middleName: string | null;
+    lastName: string;
+    dateOfBirth: Date;
+    status: string;
+  }>;
+}
+
+export async function findDuplicatePatients(): Promise<PatientDuplicateCluster[]> {
+  // Pull all active patients — duplicate detection runs against the live
+  // roster only. If an admin has already inactivated one row of a pair
+  // it will fall out of the cluster and the warning self-clears.
+  const patients = await prisma.patient.findMany({
+    where: { status: "active" },
+    select: {
+      id: true,
+      mrn: true,
+      firstName: true,
+      middleName: true,
+      lastName: true,
+      dateOfBirth: true,
+      status: true,
+    },
+    orderBy: { lastName: "asc" },
+  });
+
+  const buckets = new Map<string, PatientDuplicateCluster>();
+  for (const p of patients) {
+    const first = (p.firstName || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const last = (p.lastName || "").trim().toLowerCase().replace(/\s+/g, " ");
+    if (!first || !last) continue;
+    const dobIso = p.dateOfBirth.toISOString().slice(0, 10);
+    const key = `${last}|${first}|${dobIso}`;
+    let cluster = buckets.get(key);
+    if (!cluster) {
+      cluster = {
+        key,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        dateOfBirth: p.dateOfBirth,
+        patients: [],
+      };
+      buckets.set(key, cluster);
+    }
+    cluster.patients.push(p);
+  }
+
+  return Array.from(buckets.values()).filter((c) => c.patients.length > 1);
+}
+
 // ─── GET SINGLE PATIENT ─────────────────────
 
 export async function getPatient(id: string) {

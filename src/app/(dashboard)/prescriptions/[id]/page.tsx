@@ -6,8 +6,10 @@ import {
   formatPatientName,
   formatPrescriberName,
   formatDrugName,
+  formatDrugWithStrength,
   formatFillNumber,
   formatDateTime,
+  formatSpecialty,
 } from "@/lib/utils/formatters";
 import { prisma } from "@/lib/prisma";
 // PrescriptionStatusBar (legacy `Prescription.status` state machine) is no
@@ -90,7 +92,7 @@ async function PrescriptionDetailPageContent({
   const drugName = rx.isCompound
     ? formatDrugName(rx.formula?.name || "Compound")
     : rx.item
-    ? `${formatDrugName(rx.item.name)} ${rx.item.strength || ""}`.trim()
+    ? formatDrugWithStrength(rx.item.name, rx.item.strength)
     : "Unspecified";
   const activeAllergies = rx.patient.allergies || [];
 
@@ -107,7 +109,7 @@ async function PrescriptionDetailPageContent({
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-gray-900">Rx# {rx.rxNumber}</h1>
-            {rx.item && <p className="text-sm text-gray-500">{formatDrugName(rx.item.name)}{rx.item.strength ? ` ${rx.item.strength}` : ""}</p>}
+            {rx.item && <p className="text-sm text-gray-500">{formatDrugWithStrength(rx.item.name, rx.item.strength)}</p>}
             {rx.formula && <p className="text-sm text-purple-600">{formatDrugName(rx.formula.name)} (Compound)</p>}
             <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${statusInfo.color}`}>
               {statusInfo.label}
@@ -282,7 +284,7 @@ async function PrescriptionDetailPageContent({
               {rx.prescriber.suffix ? ` ${rx.prescriber.suffix}` : ""}
             </p>
             <p className="text-xs text-gray-500">NPI: {rx.prescriber.npi}</p>
-            {rx.prescriber.specialty && <p className="text-xs text-gray-500">{rx.prescriber.specialty}</p>}
+            {rx.prescriber.specialty && <p className="text-xs text-gray-500">{formatSpecialty(rx.prescriber.specialty)}</p>}
             {rx.prescriber.phone && <p className="text-xs text-gray-500">Ph: {formatPhone(rx.prescriber.phone)}</p>}
           </div>
 

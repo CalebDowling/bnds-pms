@@ -6,6 +6,7 @@ import {
   formatPatientName,
   formatPrescriberName,
 } from "@/lib/utils/formatters";
+import { formatPhone } from "@/lib/utils";
 
 /**
  * Re-export the centralized title-caser so existing imports of
@@ -157,13 +158,17 @@ export async function buildTemplateDataFromFill(
   const state = (addr?.state || "").toUpperCase();
   const zip = addr?.zip || "";
 
-  // Patient phones
-  const homePhone =
+  // Patient phones — formatted "(713) 791-9100" not raw "7137919100".
+  // formatPhone passes empty strings through untouched and returns the input
+  // unchanged for non-10-digit values, so it's safe on legacy data.
+  const homePhoneRaw =
     patient.phoneNumbers?.find((p) => p.phoneType === "HOME")?.number || "";
-  const cellPhone =
+  const cellPhoneRaw =
     patient.phoneNumbers?.find(
       (p) => p.phoneType === "CELL" || p.phoneType === "MOBILE"
     )?.number || "";
+  const homePhone = homePhoneRaw ? formatPhone(homePhoneRaw) : "";
+  const cellPhone = cellPhoneRaw ? formatPhone(cellPhoneRaw) : "";
   const defaultPhone = homePhone || cellPhone || "";
 
   // Insurance
@@ -306,7 +311,15 @@ export async function buildTemplateDataFromFill(
     "total_ins_paid": "",
 
     // ── Barcodes ──
-    "id|label_version": `b${fill.id}:0`,
+    // Barcode payload uses the human-facing Rx number + fill number, not the
+    // internal fill UUID. The previous payload (`b${fill.id}:0`) leaked a raw
+    // UUID into the upper-right text slot on templates that bind a text
+    // element to this key (e.g. "i:7f2a6867-..." debug ID observed in R9
+    // walkthrough). The Rx# barcode is what techs scan at the register
+    // anyway; the UUID was a development artifact.
+    "id|label_version": rx.rxNumber
+      ? `${rx.rxNumber}-${safeFillNumber}`
+      : "",
     "id|fill_number": `Signature:_________________`,
     "narcotic_label|prescription.id": rx.rxNumber,
 
@@ -320,7 +333,11 @@ export async function buildTemplateDataFromFill(
     // commercial manufacturer on the bottle.
     "item.manufacturer": displayManufacturer,
     "item.boh": "",
-    "item.id": item ? `i${item.id}` : "",
+    // Suppress the internal item UUID — never useful on a printed patient
+    // label. The previous `i${item.id}` value was leaking onto vial labels
+    // on templates that bound a text element to "item.id" (R9 walkthrough:
+    // "i:7f2a6867-..." in upper right of vial header).
+    "item.id": "",
 
     // ── Prescriber ──
     // Display-only Title Case, parallel to patient. DB values stay raw.
@@ -332,7 +349,10 @@ export async function buildTemplateDataFromFill(
     "prescription.doctor.first_name|prescription.doctor.last_name": displayPrescriberName,
     "prescription.doctor.dea": prescriber.deaNumber || "",
     "prescription.doctor.npi": prescriber.npi || "",
-    "prescription.doctor.default_phone.number": prescriber.phone || "",
+    // Prescriber phone — formatted, parallel to patient phone above.
+    "prescription.doctor.default_phone.number": prescriber.phone
+      ? formatPhone(prescriber.phone)
+      : "",
     "prescription.doctor.default_address.lineOne": drAddr1,
     "prescription.doctor.default_address.lineTwo": drAddr2,
     "prescription.doctor.default_address.lineOne|prescription.doctor.default_address.lineTwo":

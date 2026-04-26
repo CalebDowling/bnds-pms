@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getReorderStatus } from "@/lib/inventory/reorder-check";
 import { getRecentActivity, type RecentActivityItem } from "@/app/(dashboard)/dashboard/actions";
+import { formatDrugName } from "@/lib/utils/formatters";
 
 interface ReorderItem {
   itemId: string;
@@ -158,7 +159,7 @@ export default function RightRail() {
                 className="px-4 py-3 border-l-[3px] border-l-red-500 cursor-pointer hover:bg-red-50 transition-colors group block"
               >
                 <div className="text-[13px] font-semibold text-red-600 mb-1.5 truncate group-hover:text-red-700">
-                  {item.itemName}
+                  {formatDrugName(item.itemName)}
                 </div>
                 <div className="text-[11px] text-[var(--text-muted)] group-hover:text-red-700 transition-colors">
                   <span className="font-tabular">0</span> in stock · Reorder <span className="font-tabular">{item.reorderQuantity.toFixed(0)}</span>
@@ -174,7 +175,7 @@ export default function RightRail() {
                 className="px-4 py-3 border-l-[3px] border-l-amber-500 cursor-pointer hover:bg-amber-50 transition-colors group block"
               >
                 <div className="text-[13px] font-semibold text-[var(--amber-600)] mb-1.5 truncate group-hover:text-amber-700">
-                  {item.itemName}
+                  {formatDrugName(item.itemName)}
                 </div>
                 <div className="text-[11px] text-[var(--text-muted)] group-hover:text-amber-700 transition-colors">
                   <span className="font-tabular">{item.currentStock.toFixed(0)}</span> remaining · Reorder at <span className="font-tabular">{item.reorderPoint.toFixed(0)}</span>
