@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getPatient } from "../../actions";
 import PatientForm from "../../PatientForm";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 async function EditPatientPageContent({
   params,
@@ -20,7 +21,7 @@ async function EditPatientPageContent({
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Edit Patient</h1>
         <p className="text-sm text-gray-500 mt-1">
-          {patient.lastName}, {patient.firstName} — {patient.mrn}
+          {formatPatientName({ firstName: patient.firstName, lastName: patient.lastName }, { format: "last-first" })} — {patient.mrn}
         </p>
       </div>
       <PatientForm

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Clock, XCircle, DollarSign, TrendingUp } from "lucide-react";
 import { getClaims, getPayments, getBillingStats } from "./actions";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName, formatDrugName } from "@/lib/utils/formatters";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import PageShell from "@/components/layout/PageShell";
@@ -150,7 +151,8 @@ async function ClaimsTab({ search, page, status }: { search: string; page: numbe
                 {claims.map((c) => {
                   const si = CLAIM_STATUS[c.status] || { label: c.status, color: "bg-gray-100 text-gray-700" };
                   const fill = c.fills?.[0];
-                  const drugName = fill?.prescription?.item?.name || fill?.prescription?.formula?.name || "—";
+                  const rawDrugName = fill?.prescription?.item?.name || fill?.prescription?.formula?.name || "—";
+                  const drugName = rawDrugName === "—" ? rawDrugName : formatDrugName(rawDrugName);
                   const rxNumber = fill?.prescription?.rxNumber;
                   return (
                     <tr key={c.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => {}}>
@@ -158,7 +160,7 @@ async function ClaimsTab({ search, page, status }: { search: string; page: numbe
                         <Link href={`/billing/${c.id}`} className="text-sm font-mono text-[#40721D] hover:underline">{c.claimNumber || c.id.slice(0, 8)}</Link>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-gray-900">{c.insurance.patient.lastName}, {c.insurance.patient.firstName}</p>
+                        <p className="text-sm text-gray-900">{formatPatientName({ firstName: c.insurance.patient.firstName, lastName: c.insurance.patient.lastName }, { format: "last-first" })}</p>
                         <p className="text-xs text-gray-400 font-mono">{c.insurance.patient.mrn}</p>
                       </td>
                       <td className="px-4 py-3">
@@ -221,7 +223,7 @@ async function PaymentsTab({ search, page }: { search: string; page: number }) {
                 {payments.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="text-sm text-gray-900">{p.patient.lastName}, {p.patient.firstName}</p>
+                      <p className="text-sm text-gray-900">{formatPatientName({ firstName: p.patient.firstName, lastName: p.patient.lastName }, { format: "last-first" })}</p>
                       <p className="text-xs text-gray-400 font-mono">{p.patient.mrn}</p>
                     </td>
                     <td className="px-4 py-3 text-sm font-medium text-green-700">${Number(p.amount).toFixed(2)}</td>
@@ -229,7 +231,7 @@ async function PaymentsTab({ search, page }: { search: string; page: number }) {
                     <td className="px-4 py-3 text-sm text-gray-600 font-mono">{p.referenceNumber || "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{p.fill ? `Rx# ${p.fill.prescription.rxNumber}` : "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      {p.processor ? `${p.processor.firstName} ${p.processor.lastName}` : "—"}
+                      {p.processor ? formatPatientName({ firstName: p.processor.firstName, lastName: p.processor.lastName }) : "—"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{formatDate(p.processedAt)}</td>
                     <td className="px-4 py-3">

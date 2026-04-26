@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus, Package, Boxes, CalendarClock, AlertTriangle } from "lucide-react";
 import { getItems, getInventoryStats } from "./actions";
 import { formatDate } from "@/lib/utils";
+import { formatDrugName } from "@/lib/utils/formatters";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import ExportButton from "@/components/ui/ExportButton";
@@ -152,10 +153,10 @@ async function InventoryPageContent({
                         className="text-sm font-semibold no-underline"
                         style={{ color: "var(--text-primary)" }}
                       >
-                        {item.name}
+                        {formatDrugName(item.name)}
                       </Link>
                       {item.genericName && item.genericName !== item.name && (
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item.genericName}</p>
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{formatDrugName(item.genericName)}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm font-mono" style={{ color: "var(--text-secondary)" }} data-label="NDC">{item.ndc || "—"}</td>

@@ -11,6 +11,7 @@ import { Send, Mail, MessageSquare, Clock, Info } from "lucide-react";
 import { getMessagingStats, sendManualNotification } from "./actions";
 import PageShell from "@/components/layout/PageShell";
 import StatsRow from "@/components/layout/StatsRow";
+import { formatDateTime } from "@/lib/utils/formatters";
 
 interface MessageStats {
   totalSent: number;
@@ -110,7 +111,7 @@ export default function MessagingPage() {
               {
                 label: "Last Sent",
                 value: stats.lastSentAt
-                  ? new Date(stats.lastSentAt).toLocaleDateString()
+                  ? formatDateTime(stats.lastSentAt)
                   : "Never",
                 icon: <Clock size={12} />,
               },

@@ -7,6 +7,7 @@ import type { PatientSearchResult } from "@/types";
 import { searchPatients } from "@/app/(dashboard)/prescriptions/actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 import { getErrorMessage } from "@/lib/errors";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 function NewShipmentPageContent() {
   const router = useRouter();
@@ -83,7 +84,7 @@ function NewShipmentPageContent() {
           {selectedPatient ? (
             <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
               <div>
-                <p className="text-sm font-medium text-gray-900">{selectedPatient.lastName}, {selectedPatient.firstName}</p>
+                <p className="text-sm font-medium text-gray-900">{formatPatientName({ firstName: selectedPatient.firstName, lastName: selectedPatient.lastName }, { format: "last-first" })}</p>
                 <p className="text-xs text-gray-500">{selectedPatient.mrn || "—"}</p>
               </div>
               <button type="button" onClick={() => { setSelectedPatient(null); setPatientQuery(""); }}
@@ -101,7 +102,7 @@ function NewShipmentPageContent() {
                     <button key={p.id} type="button"
                       onClick={() => { setSelectedPatient(p); setShowDropdown(false); setPatientQuery(""); }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
-                      <span className="font-medium">{p.lastName}, {p.firstName}</span>
+                      <span className="font-medium">{formatPatientName({ firstName: p.firstName, lastName: p.lastName }, { format: "last-first" })}</span>
                       <span className="text-gray-400 ml-2 font-mono text-xs">{p.mrn}</span>
                     </button>
                   ))}

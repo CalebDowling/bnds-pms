@@ -1,5 +1,6 @@
 import { getDailyFillReport, getInventoryReport, getBatchReport, getAnalytics, getRxVolumeData, getRevenueByCategory, getTopDrugs, getTurnaroundTimes } from "./actions";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName, formatDrugName, formatFillNumber } from "@/lib/utils/formatters";
 import Link from "next/link";
 import ReportsExportButton from "@/components/dashboard/ReportsExportButton";
 import PermissionGuard from "@/components/auth/PermissionGuard";
@@ -288,10 +289,14 @@ async function DailyFillsTab({ date }: { date?: string }) {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900">
-                  {fill.prescription.patient.lastName}, {fill.prescription.patient.firstName}
+                  {formatPatientName({ firstName: fill.prescription.patient.firstName, lastName: fill.prescription.patient.lastName }, { format: "last-first" })}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900">
-                  {fill.prescription.item?.name || fill.prescription.formula?.name || "—"}
+                  {fill.prescription.item?.name
+                    ? formatDrugName(fill.prescription.item.name)
+                    : fill.prescription.formula?.name
+                      ? formatDrugName(fill.prescription.formula.name)
+                      : "—"}
                   {fill.prescription.item?.strength && <span className="text-gray-400 ml-1">{fill.prescription.item.strength}</span>}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900">{Number(fill.quantity)}</td>
@@ -299,7 +304,7 @@ async function DailyFillsTab({ date }: { date?: string }) {
                   {fill.itemLot?.lotNumber || fill.batch?.batchNumber || "—"}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-600">
-                  #{fill.fillNumber} {fill.fillNumber === 0 ? "(Orig)" : "(Refill)"}
+                  Fill #{formatFillNumber(fill.fillNumber)} {fill.fillNumber === 0 ? "(Orig)" : "(Refill)"}
                 </td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
@@ -370,7 +375,7 @@ async function InventoryTab() {
               <tr key={item.id} className={`hover:bg-gray-50 ${item.isLow ? "bg-red-50" : ""}`}>
                 <td className="px-4 py-3">
                   <Link href={`/inventory/${item.id}`} className="text-sm font-medium text-[#40721D] hover:underline">
-                    {item.name}
+                    {formatDrugName(item.name)}
                   </Link>
                   {item.strength && <p className="text-xs text-gray-400">{item.strength}</p>}
                 </td>
@@ -461,7 +466,7 @@ async function BatchTab({ startDate, endDate }: { startDate?: string; endDate?: 
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900">{Number(b.quantityPrepared)} {b.unit}</td>
                 <td className="px-4 py-3 text-sm text-gray-500">{formatDate(b.budDate)}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{b.compounder.firstName} {b.compounder.lastName}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{formatPatientName({ firstName: b.compounder.firstName, lastName: b.compounder.lastName })}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{b.qa.length}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{b.fills.length}</td>
                 <td className="px-4 py-3">

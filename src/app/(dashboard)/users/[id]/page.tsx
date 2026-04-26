@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getUser, getRoles } from "../actions";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName } from "@/lib/utils/formatters";
 import UserEditForm from "./UserEditForm";
 import UserSecurityActions from "./UserSecurityActions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
@@ -17,7 +18,7 @@ async function UserDetailPageContent({ params }: { params: Promise<{ id: string 
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{user.firstName} {user.lastName}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{formatPatientName({ firstName: user.firstName, lastName: user.lastName })}</h1>
             {user.isPharmacist && <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">RPh</span>}
             <span className={`text-xs px-2 py-1 rounded-full font-medium ${user.isActive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
               {user.isActive ? "Active" : "Inactive"}

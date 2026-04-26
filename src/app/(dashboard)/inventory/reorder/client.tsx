@@ -6,6 +6,7 @@ import type { ReorderAlert, ReorderHistoryItem } from "./actions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 import PageShell from "@/components/layout/PageShell";
 import StatsRow from "@/components/layout/StatsRow";
+import { formatDateTime } from "@/lib/utils/formatters";
 
 export const dynamic = "force-dynamic";
 
@@ -327,7 +328,7 @@ export function ReorderPage({
                     </div>
                     <div className="flex items-center justify-between text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
                       <span>{order.itemCount} items</span>
-                      <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                      <span>{formatDateTime(order.createdAt)}</span>
                     </div>
                   </div>
                 ))}

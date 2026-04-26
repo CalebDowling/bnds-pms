@@ -212,12 +212,18 @@ const FILL_TO_RX_STATUS: Record<string, string> = {
  * - Sets dispensedAt when entering "sold"
  * - Syncs the parent Prescription.status via FILL_TO_RX_STATUS so list views
  *   don't show stale rx_status='intake' for an Rx that's already been sold
+ *
+ * The optional `override` flag bypasses the waiting_bin → sold pickup-checklist
+ * gate. When used, `overrideReason` (>= 5 chars) is REQUIRED and a separate
+ * SOLD_OVERRIDE FillEvent is written naming the bypassed items so the audit
+ * trail captures who skipped what and why (R6-#20 requirement).
  */
 export async function advanceFillStatus(
   fillId: string,
   newStatus: string,
   userId: string,
-  notes?: string
+  notes?: string,
+  options?: { override?: boolean; overrideReason?: string }
 ): Promise<AdvanceFillResult> {
   const fill = await prisma.prescriptionFill.findUnique({
     where: { id: fillId },
@@ -229,6 +235,15 @@ export async function advanceFillStatus(
       filledBy: true,
       filledAt: true,
       metadata: true,
+      // Pulled in for the controlled-substance ID-check gate at sold.
+      // The drug can be referenced from either the fill.item override
+      // (for compounded items) or the prescription's item — we read both.
+      item: { select: { deaSchedule: true, isControlled: true } },
+      prescription: {
+        select: {
+          item: { select: { deaSchedule: true, isControlled: true } },
+        },
+      },
     },
   });
 
@@ -272,31 +287,71 @@ export async function advanceFillStatus(
   }
 
   // ── Pickup checklist guard (waiting_bin → sold) ─────────────────
-  // The OBRA-90 counseling offer, patient signature, and payment must be
-  // attested to before a fill can be marked as sold/dispensed. The Process
-  // page collects these via recordPickupChecklist() which stamps
-  // metadata.pickupChecklist; we just verify it's present here so the gate
-  // can't be bypassed by hitting the action directly.
+  // The OBRA-90 counseling decision, patient signature, and (for controlled
+  // substances) ID verification must be attested to before a fill can be
+  // marked as sold/dispensed. The Process page collects these via
+  // recordPickupChecklist() which stamps metadata.pickupChecklist; we just
+  // verify it's present here so the gate can't be bypassed by hitting the
+  // action directly.
+  //
+  // R6-#20: An override-with-reason escape hatch is provided for unusual
+  // situations (e.g. system glitch erases checklist state, paper signature
+  // captured offline). The override writes a separate SOLD_OVERRIDE event
+  // naming the bypassed items so the audit trail is complete.
+  let pickupOverrideMissing: string[] | null = null;
   if (fill.status === "waiting_bin" && newStatus === "sold") {
     const meta = (fill.metadata as Record<string, unknown>) || {};
     const checklist = meta.pickupChecklist as
       | {
           counselOffered?: boolean;
+          counselAccepted?: boolean;
           signatureCaptured?: boolean;
           paymentReceived?: boolean;
+          idVerified?: boolean;
         }
       | undefined;
-    if (
-      !checklist ||
-      !checklist.counselOffered ||
-      !checklist.signatureCaptured ||
-      !checklist.paymentReceived
-    ) {
-      return {
-        success: false,
-        error:
-          "Pickup checklist incomplete — counseling, signature, and payment must be confirmed before dispense.",
-      };
+
+    // Detect controlled-substance status. deaSchedule is a VARCHAR
+    // ("II", "III", "II", "C-II", etc.) so we treat any non-null schedule
+    // OR isControlled=true as a controlled fill. Either the fill's own
+    // item or the parent Rx's item can carry the schedule.
+    const drug = fill.item ?? fill.prescription?.item ?? null;
+    const schedule = drug?.deaSchedule?.toUpperCase().trim() ?? null;
+    const isControlled =
+      !!drug?.isControlled ||
+      (schedule != null &&
+        (schedule.startsWith("C") ||
+          ["II", "III", "IV", "V"].includes(schedule)));
+
+    const missing: string[] = [];
+    if (!checklist?.counselOffered) missing.push("counseling decision");
+    if (!checklist?.signatureCaptured) missing.push("patient signature");
+    if (!checklist?.paymentReceived) missing.push("payment received");
+    if (isControlled && !checklist?.idVerified) {
+      missing.push("government-issued ID check (controlled substance)");
+    }
+
+    if (missing.length > 0) {
+      // No override — reject with a clear list of what's missing so the UI
+      // can render an actionable message and surface the override modal.
+      if (!options?.override) {
+        return {
+          success: false,
+          error: `Pickup checklist incomplete — missing: ${missing.join(", ")}.`,
+        };
+      }
+      // Override path — require a non-trivial reason (>= 5 chars).
+      const reason = options.overrideReason?.trim() ?? "";
+      if (reason.length < 5) {
+        return {
+          success: false,
+          error:
+            "Override reason is required (minimum 5 characters) to bypass the pickup checklist.",
+        };
+      }
+      // Stash the missing items so the transaction can write a
+      // SOLD_OVERRIDE event after the status flip succeeds.
+      pickupOverrideMissing = missing;
     }
   }
 
@@ -416,6 +471,26 @@ export async function advanceFillStatus(
           notes: eventNotes,
         },
       });
+
+      // Sold override — record a separate audit event naming the bypassed
+      // checklist items and the operator-supplied reason. The status_change
+      // event above is preserved so reporting that joins on event type still
+      // sees the dispense; the override row is the regulatory paper trail.
+      if (pickupOverrideMissing && options?.overrideReason) {
+        await tx.fillEvent.create({
+          data: {
+            fillId,
+            eventType: "SOLD_OVERRIDE",
+            fromValue: "waiting_bin",
+            toValue: "sold",
+            performedBy: userId,
+            notes: JSON.stringify({
+              bypassed: pickupOverrideMissing,
+              reason: options.overrideReason.trim(),
+            }),
+          },
+        });
+      }
 
       if (newRxStatus) {
         const rxData: Record<string, unknown> = { status: newRxStatus };

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getShipment } from "@/app/(dashboard)/shipping/actions";
 import { formatDate, formatPhone } from "@/lib/utils";
+import { formatPatientName, formatDrugName } from "@/lib/utils/formatters";
 import ShipmentActions from "./ShipmentActions";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
@@ -29,7 +30,7 @@ async function ShipmentDetailPageContent({ params }: { params: Promise<{ id: str
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-gray-900">
-              Shipment to {shipment.patient.lastName}, {shipment.patient.firstName}
+              Shipment to {formatPatientName({ firstName: shipment.patient.firstName, lastName: shipment.patient.lastName }, { format: "last-first" })}
             </h1>
             <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${si.color}`}>{si.label}</span>
           </div>
@@ -83,7 +84,7 @@ async function ShipmentDetailPageContent({ params }: { params: Promise<{ id: str
               </div>
               <div className="flex justify-between">
                 <dt className="text-sm text-gray-500">Shipped By</dt>
-                <dd className="text-sm text-gray-900">{shipment.shipper ? `${shipment.shipper.firstName} ${shipment.shipper.lastName}` : "—"}</dd>
+                <dd className="text-sm text-gray-900">{shipment.shipper ? formatPatientName({ firstName: shipment.shipper.firstName, lastName: shipment.shipper.lastName }) : "—"}</dd>
               </div>
             </dl>
             <div className="flex gap-3 mt-4">
@@ -114,7 +115,7 @@ async function ShipmentDetailPageContent({ params }: { params: Promise<{ id: str
                     <tr key={item.id}>
                       <td className="py-2.5 text-sm font-mono text-[#40721D]">{item.fill.prescription.rxNumber}</td>
                       <td className="py-2.5 text-sm text-gray-900">
-                        {item.fill.prescription.item?.name || "Compound"} {item.fill.prescription.item?.strength || ""}
+                        {item.fill.prescription.item?.name ? formatDrugName(item.fill.prescription.item.name) : "Compound"} {item.fill.prescription.item?.strength || ""}
                       </td>
                       <td className="py-2.5 text-sm text-gray-600">{item.fill.prescription.directions || "—"}</td>
                       <td className="py-2.5">
@@ -140,7 +141,7 @@ async function ShipmentDetailPageContent({ params }: { params: Promise<{ id: str
             <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Patient</h3>
             <p className="text-sm font-medium text-gray-900">
               <Link href={`/patients/${shipment.patient.id}`} className="hover:text-[#40721D] hover:underline">
-                {shipment.patient.lastName}, {shipment.patient.firstName}
+                {formatPatientName({ firstName: shipment.patient.firstName, lastName: shipment.patient.lastName }, { format: "last-first" })}
               </Link>
             </p>
             {primaryPhone && <p className="text-xs text-gray-500 mt-1">{formatPhone(primaryPhone.number)}</p>}

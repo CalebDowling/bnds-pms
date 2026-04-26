@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getFormulas, getBatches } from "./actions";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName, toTitleCase } from "@/lib/utils/formatters";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import PageShell from "@/components/layout/PageShell";
@@ -235,7 +236,7 @@ async function BatchesTab({ search, page, status }: { search: string; page: numb
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {b.prescription ? (
-                          <>Rx# {b.prescription.rxNumber} — {b.prescription.patient.lastName}</>
+                          <>Rx# {b.prescription.rxNumber} — {toTitleCase(b.prescription.patient.lastName)}</>
                         ) : (
                           <span className="text-gray-400">Stock batch</span>
                         )}
@@ -245,7 +246,7 @@ async function BatchesTab({ search, page, status }: { search: string; page: numb
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{formatDate(b.budDate)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {b.compounder.firstName} {b.compounder.lastName}
+                        {formatPatientName({ firstName: b.compounder.firstName, lastName: b.compounder.lastName })}
                       </td>
                       <td className="px-4 py-3">
                         {b._count.qa > 0 ? (

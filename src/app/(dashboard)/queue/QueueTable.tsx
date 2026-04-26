@@ -5,48 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Printer, MessageSquare } from "lucide-react";
 import type { QueueFill } from "./constants";
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return dateStr;
-  }
-}
-
-// ─── Title-case display for ALL-CAPS DRX-legacy drug names ──────────────
-// Capitalizes the first letter of each word, but preserves:
-//   - all-numeric tokens ("500", "100")
-//   - dose strings where digits and a unit are joined ("10mg", "500MG")
-//   - dose strings split by a space ("10 MG", "500 MCG") — collapsed to
-//     lowercase units ("10 mg", "500 mcg")
-// Applied at render only — the underlying data is untouched.
-const DOSE_UNITS = new Set([
-  "mg", "mcg", "g", "kg", "ml", "l", "iu", "u", "meq", "mmol", "mol",
-  "mg/ml", "mcg/ml", "mg/kg", "mcg/kg", "%",
-]);
-function toTitleCase(s: string): string {
-  if (!s) return s;
-  return s
-    .split(/\s+/)
-    .map((token) => {
-      if (!token) return token;
-      // All-numeric token → leave as-is
-      if (/^\d+$/.test(token)) return token;
-      // Lone unit token ("MG", "MCG/ML") → lowercase
-      if (DOSE_UNITS.has(token.toLowerCase())) return token.toLowerCase();
-      // Joined dose like "10MG", "500mcg" → digits + lowercase unit
-      const dose = token.match(/^(\d+(?:\.\d+)?)([A-Za-z/%]+)$/);
-      if (dose && DOSE_UNITS.has(dose[2].toLowerCase())) {
-        return `${dose[1]}${dose[2].toLowerCase()}`;
-      }
-      // Default: Title Case the word
-      return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
-    })
-    .join(" ");
-}
+import { formatDate, formatDrugName, toTitleCase } from "@/lib/utils/formatters";
 
 // ─── Types ──────────────────────────────────────
 type SortDir = "asc" | "desc" | null;
@@ -453,9 +412,10 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                           {fill.rxId}
                         </Link>
                       </td>
-                      {/* Patient — bold black, key identifier */}
+                      {/* Patient — bold black, key identifier;
+                          DRX legacy data is ALL CAPS, title-cased at render */}
                       <td className="px-3 py-2.5 border-l border-gray-100">
-                        <span className="text-sm font-semibold text-gray-900">{fill.patientName}</span>
+                        <span className="text-sm font-semibold text-gray-900">{toTitleCase(fill.patientName)}</span>
                       </td>
                       {/* Phone — muted, smaller */}
                       <td className="px-3 py-2.5 border-l border-gray-100">
@@ -464,7 +424,7 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                       {/* Drug — regular weight, slightly emphasized; DRX
                           legacy data is ALL CAPS, title-cased at render */}
                       <td className="px-3 py-2.5 border-l border-gray-200" style={{ maxWidth: "300px" }}>
-                        <span className="text-sm text-gray-700 line-clamp-1">{toTitleCase(fill.itemName)}</span>
+                        <span className="text-sm text-gray-700 line-clamp-1">{formatDrugName(fill.itemName)}</span>
                       </td>
                       {/* Qty — centered, bold */}
                       <td className="px-3 py-2.5 border-l border-gray-100 text-center">

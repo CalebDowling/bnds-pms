@@ -14,6 +14,7 @@ import {
   type DriverOption,
 } from "./actions";
 import type { OptimizedRoute, RouteStop } from "@/lib/delivery/route-optimizer";
+import { formatDate } from "@/lib/utils/formatters";
 
 type Tab = "plan" | "history";
 
@@ -190,9 +191,6 @@ export default function RoutePlanningPage() {
   // Format time
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
 
   // ── Render ─────────────────────────────────────────────────
 

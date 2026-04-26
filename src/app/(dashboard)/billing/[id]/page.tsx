@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getClaim, getClaimStatusHistory, updateClaimStatus } from "../actions";
 import { lookupRejectionCode } from "../ncpdp-codes";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName, formatPrescriberName, formatDrugName, formatFillNumber } from "@/lib/utils/formatters";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
 const CLAIM_STATUS: Record<string, { label: string; color: string }> = {
@@ -37,7 +38,8 @@ async function ClaimDetailContent({ params }: { params: Promise<{ id: string }> 
   const si = CLAIM_STATUS[claim.status] || { label: claim.status, color: "bg-gray-100 text-gray-600 border-gray-300" };
   const fill = claim.fills?.[0];
   const rx = fill?.prescription;
-  const drugName = rx?.item?.name || rx?.formula?.name || "Unknown";
+  const rawDrugName = rx?.item?.name || rx?.formula?.name || "Unknown";
+  const drugName = rawDrugName === "Unknown" ? rawDrugName : formatDrugName(rawDrugName);
   const patient = claim.insurance?.patient;
   const plan = claim.insurance?.thirdPartyPlan;
   const nextStatuses = STATUS_TRANSITIONS[claim.status] || [];
@@ -133,12 +135,12 @@ async function ClaimDetailContent({ params }: { params: Promise<{ id: string }> 
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase font-semibold">Fill #</p>
-                  <p className="text-sm text-gray-900 mt-1">{fill.fillNumber}</p>
+                  <p className="text-sm text-gray-900 mt-1">{formatFillNumber(fill.fillNumber)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase font-semibold">Prescriber</p>
                   <p className="text-sm text-gray-900 mt-1">
-                    {rx.prescriber ? `Dr. ${rx.prescriber.firstName} ${rx.prescriber.lastName}` : "—"}
+                    {rx.prescriber ? formatPrescriberName({ firstName: rx.prescriber.firstName, lastName: rx.prescriber.lastName }) : "—"}
                   </p>
                 </div>
               </div>
@@ -204,7 +206,7 @@ async function ClaimDetailContent({ params }: { params: Promise<{ id: string }> 
                           <span className="text-xs text-gray-500">{formatDate(log.changedAt)}</span>
                           {log.changer && (
                             <span className="text-xs text-gray-400">
-                              by {log.changer.firstName} {log.changer.lastName}
+                              by {formatPatientName({ firstName: log.changer.firstName, lastName: log.changer.lastName })}
                             </span>
                           )}
                         </div>
@@ -235,7 +237,7 @@ async function ClaimDetailContent({ params }: { params: Promise<{ id: string }> 
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Patient</h3>
               <Link href={`/patients/${patient.id}`} className="text-lg font-medium text-[#40721D] hover:underline">
-                {patient.lastName}, {patient.firstName}
+                {formatPatientName({ firstName: patient.firstName, lastName: patient.lastName }, { format: "last-first" })}
               </Link>
               <p className="text-sm text-gray-500 font-mono mt-1">{patient.mrn}</p>
             </div>

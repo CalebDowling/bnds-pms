@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus, FlaskConical, Clock, CheckCircle2, ShieldCheck, PackageCheck } from "lucide-react";
 import { getBatches } from "@/app/(dashboard)/compounding/actions";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName } from "@/lib/utils/formatters";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 import PageShell from "@/components/layout/PageShell";
 import StatsRow from "@/components/layout/StatsRow";
@@ -113,11 +114,11 @@ async function BatchListContent() {
                         {formatDate(batch.createdAt)}
                       </td>
                       <td className="px-6 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-                        {batch.compounder.firstName} {batch.compounder.lastName}
+                        {formatPatientName({ firstName: batch.compounder.firstName, lastName: batch.compounder.lastName })}
                       </td>
                       <td className="px-6 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>
                         {batch.verifier
-                          ? `${batch.verifier.firstName} ${batch.verifier.lastName}`
+                          ? formatPatientName({ firstName: batch.verifier.firstName, lastName: batch.verifier.lastName })
                           : "—"}
                       </td>
                     </tr>

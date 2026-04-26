@@ -12,26 +12,7 @@ import {
   type SubscriptionRow,
   type SubscriptionStats,
 } from "./actions";
-
-function formatDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatDateWithTime(iso: string | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatDate } from "@/lib/utils/formatters";
 
 type PatientPrescription = {
   id: string;

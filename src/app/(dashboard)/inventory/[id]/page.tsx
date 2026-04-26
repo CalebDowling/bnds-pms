@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getItem } from "@/app/(dashboard)/inventory/actions";
 import { formatDate } from "@/lib/utils";
+import { formatDrugName, formatPatientName } from "@/lib/utils/formatters";
 import ReceiveLotForm from "./ReceiveLotForm";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
@@ -24,7 +25,7 @@ async function ItemDetailPageContent({
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-gray-900">{item.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{formatDrugName(item.name)}</h1>
             {item.strength && <span className="text-lg text-gray-500">{item.strength}</span>}
             <div className="flex gap-1">
               {item.isCompoundIngredient && (
@@ -42,7 +43,7 @@ async function ItemDetailPageContent({
             </div>
           </div>
           <p className="text-sm text-gray-500">
-            {item.genericName && item.genericName !== item.name ? `${item.genericName} — ` : ""}
+            {item.genericName && item.genericName !== item.name ? `${formatDrugName(item.genericName)} — ` : ""}
             {item.manufacturer || "Unknown manufacturer"}
             {item.ndc ? ` — NDC: ${item.ndc}` : ""}
           </p>
@@ -167,7 +168,7 @@ async function ItemDetailPageContent({
                         Rx# {rx.rxNumber}
                       </Link>
                       <p className="text-xs text-gray-400">
-                        {rx.patient.lastName}, {rx.patient.firstName} ({rx.patient.mrn})
+                        {formatPatientName({ firstName: rx.patient.firstName, lastName: rx.patient.lastName }, { format: "last-first" })} ({rx.patient.mrn})
                       </p>
                     </div>
                     <span className="text-xs text-gray-400">{formatDate(rx.dateReceived)}</span>

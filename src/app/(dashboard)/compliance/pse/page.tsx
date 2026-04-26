@@ -4,12 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getPseDashboard, searchBuyer, type PseDashboardData } from './actions';
 import type { PsePurchaseRecord } from '@/lib/compliance/pse-tracking';
 import NewSaleForm from './NewSaleForm';
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
-}
+import { formatDate } from '@/lib/utils/formatters';
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', {

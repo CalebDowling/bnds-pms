@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { usePermissions } from "@/components/providers/PermissionsProvider";
 import { Sun, Moon, Bell, Plus, Package, Clock, Pill, XCircle } from "lucide-react";
+import { formatDateTime } from "@/lib/utils/formatters";
 
 interface UserInfo {
   firstName: string;
@@ -286,12 +287,7 @@ export default function DashboardHeader() {
                               {notification.message}
                             </p>
                             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                              {new Date(notification.createdAt).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {formatDateTime(notification.createdAt)}
                             </p>
                           </div>
 

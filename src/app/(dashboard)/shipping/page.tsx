@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus, Clock, Truck, PackageCheck, CalendarClock } from "lucide-react";
 import { getShipments, getShippingStats } from "./actions";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName } from "@/lib/utils/formatters";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import PageShell from "@/components/layout/PageShell";
@@ -125,7 +126,7 @@ async function ShippingPageContent({
                     >
                       <td className="px-4 py-3">
                         <Link href={`/shipping/${s.id}`} className="text-sm font-medium text-gray-900 hover:text-[#40721D]">
-                          {s.patient.lastName}, {s.patient.firstName}
+                          {formatPatientName({ firstName: s.patient.firstName, lastName: s.patient.lastName }, { format: "last-first" })}
                         </Link>
                         <p className="text-xs text-gray-400 font-mono">{s.patient.mrn}</p>
                       </td>

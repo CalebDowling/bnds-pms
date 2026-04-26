@@ -8,15 +8,7 @@ import {
   type RefillCandidate,
   type BatchRefillResult,
 } from "./actions";
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+import { formatDate, toTitleCase, formatDrugName, formatFillNumber } from "@/lib/utils/formatters";
 
 export default function BatchRefillPage() {
   const [candidates, setCandidates] = useState<RefillCandidate[]>([]);
@@ -140,10 +132,10 @@ export default function BatchRefillPage() {
               >
                 <span>{r.success ? "✓" : "✗"}</span>
                 <span className="font-mono">{r.rxNumber}</span>
-                <span>{r.patientName}</span>
+                <span>{toTitleCase(r.patientName)}</span>
                 {r.success ? (
                   <span className="text-green-500 text-xs">
-                    Fill #{r.fillNumber} created
+                    Fill #{formatFillNumber(r.fillNumber || 0)} created
                   </span>
                 ) : (
                   <span className="text-red-400 text-xs">{r.error}</span>
@@ -336,10 +328,10 @@ export default function BatchRefillPage() {
                     {rx.rxNumber}
                   </td>
                   <td className="px-3 py-2.5 text-sm font-medium text-gray-900">
-                    {rx.patientName}
+                    {toTitleCase(rx.patientName)}
                   </td>
                   <td className="px-3 py-2.5">
-                    <p className="text-sm text-gray-900">{rx.drugName}</p>
+                    <p className="text-sm text-gray-900">{formatDrugName(rx.drugName)}</p>
                     {rx.strength && (
                       <p className="text-xs text-gray-400">{rx.strength}</p>
                     )}
@@ -372,7 +364,7 @@ export default function BatchRefillPage() {
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-sm text-gray-600">
-                    {rx.prescriberName}
+                    {rx.prescriberName ? toTitleCase(rx.prescriberName) : "—"}
                   </td>
                 </tr>
               ))}

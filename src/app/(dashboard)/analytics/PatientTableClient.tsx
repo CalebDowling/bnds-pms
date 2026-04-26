@@ -1,6 +1,7 @@
 "use client";
 
 import DataTable, { type Column } from "./components/DataTable";
+import { toTitleCase } from "@/lib/utils/formatters";
 
 type PatientRow = {
   name: string;
@@ -34,7 +35,7 @@ const columns: Column<PatientRow>[] = [
     key: "name",
     header: "Patient Name",
     render: (row) => (
-      <span style={{ fontWeight: 500 }}>{row.name}</span>
+      <span style={{ fontWeight: 500 }}>{toTitleCase(row.name)}</span>
     ),
   },
   {

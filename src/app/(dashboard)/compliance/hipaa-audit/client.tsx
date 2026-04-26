@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 
 import type { HISTAuditAction } from "@/lib/security/hipaa-audit";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 export const dynamic = "force-dynamic";
 
@@ -294,7 +295,7 @@ export function HIPAAAuditPage({
                     {log.user ? (
                       <div>
                         <div className="font-medium">
-                          {log.user.firstName} {log.user.lastName}
+                          {formatPatientName({ firstName: log.user.firstName, lastName: log.user.lastName })}
                         </div>
                         <div className="text-xs text-gray-500">
                           {log.user.email}

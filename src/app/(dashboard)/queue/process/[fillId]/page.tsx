@@ -46,6 +46,15 @@ import {
 } from "./actions";
 import { FILL_STATUS_META } from "@/lib/workflow/fill-status";
 import { DUR_OVERRIDE_REASON_CODES, type DURAlert } from "@/lib/clinical/dur-engine";
+import { BreadcrumbLabel } from "@/components/ui/Breadcrumbs";
+import {
+  formatDate,
+  formatDateTime,
+  formatPatientName,
+  formatPrescriberName,
+  formatDrugName,
+  formatFillNumber,
+} from "@/lib/utils/formatters";
 
 // ─── Status Colors ────────────────────────────────────────────────
 
@@ -110,11 +119,23 @@ export default function FillProcessPage() {
     counselAccepted: true,
     signatureCaptured: false,
     paymentReceived: false,
+    // R6-#20: Government-issued ID check. Required for controlled substances
+    // (DEA Schedule II–V) but tracked here unconditionally so the audit log
+    // shows whether it was performed regardless of drug class.
+    idVerified: false,
     pickupNotes: "",
   });
   const [savingPickup, setSavingPickup] = useState(false);
   const [notifying, setNotifying] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
+
+  // R6-#20: Sold-gate override modal. If the workflow guard refuses the
+  // waiting_bin → sold transition because the pickup checklist is incomplete,
+  // we surface what's missing and let the operator override with a typed
+  // reason. The reason is recorded as a SOLD_OVERRIDE FillEvent.
+  const [soldGateError, setSoldGateError] = useState<string | null>(null);
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [overrideReasonText, setOverrideReasonText] = useState("");
 
   // DUR (Drug Utilization Review) — auto-fired when entering Verify so the
   // pharmacist sees interactions / allergies / duplications inline. Each
@@ -169,6 +190,7 @@ export default function FillProcessPage() {
             counselAccepted: !!storedPickup.counselAccepted,
             signatureCaptured: !!storedPickup.signatureCaptured,
             paymentReceived: !!storedPickup.paymentReceived,
+            idVerified: !!storedPickup.idVerified,
             pickupNotes: (storedPickup.pickupNotes as string) || "",
           });
         }
@@ -220,6 +242,7 @@ export default function FillProcessPage() {
     if (!fill) return;
     setProcessing(true);
     setError(null);
+    setSoldGateError(null);
     try {
       // If the pharmacist is moving from Verify → Waiting Bin, persist the
       // checklist first so the audit trail records who attested to each item.
@@ -227,15 +250,66 @@ export default function FillProcessPage() {
         await recordVerifyChecklist(fill.id, checklist);
       }
       // For waiting_bin → sold, persist the pickup checklist (counsel /
-      // signature / payment) before the workflow guard checks for it.
+      // signature / payment / id) before the workflow guard checks for it.
       if (newStatus === "sold" && fill.status === "waiting_bin") {
-        await recordPickupChecklist(fill.id, pickup);
+        try {
+          await recordPickupChecklist(fill.id, pickup);
+        } catch (e) {
+          // Surface checklist failures as sold-gate errors so the override
+          // modal can offer a bypass path (R6-#20). The recorded checklist
+          // is metadata, not a hard gate, so we still proceed to attempt
+          // processFill — the workflow guard owns the hard gate.
+          const msg = e instanceof Error ? e.message : "Pickup checklist failed";
+          setSoldGateError(msg);
+          setProcessing(false);
+          return;
+        }
       }
       await processFill(fill.id, newStatus, actionNotes || undefined);
       setActionNotes("");
       await loadFill();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Action failed");
+      const msg = e instanceof Error ? e.message : "Action failed";
+      // The waiting_bin → sold guard returns a "missing: ..." message — when
+      // we see one, route the user into the override-with-reason modal
+      // instead of just dumping the error to the action panel.
+      if (
+        newStatus === "sold" &&
+        fill.status === "waiting_bin" &&
+        /pickup checklist incomplete|missing:/i.test(msg)
+      ) {
+        setSoldGateError(msg);
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // R6-#20: Bypass the pickup-checklist gate with an explicit reason. The
+  // action layer writes a SOLD_OVERRIDE FillEvent so the override is part of
+  // the audit trail. Reason must be at least 5 chars (server enforces).
+  const handleAdvanceWithOverride = async () => {
+    if (!fill) return;
+    if (overrideReasonText.trim().length < 5) {
+      setError("Override reason must be at least 5 characters.");
+      return;
+    }
+    setProcessing(true);
+    setError(null);
+    try {
+      await processFill(fill.id, "sold", actionNotes || undefined, {
+        override: true,
+        overrideReason: overrideReasonText.trim(),
+      });
+      setActionNotes("");
+      setSoldGateError(null);
+      setShowOverrideModal(false);
+      setOverrideReasonText("");
+      await loadFill();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Override failed");
     } finally {
       setProcessing(false);
     }
@@ -494,15 +568,32 @@ export default function FillProcessPage() {
   const isControlled = fill.item?.isControlled || (fill.item?.deaSchedule && fill.item.deaSchedule >= 2);
   const happyPath = fill.happyPathNext;
 
+  // Friendly label for the global Breadcrumbs component — replaces the
+  // fillId UUID segment with "Patient — Drug (Fill #N)" so the dashboard
+  // layout's breadcrumb chrome is also legible (matches the in-page one).
+  const fillBreadcrumbLabel = `${formatPatientName(fill.patient)} \u2014 ${
+    formatDrugName(fill.item?.name) || "Compound"
+  } (Fill #${formatFillNumber(fill.fillNumber)})`;
+
   return (
     <div>
-      {/* Breadcrumb */}
+      <BreadcrumbLabel segment={fillId} label={fillBreadcrumbLabel} />
+      {/* Breadcrumb — friendly label "Patient Name — Drug Name (Fill #N)"
+          instead of the fill UUID, so a tech glancing at the URL chrome
+          sees what they're looking at. */}
       <div className="px-6 py-2.5 text-xs flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
         <Link href="/dashboard" className="no-underline font-medium hover:underline" style={{ color: "var(--green-700)" }}>Home</Link>
         <span style={{ color: "#c5d5c9" }}>&rsaquo;</span>
         <Link href="/queue" className="no-underline font-medium hover:underline" style={{ color: "var(--green-700)" }}>Queue</Link>
         <span style={{ color: "#c5d5c9" }}>&rsaquo;</span>
-        <span className="font-semibold" style={{ color: "var(--text-secondary)" }}>Process Fill</span>
+        <span className="font-semibold" style={{ color: "var(--text-secondary)" }}>
+          {formatPatientName(fill.patient)}
+          {" \u2014 "}
+          {formatDrugName(fill.item?.name) || "Compound"}
+          {" (Fill #"}
+          {formatFillNumber(fill.fillNumber)}
+          {")"}
+        </span>
       </div>
 
       <div className="px-6 pb-6">
@@ -513,7 +604,7 @@ export default function FillProcessPage() {
               <ChevronLeft className="w-4 h-4" /> Queue
             </Link>
             <h1 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
-              RX# {fill.prescription.rxNumber} &middot; Fill #{fill.fillNumber}
+              RX# {fill.prescription.rxNumber} &middot; Fill #{formatFillNumber(fill.fillNumber)}
             </h1>
             <span
               className="text-xs font-semibold px-2.5 py-1 rounded-full text-white"
@@ -551,11 +642,11 @@ export default function FillProcessPage() {
                     <User className="w-3.5 h-3.5" /> Patient
                   </h3>
                   <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-                    {fill.patient.firstName} {fill.patient.lastName}
+                    {formatPatientName({ firstName: fill.patient.firstName, lastName: fill.patient.lastName })}
                   </p>
                   {fill.patient.dateOfBirth && (
                     <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                      DOB: {new Date(fill.patient.dateOfBirth).toLocaleDateString()}
+                      DOB: {formatDate(fill.patient.dateOfBirth)}
                     </p>
                   )}
                   {fill.patient.phoneNumbers[0] && (
@@ -578,7 +669,7 @@ export default function FillProcessPage() {
                     <Pill className="w-3.5 h-3.5" /> Drug
                   </h3>
                   <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-                    {fill.item?.name || "Unknown"}
+                    {fill.item?.name ? formatDrugName(fill.item.name) : "Unknown"}
                   </p>
                   {fill.item?.strength && (
                     <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
@@ -812,7 +903,7 @@ export default function FillProcessPage() {
                   <div className="grid grid-cols-2 gap-3 text-xs" style={{ color: "var(--text-secondary)" }}>
                     <div>
                       <span className="font-semibold block" style={{ color: "var(--text-muted)" }}>Prescriber</span>
-                      {fill.prescriber ? `${fill.prescriber.firstName} ${fill.prescriber.lastName}` : "—"}
+                      {fill.prescriber ? formatPrescriberName({ firstName: fill.prescriber.firstName, lastName: fill.prescriber.lastName }) : "—"}
                       {fill.prescriber?.npi && ` (NPI: ${fill.prescriber.npi})`}
                     </div>
                     <div>
@@ -821,11 +912,11 @@ export default function FillProcessPage() {
                     </div>
                     <div>
                       <span className="font-semibold block" style={{ color: "var(--text-muted)" }}>Date Written</span>
-                      {fill.prescription.dateWritten ? new Date(fill.prescription.dateWritten).toLocaleDateString() : "—"}
+                      {formatDate(fill.prescription.dateWritten)}
                     </div>
                     <div>
                       <span className="font-semibold block" style={{ color: "var(--text-muted)" }}>Expiration</span>
-                      {fill.prescription.expirationDate ? new Date(fill.prescription.expirationDate).toLocaleDateString() : "—"}
+                      {formatDate(fill.prescription.expirationDate)}
                     </div>
                   </div>
 
@@ -1275,6 +1366,26 @@ export default function FillProcessPage() {
                       />
                       Payment received
                     </label>
+                    {/* Controlled-substance ID gate (R6-#20). Only shown for
+                        DEA Schedule II–V drugs — non-controlled fills don't
+                        need this row, and forcing it would just train the
+                        cashier to click through. */}
+                    {isControlled && (
+                      <label
+                        className="flex items-center gap-2 text-xs cursor-pointer"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={pickup.idVerified}
+                          onChange={(e) =>
+                            setPickup((p) => ({ ...p, idVerified: e.target.checked }))
+                          }
+                          className="w-4 h-4"
+                        />
+                        Government-issued ID verified (controlled substance)
+                      </label>
+                    )}
                   </div>
                   <input
                     type="text"
@@ -1345,6 +1456,107 @@ export default function FillProcessPage() {
                   style={{ borderColor: "var(--border)" }}
                 />
 
+                {/* R6-#20: Sold-gate failure surface. When the workflow guard
+                    refuses waiting_bin → sold because the pickup checklist is
+                    incomplete, we render the missing items here and offer an
+                    "Override with reason" path. The override writes a
+                    SOLD_OVERRIDE FillEvent for the audit trail. */}
+                {soldGateError && (
+                  <div
+                    className="rounded-md border p-3 text-xs"
+                    style={{
+                      backgroundColor: "#fef3c7",
+                      borderColor: "#f59e0b",
+                      color: "#78350f",
+                    }}
+                  >
+                    <div className="font-semibold mb-1 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Cannot mark Sold yet
+                    </div>
+                    <p className="mb-2">{soldGateError}</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowOverrideModal(true)}
+                        disabled={processing}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-md text-white disabled:opacity-50"
+                        style={{ backgroundColor: "#dc2626" }}
+                      >
+                        Override with reason
+                      </button>
+                      <button
+                        onClick={() => setSoldGateError(null)}
+                        disabled={processing}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md border disabled:opacity-50"
+                        style={{ borderColor: "#f59e0b", color: "#78350f" }}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Override modal — collapses inline rather than as a portal
+                    to keep keyboard focus inside the action panel. The
+                    server enforces a 5-char minimum on the reason. */}
+                {showOverrideModal && (
+                  <div
+                    className="rounded-md border p-3 text-xs"
+                    style={{
+                      backgroundColor: "#fff7ed",
+                      borderColor: "#dc2626",
+                    }}
+                  >
+                    <div
+                      className="font-semibold mb-2"
+                      style={{ color: "#7f1d1d" }}
+                    >
+                      Override pickup-checklist gate
+                    </div>
+                    <p className="mb-2" style={{ color: "var(--text-secondary)" }}>
+                      Type a reason for bypassing the missing checklist items.
+                      This will be recorded as a SOLD_OVERRIDE event on the
+                      fill&apos;s audit log alongside your name.
+                    </p>
+                    <textarea
+                      value={overrideReasonText}
+                      onChange={(e) => setOverrideReasonText(e.target.value)}
+                      placeholder="e.g. Patient signature captured on paper after POS crash; counsel offered verbally."
+                      className="w-full px-3 py-2 border rounded-md text-xs focus:outline-none focus:ring-2"
+                      style={{ borderColor: "var(--border)", minHeight: 72 }}
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={handleAdvanceWithOverride}
+                        disabled={
+                          processing || overrideReasonText.trim().length < 5
+                        }
+                        className="px-3 py-1.5 text-xs font-semibold rounded-md text-white disabled:opacity-50"
+                        style={{ backgroundColor: "#dc2626" }}
+                      >
+                        {processing ? "Overriding..." : "Confirm Override"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowOverrideModal(false);
+                          setOverrideReasonText("");
+                        }}
+                        disabled={processing}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md border disabled:opacity-50"
+                        style={{ borderColor: "var(--border)" }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    {overrideReasonText.length > 0 &&
+                      overrideReasonText.trim().length < 5 && (
+                        <p className="text-xs mt-1 text-amber-700">
+                          Reason must be at least 5 characters.
+                        </p>
+                      )}
+                  </div>
+                )}
+
                 {/* Happy path button */}
                 {happyPath && (
                   <button
@@ -1400,7 +1612,7 @@ export default function FillProcessPage() {
                   <Stethoscope className="w-3.5 h-3.5" /> Prescriber
                 </h3>
                 <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                  Dr. {fill.prescriber.firstName} {fill.prescriber.lastName}
+                  {formatPrescriberName({ firstName: fill.prescriber.firstName, lastName: fill.prescriber.lastName })}
                 </p>
                 <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
                   NPI: {fill.prescriber.npi || "—"}
@@ -1417,12 +1629,25 @@ export default function FillProcessPage() {
                 <Clock className="w-3.5 h-3.5" /> Fill Details
               </h3>
               <div className="space-y-1 text-xs" style={{ color: "var(--text-secondary)" }}>
-                <p>Fill #{fill.fillNumber}</p>
+                <p>Fill #{formatFillNumber(fill.fillNumber)}</p>
                 <p>Created: {new Date(fill.createdAt).toLocaleString()}</p>
                 {fill.filledAt && <p>Filled: {new Date(fill.filledAt).toLocaleString()}</p>}
                 {fill.verifiedAt && <p>Verified: {new Date(fill.verifiedAt).toLocaleString()}</p>}
-                {fill.filler && <p>Filled by: {fill.filler.firstName} {fill.filler.lastName}</p>}
-                {fill.verifier && <p>Verified by: {fill.verifier.firstName} {fill.verifier.lastName}</p>}
+                {fill.filler && <p>Filled by: {formatPatientName({ firstName: fill.filler.firstName, lastName: fill.filler.lastName })}</p>}
+                {fill.verifier && <p>Verified by: {formatPatientName({ firstName: fill.verifier.firstName, lastName: fill.verifier.lastName })}</p>}
+                {/* R6-#21: Sold-by/at surfaced from the FillEvent audit row
+                    so the cashier and pharmacist can see who finalized the
+                    dispense without scrolling the activity log. */}
+                {fill.soldBy && (
+                  <p>
+                    Sold by:{" "}
+                    {formatPatientName({
+                      firstName: fill.soldBy.firstName,
+                      lastName: fill.soldBy.lastName,
+                    })}
+                  </p>
+                )}
+                {fill.soldAt && <p>Sold at: {formatDateTime(fill.soldAt)}</p>}
                 {fill.binLocation && <p>Bin: {fill.binLocation}</p>}
                 {fill.copayAmount != null && <p>Copay: ${fill.copayAmount.toFixed(2)}</p>}
                 {fill.totalPrice != null && <p>Total: ${fill.totalPrice.toFixed(2)}</p>}

@@ -3,16 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { searchPatientsLive, type PatientLookupResult } from "./actions";
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "—";
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return dateStr;
-  }
-}
+import { formatDate, formatPatientName, formatDrugName } from "@/lib/utils/formatters";
 
 function formatPhone(phone: string | null): string {
   if (!phone) return "—";
@@ -161,7 +152,7 @@ export default function PatientLookupPage() {
                           </div>
                           <div>
                             <p className="text-sm font-bold text-gray-900">
-                              {patient.lastName}, {patient.firstName}
+                              {formatPatientName({ firstName: patient.firstName, lastName: patient.lastName }, { format: "last-first" })}
                             </p>
                             <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
                               <span>DOB: {formatDate(patient.dob)}</span>
@@ -220,7 +211,7 @@ export default function PatientLookupPage() {
                                         <span className="text-sm font-mono font-bold text-[#40721D]">{fill.rxId}</span>
                                       </td>
                                       <td className="px-4 py-2">
-                                        <span className="text-sm text-gray-700">{fill.drugName}</span>
+                                        <span className="text-sm text-gray-700">{formatDrugName(fill.drugName)}</span>
                                       </td>
                                       <td className="px-4 py-2">
                                         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-200">

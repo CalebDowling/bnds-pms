@@ -24,6 +24,11 @@ export default function PatientForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Per-field error for the phone input. Lit on blur so the user has a
+  // chance to finish typing first; cleared on every keystroke so the
+  // message disappears as soon as they correct it. Drives both the inline
+  // red message under the input and the disabled state on Submit.
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const isEdit = !!patientId;
 
   const [form, setForm] = useState<PatientFormData>({
@@ -49,6 +54,10 @@ export default function PatientForm({
 
   function updateField(field: keyof PatientFormData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+    // Clear the inline phone error as soon as the user starts editing —
+    // they'll get a fresh check on blur. Avoids a stale error nagging them
+    // while they're correcting it.
+    if (field === "phone" && phoneError) setPhoneError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -227,9 +236,16 @@ export default function PatientForm({
                 type="tel"
                 value={form.phone}
                 onChange={(e) => updateField("phone", e.target.value)}
-                placeholder="(555) 555-5555"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
+                onBlur={(e) => setPhoneError(validatePhone(e.target.value))}
+                placeholder="(555) 123-4567"
+                aria-invalid={phoneError ? true : undefined}
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent ${
+                  phoneError ? "border-red-400" : "border-gray-300"
+                }`}
               />
+              {phoneError && (
+                <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+              )}
             </div>
           </div>
         </div>
@@ -319,7 +335,7 @@ export default function PatientForm({
         </button>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !!phoneError}
           className="px-6 py-2 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? "Saving..." : isEdit ? "Update Patient" : "Create Patient"}

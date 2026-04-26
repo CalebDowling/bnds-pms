@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getBatch } from "@/app/(dashboard)/compounding/actions";
 import { formatDate } from "@/lib/utils";
+import { formatDrugName, formatPatientName } from "@/lib/utils/formatters";
 import { prisma } from "@/lib/prisma";
 import BatchStatusBar from "./BatchStatusBar";
 import WeighIngredientForm from "./WeighIngredientForm";
@@ -88,8 +89,8 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <p className="text-xs font-semibold text-gray-400 uppercase">Compounder</p>
-          <p className="text-sm font-bold text-gray-900 mt-1">{batch.compounder.firstName} {batch.compounder.lastName}</p>
-          {batch.verifier && <p className="text-xs text-gray-400 mt-1">Verified: {batch.verifier.firstName} {batch.verifier.lastName}</p>}
+          <p className="text-sm font-bold text-gray-900 mt-1">{formatPatientName({ firstName: batch.compounder.firstName, lastName: batch.compounder.lastName })}</p>
+          {batch.verifier && <p className="text-xs text-gray-400 mt-1">Verified: {formatPatientName({ firstName: batch.verifier.firstName, lastName: batch.verifier.lastName })}</p>}
         </div>
       </div>
 
@@ -122,7 +123,7 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
                   return (
                     <tr key={ing.id}>
                       <td className="py-3">
-                        <p className="text-sm font-medium text-gray-900">{ing.item?.name || "Unknown"}</p>
+                        <p className="text-sm font-medium text-gray-900">{ing.item?.name ? formatDrugName(ing.item.name) : "Unknown"}</p>
                         {ing.isActiveIngredient && <span className="text-[10px] text-purple-600 font-medium">ACTIVE</span>}
                       </td>
                       <td className="py-3 text-sm text-gray-600">{Number(ing.quantity)} {ing.unit}</td>
@@ -131,7 +132,7 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
                           <td className="py-3 text-sm text-gray-900 font-mono">{weighed.itemLot?.lotNumber || "—"}</td>
                           <td className="py-3 text-sm text-gray-900 font-medium">{Number(weighed.quantityUsed)} {weighed.unit}</td>
                           <td className="py-3 text-sm text-gray-600">
-                            {weighed.weigher ? `${weighed.weigher.firstName} ${weighed.weigher.lastName}` : "—"}
+                            {weighed.weigher ? formatPatientName({ firstName: weighed.weigher.firstName, lastName: weighed.weigher.lastName }) : "—"}
                           </td>
                           <td className="py-3">
                             <span className="text-xs font-medium text-green-600">✓ Done</span>
@@ -146,7 +147,7 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
                             {batch.status === "in_progress" && (
                               <WeighIngredientForm
                                 batchId={batch.id}
-                                ingredientName={ing.item?.name || "Unknown"}
+                                ingredientName={ing.item?.name ? formatDrugName(ing.item.name) : "Unknown"}
                                 expectedQty={Number(ing.quantity)}
                                 expectedUnit={ing.unit}
                                 itemId={ing.item?.id || ""}
@@ -196,7 +197,7 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
                             : "bg-yellow-50 text-yellow-700"
                         }`}>{qa.result}</span>
                       </td>
-                      <td className="py-2.5 text-sm text-gray-600">{qa.performer.firstName} {qa.performer.lastName}</td>
+                      <td className="py-2.5 text-sm text-gray-600">{formatPatientName({ firstName: qa.performer.firstName, lastName: qa.performer.lastName })}</td>
                       <td className="py-2.5 text-sm text-gray-600">{formatDate(qa.performedAt)}</td>
                     </tr>
                   ))}
@@ -253,7 +254,7 @@ async function BatchDetailPageContent({ params }: { params: Promise<{ id: string
                 Rx# {batch.prescription.rxNumber}
               </Link>
               <p className="text-xs text-gray-400">
-                {batch.prescription.patient.lastName}, {batch.prescription.patient.firstName}
+                {formatPatientName({ firstName: batch.prescription.patient.firstName, lastName: batch.prescription.patient.lastName }, { format: "last-first" })}
               </p>
             </div>
           )}

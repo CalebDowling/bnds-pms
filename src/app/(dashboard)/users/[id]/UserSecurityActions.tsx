@@ -19,6 +19,7 @@ import {
   deleteUser,
 } from "../actions";
 import { getErrorMessage } from "@/lib/errors";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 interface Props {
   user: {
@@ -83,7 +84,7 @@ export default function UserSecurityActions({ user, currentUserId }: Props) {
   async function handleToggleActive() {
     if (isSelf) return;
     const action = user.isActive ? "Deactivate" : "Reactivate";
-    if (!confirm(`${action} ${user.firstName} ${user.lastName}?`)) return;
+    if (!confirm(`${action} ${formatPatientName({ firstName: user.firstName, lastName: user.lastName })}?`)) return;
     setBusy("toggle");
     setBanner(null);
     try {
@@ -579,7 +580,7 @@ function DeleteConfirmModal({
             <p>
               You&rsquo;re about to <strong>permanently delete</strong>{" "}
               <strong>
-                {user.firstName} {user.lastName}
+                {formatPatientName({ firstName: user.firstName, lastName: user.lastName })}
               </strong>{" "}
               ({user.email}) from both Supabase Auth and the BNDS database.
             </p>

@@ -2,8 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPatient } from "../actions";
 import { formatDate, formatPhone, calculateAge, getInitials } from "@/lib/utils";
+import { formatPatientName } from "@/lib/utils/formatters";
 import PatientTabs from "./PatientTabs";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { BreadcrumbLabel } from "@/components/ui/Breadcrumbs";
 
 async function PatientDetailPageContent({
   params,
@@ -26,6 +28,10 @@ async function PatientDetailPageContent({
 
   return (
     <div>
+      {/* Replace the UUID segment in the global breadcrumb with the
+          patient's name (e.g. "Patients > John Smith" instead of
+          "Patients > #abc12345..."). */}
+      <BreadcrumbLabel segment={id} label={formatPatientName(patient)} />
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -36,8 +42,7 @@ async function PatientDetailPageContent({
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {patient.lastName}, {patient.firstName}
-              {patient.middleName ? ` ${patient.middleName.charAt(0)}.` : ""}
+              {formatPatientName(patient, { format: "last-first-mi" })}
               {patient.suffix ? ` ${patient.suffix}` : ""}
             </h1>
             <div className="flex items-center gap-3 mt-1">
@@ -62,6 +67,14 @@ async function PatientDetailPageContent({
           </div>
         </div>
         <div className="flex gap-2">
+          {/* Pre-fill the patient on /prescriptions/new via ?patientId=...
+              so the tech doesn't have to re-find them in the picker. */}
+          <Link
+            href={`/prescriptions/new?patientId=${id}`}
+            className="px-4 py-2 text-sm font-medium bg-[#40721D] text-white rounded-lg hover:bg-[#2D5114] transition-colors no-underline"
+          >
+            + New Rx
+          </Link>
           <Link
             href={`/patients/${id}/edit`}
             className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

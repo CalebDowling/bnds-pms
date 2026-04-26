@@ -10,7 +10,7 @@ import ToastContainer from "@/components/ui/ToastContainer";
 import ToastProvider from "@/components/providers/ToastProvider";
 // import ShadowModeBanner from "@/components/dashboard/ShadowModeBanner"; // Hidden while DRX sync is off (2026-04-17)
 import CommandPalette from "@/components/ui/CommandPalette";
-import Breadcrumbs from "@/components/ui/Breadcrumbs";
+import Breadcrumbs, { BreadcrumbLabelProvider } from "@/components/ui/Breadcrumbs";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import FloatingActionButton from "@/components/ui/FloatingActionButton";
 import PageTransition from "@/components/ui/PageTransition";
@@ -61,20 +61,22 @@ export default async function DashboardLayout({
           <SessionTimeoutProvider timeoutMinutes={120} warningMinutes={5}>
             <div className="min-h-screen bg-[var(--page-bg)]">
               {/* <ShadowModeBanner /> — hidden while DRX sync is off (2026-04-17) */}
-              <SidebarLayoutShell>
-                <DashboardSearch />
-                <CommandPalette />
-                <Breadcrumbs />
-                <main id="main-content" className="p-0" role="main">
-                  <RealtimeProvider>
-                    <PageTransition>{children}</PageTransition>
-                  </RealtimeProvider>
-                </main>
-                <FloatingActionButton />
-                <div aria-live="polite" aria-atomic="true">
-                  <ToastContainer />
-                </div>
-              </SidebarLayoutShell>
+              <BreadcrumbLabelProvider>
+                <SidebarLayoutShell>
+                  <DashboardSearch />
+                  <CommandPalette />
+                  <Breadcrumbs />
+                  <main id="main-content" className="p-0" role="main">
+                    <RealtimeProvider>
+                      <PageTransition>{children}</PageTransition>
+                    </RealtimeProvider>
+                  </main>
+                  <FloatingActionButton />
+                  <div aria-live="polite" aria-atomic="true">
+                    <ToastContainer />
+                  </div>
+                </SidebarLayoutShell>
+              </BreadcrumbLabelProvider>
               <MobileBottomNav />
             </div>
           </SessionTimeoutProvider>

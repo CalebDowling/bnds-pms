@@ -72,6 +72,16 @@ export interface FillDetail {
   } | null;
   filler: { firstName: string; lastName: string } | null;
   verifier: { firstName: string; lastName: string } | null;
+  /**
+   * Who marked this fill Sold and when. R6-#21: surface in the FILL DETAILS
+   * card so the cashier / pharmacist can see the dispense audit at a glance
+   * without scrolling the activity log.
+   *
+   * Sourced from FillEvent (status_change → sold) joined to User. Falls back
+   * to metadata.soldInfo when the event row is missing (legacy data).
+   */
+  soldBy: { firstName: string; lastName: string } | null;
+  soldAt: string | null;
 
   // Events (audit trail)
   events: {
@@ -177,6 +187,25 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
       })
     : null;
 
+  // R6-#21: For Sold fills, look up the most recent status_change → sold
+  // FillEvent so the FILL DETAILS card can render "Sold by / at". The event
+  // log is the source of truth; metadata.soldInfo is mirrored at write time
+  // but the joined User name lives on the event row.
+  const soldEventRow =
+    fill && fill.status === "sold"
+      ? await prisma.fillEvent.findFirst({
+          where: {
+            fillId: fill.id,
+            eventType: "status_change",
+            toValue: "sold",
+          },
+          orderBy: { createdAt: "desc" },
+          include: {
+            performer: { select: { firstName: true, lastName: true } },
+          },
+        })
+      : null;
+
   if (!fill) return null;
 
   const rx = fill.prescription;
@@ -232,6 +261,26 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
     filler: fill.filler,
     verifier: fill.verifier,
 
+    // soldBy/soldAt are populated only when the fill is sold AND we found an
+    // associated FillEvent. Fall back to metadata.soldInfo for legacy rows
+    // that pre-date the event-payload write — dispensedAt + the free-form
+    // metadata is then the only sold record we have.
+    soldBy: soldEventRow?.performer
+      ? {
+          firstName: soldEventRow.performer.firstName,
+          lastName: soldEventRow.performer.lastName,
+        }
+      : null,
+    soldAt: (() => {
+      if (soldEventRow) return soldEventRow.createdAt.toISOString();
+      // Legacy fallback: when the event log is missing, use dispensedAt or
+      // the soldInfo payload mirrored on metadata (older fills).
+      const meta = (fill.metadata as Record<string, unknown>) || {};
+      const soldInfo = meta.soldInfo as { soldAt?: string } | undefined;
+      if (soldInfo?.soldAt) return soldInfo.soldAt;
+      return fill.dispensedAt?.toISOString() || null;
+    })(),
+
     events: fill.events.map((e: any) => ({
       eventType: e.eventType,
       fromValue: e.fromValue,
@@ -276,12 +325,19 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
 export async function processFill(
   fillId: string,
   newStatus: string,
-  notes?: string
+  notes?: string,
+  options?: { override?: boolean; overrideReason?: string }
 ) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated");
 
-  const result = await advanceFillStatus(fillId, newStatus, user.id, notes);
+  const result = await advanceFillStatus(
+    fillId,
+    newStatus,
+    user.id,
+    notes,
+    options
+  );
 
   if (!result.success) {
     throw new Error(result.error || "Failed to advance fill");
@@ -524,6 +580,12 @@ export interface PickupChecklistInput {
   signatureCaptured: boolean;
   /** Payment was collected (copay, cash, account, etc.). */
   paymentReceived: boolean;
+  /**
+   * Government-issued ID was checked. Required for controlled substances
+   * (DEA Schedule II–V). Tracked here so the waiting_bin → sold gate can
+   * verify it; non-controlled fills can leave this false.
+   */
+  idVerified?: boolean;
   /** Free-text note for declined counseling, signature on file, etc. */
   pickupNotes?: string;
 }
@@ -537,7 +599,14 @@ export async function recordPickupChecklist(
 
   const fill = await prisma.prescriptionFill.findUnique({
     where: { id: fillId },
-    select: { metadata: true, status: true },
+    select: {
+      metadata: true,
+      status: true,
+      item: { select: { isControlled: true, deaSchedule: true } },
+      prescription: {
+        select: { item: { select: { isControlled: true, deaSchedule: true } } },
+      },
+    },
   });
 
   if (!fill) throw new Error("Fill not found");
@@ -555,6 +624,22 @@ export async function recordPickupChecklist(
   }
   if (!checklist.paymentReceived) {
     throw new Error("Payment must be collected before dispense.");
+  }
+
+  // Controlled-substance ID gate (R6-#20). DEA Schedule II–V drugs require
+  // a government-issued ID check at the register before dispense. Fall back
+  // to the parent Rx's item when the fill itself doesn't override the drug.
+  const drug = fill.item ?? fill.prescription?.item ?? null;
+  const schedule = drug?.deaSchedule?.toUpperCase().trim() ?? null;
+  const isControlled =
+    !!drug?.isControlled ||
+    (schedule != null &&
+      (schedule.startsWith("C") ||
+        ["II", "III", "IV", "V"].includes(schedule)));
+  if (isControlled && !checklist.idVerified) {
+    throw new Error(
+      "Government-issued ID check is required for controlled substances."
+    );
   }
 
   const existingMetadata = (fill.metadata as Record<string, unknown>) || {};
@@ -585,6 +670,7 @@ export async function recordPickupChecklist(
           counselAccepted: checklist.counselAccepted,
           signatureCaptured: checklist.signatureCaptured,
           paymentReceived: checklist.paymentReceived,
+          idVerified: !!checklist.idVerified,
           pickupNotes: checklist.pickupNotes || null,
         }),
       },

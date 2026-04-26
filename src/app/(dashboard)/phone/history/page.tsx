@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { getCallHistoryAction } from "../actions";
 import type { CallRecord, CallHistoryResult } from "../actions";
+import { formatDateTime } from "@/lib/utils/formatters";
 
 export const dynamic = "force-dynamic";
 
@@ -24,17 +25,6 @@ function formatPhone(phone: string): string {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
   return phone;
-}
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 function outcomeBadge(outcome: string): { label: string; color: string } {

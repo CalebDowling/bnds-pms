@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getPatients } from "./actions";
 import { formatDate, formatPhone, calculateAge, getInitials } from "@/lib/utils";
+import { formatPatientName } from "@/lib/utils/formatters";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import ExportButton from "@/components/ui/ExportButton";
@@ -132,7 +133,7 @@ export default async function PatientsPage({
                           </div>
                           <div>
                             <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                              {patient.lastName}, {patient.firstName}{patient.suffix ? ` ${patient.suffix}` : ""}
+                              {formatPatientName({ firstName: patient.firstName, lastName: patient.lastName }, { format: "last-first" })}{patient.suffix ? ` ${patient.suffix}` : ""}
                             </p>
                             {patient.email && (
                               <p className="text-xs" style={{ color: "var(--text-muted)" }}>{patient.email}</p>

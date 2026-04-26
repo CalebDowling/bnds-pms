@@ -6,6 +6,11 @@ import SignaturePad from "@/components/signature/SignaturePad";
 import { getPickupFill, completePickup } from "../actions";
 import Link from "next/link";
 import React from "react";
+import {
+  formatPatientName,
+  formatPrescriberName,
+  formatDrugName,
+} from "@/lib/utils/formatters";
 
 interface PageProps {
   params: Promise<{
@@ -170,7 +175,7 @@ export default function PickupProcessingPage({ params }: PageProps) {
               <div>
                 <p className="text-xs text-gray-500 uppercase">Drug</p>
                 <p className="text-sm font-semibold text-gray-900">
-                  {fill.prescription.item?.name || "N/A"}
+                  {fill.prescription.item?.name ? formatDrugName(fill.prescription.item.name) : "N/A"}
                 </p>
               </div>
               <div>
@@ -201,8 +206,7 @@ export default function PickupProcessingPage({ params }: PageProps) {
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Name:</span>
                 <span className="text-sm font-semibold text-gray-900">
-                  {fill.prescription.patient.firstName}{" "}
-                  {fill.prescription.patient.lastName}
+                  {formatPatientName({ firstName: fill.prescription.patient.firstName, lastName: fill.prescription.patient.lastName })}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -221,8 +225,7 @@ export default function PickupProcessingPage({ params }: PageProps) {
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Prescriber:</span>
                   <span className="text-sm font-semibold text-gray-900">
-                    {fill.prescription.prescriber.firstName}{" "}
-                    {fill.prescription.prescriber.lastName}
+                    {formatPrescriberName({ firstName: fill.prescription.prescriber.firstName, lastName: fill.prescription.prescriber.lastName })}
                   </span>
                 </div>
               )}

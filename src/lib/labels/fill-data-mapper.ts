@@ -1,33 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { formatDirections } from "@/lib/labels/rx-label";
+import { toTitleCase as sharedToTitleCase, formatDrugName } from "@/lib/utils/formatters";
 
 /**
- * Convert ALL CAPS / lowercase / mixed-case names from the DRX legacy feed
- * into Title Case for label display only. Handles:
- *   - Single letters (middle initials): "JOHN P SMITH" → "John P Smith"
- *   - Hyphenated names: "SMITH-JONES" → "Smith-Jones"
- *   - Apostrophes: "O'BRIEN" → "O'Brien"
- *   - Common particles: stays simple — capitalize each whitespace-separated
- *     token; within a token, capitalize after each '-' or "'" boundary.
- *
- * Pure formatter — never mutates DB values.
+ * Re-export the centralized title-caser so existing imports of
+ * `toTitleCase` from this module keep working. Source of truth lives
+ * in `src/lib/utils/formatters.ts`.
  */
-export function toTitleCase(s: string | null | undefined): string {
-  if (!s) return "";
-  return s
-    .toLowerCase()
-    .split(/(\s+)/) // preserve whitespace runs (incl. commas attached to tokens)
-    .map((token) => {
-      if (!token.trim()) return token;
-      // Capitalize the first alpha char of each subgroup split by - or '
-      return token.replace(/([A-Za-z])([A-Za-z'-]*)/g, (_, first: string, rest: string) => {
-        const head = first.toUpperCase();
-        const tail = rest.replace(/([-'])([a-z])/g, (_m, sep: string, ch: string) => sep + ch.toUpperCase());
-        return head + tail;
-      });
-    })
-    .join("");
-}
+export const toTitleCase = sharedToTitleCase;
 
 /**
  * DEA-schedule-aware expiration cutoff for a label.
@@ -164,10 +144,12 @@ export async function buildTemplateDataFromFill(
   // Patient address
   const addr =
     patient.addresses.find((a) => a.isDefault) || patient.addresses[0];
-  const addrLine1 = addr?.line1 || "";
-  const addrLine2 = addr?.line2 || "";
-  const city = addr?.city || "";
-  const state = addr?.state || "";
+  // Title Case the street/city, but keep state as 2-letter uppercase
+  // and zip as raw digits.
+  const addrLine1 = toTitleCase(addr?.line1 || "");
+  const addrLine2 = toTitleCase(addr?.line2 || "");
+  const city = toTitleCase(addr?.city || "");
+  const state = (addr?.state || "").toUpperCase();
   const zip = addr?.zip || "";
 
   // Patient phones
@@ -203,30 +185,44 @@ export async function buildTemplateDataFromFill(
   // SIG
   const sig = formatDirections(rx.directions);
 
-  // Drug info
-  const drugName = item?.name || formula?.name || "Unknown Drug";
-  const printName = item?.name || formula?.name || drugName;
+  // Drug info — preserve raw values for aux-warning matching, but render
+  // labels in Title Case. formatDrugName keeps unit tokens like "mg",
+  // "mL", "HCl", "ER" properly cased.
+  const rawDrugName = item?.name || formula?.name || "Unknown Drug";
+  const drugName = formatDrugName(rawDrugName);
+  const printName = formatDrugName(item?.name || formula?.name || rawDrugName);
   const ndc = fill.ndc || item?.ndc || "";
   const ndcFormatted = ndc; // already formatted in DB
 
-  // Aux warning labels (newline-joined for the repeating aux_labels slot)
-  const auxWarnings = buildAuxWarnings(drugName);
+  // Aux warning labels — match against the RAW (lowercased internally)
+  // drug name so opioid/SSRI/antibiotic detection isn't sensitive to
+  // Title Case formatting.
+  const auxWarnings = buildAuxWarnings(rawDrugName);
 
   // Display-only Title Case for the patient name. We do NOT mutate the DB
   // values — DRX's ALL CAPS convention is preserved upstream for matching.
   const displayFirstName = toTitleCase(patient.firstName);
   const displayLastName = toTitleCase(patient.lastName);
 
+  // Same treatment for prescriber and manufacturer — DRX feed is ALL CAPS,
+  // labels should be Title Case for readability.
+  const displayPrescFirst = toTitleCase(prescriber.firstName);
+  const displayPrescLast = toTitleCase(prescriber.lastName);
+  const displayManufacturer = item?.manufacturer
+    ? toTitleCase(item.manufacturer)
+    : (rx.isCompound ? "Compounded In-House" : "");
+
   // Fill number defaults — guard against legacy "Fill #0" leak. Schema declares
   // PrescriptionFill.fillNumber as a 1-indexed Int with no default; the leak
   // is from imported rows where DRX seeded 0 for the original fill.
   const safeFillNumber = fill.fillNumber && fill.fillNumber > 0 ? fill.fillNumber : 1;
 
-  // Prescriber address
-  const drAddr1 = prescriber.addressLine1 || "";
+  // Prescriber address — Title Case for street/city, preserve state code
+  // (always 2-letter uppercase) and zip (numeric).
+  const drAddr1 = toTitleCase(prescriber.addressLine1 || "");
   const drAddr2 = "";
-  const drCity = prescriber.city || "";
-  const drState = prescriber.state || "";
+  const drCity = toTitleCase(prescriber.city || "");
+  const drState = (prescriber.state || "").toUpperCase();
   const drZip = prescriber.zip || "";
 
   // Build the flat data map — keys match DRX template elementData values
@@ -294,16 +290,16 @@ export async function buildTemplateDataFromFill(
     // compound. Some manufactured drugs (e.g. Cetirizine tablets) get linked to
     // a formula record for ingredient tracking but should still print the
     // commercial manufacturer on the bottle.
-    "item.manufacturer":
-      item?.manufacturer || (rx.isCompound ? "COMPOUNDED IN-HOUSE" : ""),
+    "item.manufacturer": displayManufacturer,
     "item.boh": "",
     "item.id": item ? `i${item.id}` : "",
 
     // ── Prescriber ──
-    "prescription.doctor.first_name": prescriber.firstName,
-    "prescription.doctor.last_name": prescriber.lastName,
+    // Display-only Title Case, parallel to patient. DB values stay raw.
+    "prescription.doctor.first_name": displayPrescFirst,
+    "prescription.doctor.last_name": displayPrescLast,
     "prescription.doctor.first_name|prescription.doctor.last_name":
-      `${prescriber.firstName} ${prescriber.lastName}`,
+      `${displayPrescFirst} ${displayPrescLast}`.trim(),
     "prescription.doctor.dea": prescriber.deaNumber || "",
     "prescription.doctor.npi": prescriber.npi || "",
     "prescription.doctor.default_phone.number": prescriber.phone || "",

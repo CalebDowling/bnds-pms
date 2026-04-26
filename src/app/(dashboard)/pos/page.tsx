@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Receipt, DollarSign, Monitor } from "lucide-react";
 import { getTransactions, getSessions, getPosStats } from "./actions";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName } from "@/lib/utils/formatters";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import PermissionGuard from "@/components/auth/PermissionGuard";
@@ -134,7 +135,7 @@ async function TransactionsTab({ search, page }: { search: string; page: number 
                   <td className="px-4 py-3">
                     {t.patient ? (
                       <>
-                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{t.patient.lastName}, {t.patient.firstName}</p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{formatPatientName({ firstName: t.patient.firstName, lastName: t.patient.lastName }, { format: "last-first" })}</p>
                         <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>{t.patient.mrn}</p>
                       </>
                     ) : (
@@ -152,7 +153,7 @@ async function TransactionsTab({ search, page }: { search: string; page: number 
                       <span className="text-xs ml-1 font-mono" style={{ color: "var(--text-muted)" }}>****{t.cardLastFour}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{t.cashier.firstName} {t.cashier.lastName}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{formatPatientName({ firstName: t.cashier.firstName, lastName: t.cashier.lastName })}</td>
                 </tr>
               ))}
             </tbody>
@@ -203,7 +204,7 @@ async function SessionsTab({ page }: { page: number }) {
                   style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
                 >
                   <td className="px-4 py-3 text-sm font-mono font-semibold" style={{ color: "var(--text-primary)" }}>{s.registerId}</td>
-                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{s.opener.firstName} {s.opener.lastName}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{formatPatientName({ firstName: s.opener.firstName, lastName: s.opener.lastName })}</td>
                   <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{formatDate(s.openedAt)}</td>
                   <td className="px-4 py-3 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>${Number(s.openingBalance).toFixed(2)}</td>
                   <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{s.closedAt ? formatDate(s.closedAt) : "—"}</td>

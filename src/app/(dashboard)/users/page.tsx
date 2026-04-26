@@ -4,6 +4,7 @@ import { getUsers, getRoles } from "./actions";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName } from "@/lib/utils/formatters";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 import PageShell from "@/components/layout/PageShell";
 import FilterBar from "@/components/layout/FilterBar";
@@ -76,7 +77,7 @@ async function UsersPageContent({
                       className="text-sm font-semibold no-underline hover:underline"
                       style={{ color: "var(--color-primary)" }}
                     >
-                      {user.lastName}, {user.firstName}
+                      {formatPatientName({ firstName: user.firstName, lastName: user.lastName }, { format: "last-first" })}
                     </Link>
                     {user.isPharmacist && (
                       <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">

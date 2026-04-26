@@ -16,6 +16,7 @@ import {
   Pill,
   XCircle,
 } from "lucide-react";
+import { formatDateTime } from "@/lib/utils/formatters";
 
 interface UserInfo {
   firstName: string;
@@ -316,12 +317,7 @@ export default function HeaderNew() {
                             {n.message}
                           </p>
                           <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                            {new Date(n.createdAt).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {formatDateTime(n.createdAt)}
                           </p>
                         </div>
                         {!n.isRead && (

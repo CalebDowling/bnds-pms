@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getOptimizationDashboard } from "./actions";
 import { ApplyButton } from "./ApplyButton";
+import { formatDate } from "@/lib/utils/formatters";
 
 function formatCurrency(val: number | null): string {
   if (val === null || val === undefined) return "--";
@@ -8,16 +9,6 @@ function formatCurrency(val: number | null): string {
     style: "currency",
     currency: "USD",
   }).format(val);
-}
-
-function formatDate(d: Date | string | null): string {
-  if (!d) return "Never";
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function PriorityBadge({ priority }: { priority: string }) {

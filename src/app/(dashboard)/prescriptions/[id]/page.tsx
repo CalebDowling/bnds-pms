@@ -2,6 +2,12 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPrescription } from "../actions";
 import { formatDate } from "@/lib/utils";
+import {
+  formatPatientName,
+  formatPrescriberName,
+  formatDrugName,
+  formatFillNumber,
+} from "@/lib/utils/formatters";
 import { prisma } from "@/lib/prisma";
 // PrescriptionStatusBar (legacy `Prescription.status` state machine) is no
 // longer rendered — `PrescriptionFill.status` is the canonical workflow
@@ -80,9 +86,9 @@ async function PrescriptionDetailPageContent({
 
   const statusInfo = STATUS_CONFIG[rx.status] || { label: rx.status, color: "bg-gray-100 text-gray-700" };
   const drugName = rx.isCompound
-    ? rx.formula?.name || "Compound"
+    ? formatDrugName(rx.formula?.name || "Compound")
     : rx.item
-    ? `${rx.item.name} ${rx.item.strength || ""}`
+    ? `${formatDrugName(rx.item.name)} ${rx.item.strength || ""}`.trim()
     : "Unspecified";
   const activeAllergies = rx.patient.allergies || [];
 
@@ -93,8 +99,8 @@ async function PrescriptionDetailPageContent({
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-gray-900">Rx# {rx.rxNumber}</h1>
-            {rx.item && <p className="text-sm text-gray-500">{rx.item.name}{rx.item.strength ? ` ${rx.item.strength}` : ""}</p>}
-            {rx.formula && <p className="text-sm text-purple-600">{rx.formula.name} (Compound)</p>}
+            {rx.item && <p className="text-sm text-gray-500">{formatDrugName(rx.item.name)}{rx.item.strength ? ` ${rx.item.strength}` : ""}</p>}
+            {rx.formula && <p className="text-sm text-purple-600">{formatDrugName(rx.formula.name)} (Compound)</p>}
             <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${statusInfo.color}`}>
               {statusInfo.label}
             </span>
@@ -111,7 +117,7 @@ async function PrescriptionDetailPageContent({
             {rx.isCompound && " (Compound)"}
             {" — "}
             <Link href={`/patients/${rx.patient.id}`} className="text-[#40721D] hover:underline">
-              {rx.patient.lastName}, {rx.patient.firstName}
+              {formatPatientName({ firstName: rx.patient.firstName, lastName: rx.patient.lastName }, { format: "last-first" })}
             </Link>
             {" "}({rx.patient.mrn})
           </p>
@@ -221,7 +227,7 @@ async function PrescriptionDetailPageContent({
                   <div key={fill.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-semibold text-gray-900">
-                        Fill #{fill.fillNumber} {fill.fillNumber === 0 ? "(Original)" : "(Refill)"}
+                        Fill #{formatFillNumber(fill.fillNumber)} {fill.fillNumber === 0 ? "(Original)" : "(Refill)"}
                       </span>
                       <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
                         fill.status === "dispensed" || fill.status === "verified" ? "bg-green-50 text-green-700"
@@ -239,13 +245,13 @@ async function PrescriptionDetailPageContent({
                       <div>
                         <dt className="text-gray-400">Filled By</dt>
                         <dd className="text-gray-900">
-                          {fill.filler ? `${fill.filler.firstName} ${fill.filler.lastName}` : "—"}
+                          {fill.filler ? formatPatientName({ firstName: fill.filler.firstName, lastName: fill.filler.lastName }) : "—"}
                         </dd>
                       </div>
                       <div>
                         <dt className="text-gray-400">Verified By</dt>
                         <dd className="text-gray-900">
-                          {fill.verifier ? `${fill.verifier.firstName} ${fill.verifier.lastName}` : "—"}
+                          {fill.verifier ? formatPatientName({ firstName: fill.verifier.firstName, lastName: fill.verifier.lastName }) : "—"}
                         </dd>
                       </div>
                     </dl>
@@ -264,7 +270,7 @@ async function PrescriptionDetailPageContent({
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Prescriber</h3>
             <p className="text-sm font-medium text-gray-900">
-              Dr. {rx.prescriber.lastName}, {rx.prescriber.firstName}
+              {formatPrescriberName({ firstName: rx.prescriber.firstName, lastName: rx.prescriber.lastName })}
               {rx.prescriber.suffix ? ` ${rx.prescriber.suffix}` : ""}
             </p>
             <p className="text-xs text-gray-500">NPI: {rx.prescriber.npi}</p>
@@ -307,7 +313,7 @@ async function PrescriptionDetailPageContent({
                         <span className="font-medium capitalize">{log.toStatus.replace(/_/g, " ")}</span>
                       </p>
                       <p className="text-xs text-gray-400">
-                        {log.changer.firstName} {log.changer.lastName} — {formatDate(log.changedAt)}
+                        {formatPatientName({ firstName: log.changer.firstName, lastName: log.changer.lastName })} — {formatDate(log.changedAt)}
                       </p>
                       {log.notes && <p className="text-xs text-gray-500 mt-0.5">{log.notes}</p>}
                     </div>

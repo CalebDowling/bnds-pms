@@ -8,6 +8,7 @@ import {
   type CSDashboardData,
 } from './actions';
 import type { CSBalance } from '@/lib/compliance/controlled-substance-ledger';
+import { formatDate } from '@/lib/utils/formatters';
 
 // ---------------------------------------------------------------------------
 // Schedule color helpers
@@ -361,7 +362,7 @@ export default function ControlledSubstancesDashboard() {
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right', fontSize: '13px', color: 'var(--text-secondary)' }}>
                     {item.lastTransactionDate
-                      ? new Date(item.lastTransactionDate).toLocaleDateString()
+                      ? formatDate(item.lastTransactionDate)
                       : '\u2014'}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'center' }}>

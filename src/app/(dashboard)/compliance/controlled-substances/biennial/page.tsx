@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { getBiennialReport } from '../actions';
 import type { BiennialLineItem } from '@/lib/compliance/controlled-substance-ledger';
+import { formatDate } from '@/lib/utils/formatters';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -81,7 +82,7 @@ export default function BiennialReportPage() {
       item.strength ?? '',
       item.unit ?? '',
       item.quantityOnHand,
-      item.dateCounted ? new Date(item.dateCounted).toLocaleDateString() : '',
+      item.dateCounted ? formatDate(item.dateCounted) : '',
       item.countedBy ?? '',
     ]);
     const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
@@ -174,11 +175,7 @@ export default function BiennialReportPage() {
             </h2>
             <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
               Biennial Controlled Substance Inventory &mdash; As of{' '}
-              {new Date(asOfDate).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
+              {formatDate(asOfDate)}
             </p>
             <div style={{ display: 'flex', gap: '24px', marginTop: '12px' }}>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
@@ -261,7 +258,7 @@ export default function BiennialReportPage() {
                       </td>
                       <td style={{ ...tdStyle, fontSize: '13px', color: 'var(--text-secondary)' }}>
                         {item.dateCounted
-                          ? new Date(item.dateCounted).toLocaleDateString()
+                          ? formatDate(item.dateCounted)
                           : '\u2014'}
                       </td>
                       <td style={{ ...tdStyle, fontSize: '13px' }}>

@@ -3,6 +3,7 @@ import { getPickupHistory } from "../actions";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import { Suspense } from "react";
+import { formatDateTime, formatPatientName, formatDrugName } from "@/lib/utils/formatters";
 
 async function PickupHistoryContent({
   searchParams,
@@ -14,17 +15,6 @@ async function PickupHistoryContent({
   const page = parseInt(params.page || "1", 10);
 
   const { fills, total, pages } = await getPickupHistory(search, page);
-
-  const formatDate = (date: Date | null) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   return (
     <div className="p-6">
@@ -85,9 +75,10 @@ async function PickupHistoryContent({
                 const pickupRecord = (fill.metadata as any)?.pickupRecord;
                 const pickedUpBy = pickupRecord?.pickupPerson
                   ? pickupRecord.pickupPerson.name
-                  : fill.prescription.patient.firstName +
-                    " " +
-                    fill.prescription.patient.lastName;
+                  : formatPatientName({
+                      firstName: fill.prescription.patient.firstName,
+                      lastName: fill.prescription.patient.lastName,
+                    });
 
                 return (
                   <tr
@@ -96,8 +87,7 @@ async function PickupHistoryContent({
                   >
                     <td className="px-6 py-4 text-sm">
                       <div className="font-medium text-gray-900">
-                        {fill.prescription.patient.firstName}{" "}
-                        {fill.prescription.patient.lastName}
+                        {formatPatientName({ firstName: fill.prescription.patient.firstName, lastName: fill.prescription.patient.lastName })}
                       </div>
                       <div className="text-xs text-gray-500">
                         MRN: {fill.prescription.patient.mrn}
@@ -107,10 +97,10 @@ async function PickupHistoryContent({
                       {fill.prescription.rxNumber}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      {fill.prescription.item?.name || "N/A"}
+                      {fill.prescription.item?.name ? formatDrugName(fill.prescription.item.name) : "N/A"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {formatDate(fill.dispensedAt)}
+                      {formatDateTime(fill.dispensedAt)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {pickedUpBy}

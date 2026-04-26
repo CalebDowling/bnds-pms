@@ -11,6 +11,7 @@ import {
 import PageShell from "@/components/layout/PageShell";
 import FilterBar from "@/components/layout/FilterBar";
 import StatsRow from "@/components/layout/StatsRow";
+import { formatDate, toTitleCase, formatDrugName } from "@/lib/utils/formatters";
 
 interface RefillRequest {
   id: string;
@@ -192,24 +193,24 @@ export default function RefillsClient({
                   className="hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                    {request.patientName}
+                    {toTitleCase(request.patientName)}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                     {request.rxNumber}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                    {request.drugName}
+                    {formatDrugName(request.drugName)}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                    {request.prescriberName || "—"}
+                    {request.prescriberName ? `Dr. ${toTitleCase(request.prescriberName)}` : "—"}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                     {request.lastFillDate
-                      ? new Date(request.lastFillDate).toLocaleDateString()
+                      ? formatDate(request.lastFillDate)
                       : "N/A"}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                    {new Date(request.requestedDate).toLocaleDateString()}
+                    {formatDate(request.requestedDate)}
                   </td>
                   <td className="px-6 py-4">
                     <span

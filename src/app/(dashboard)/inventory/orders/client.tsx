@@ -10,6 +10,7 @@ import {
   cancelOrder,
 } from "./actions";
 import type { CatalogItem } from "@/lib/integrations/cardinal-health";
+import { formatDateTime } from "@/lib/utils/formatters";
 
 // ─── Cart Item Type ─────────────────────────────
 
@@ -59,16 +60,6 @@ function formatCurrency(amount: number) {
     style: "currency",
     currency: "USD",
   }).format(amount);
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 function formatNdc(ndc: string) {
@@ -332,7 +323,7 @@ function OrderRow({
           </div>
         </td>
         <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary, #6B7280)" }}>
-          {formatDate(order.createdAt)}
+          {formatDateTime(order.createdAt)}
         </td>
         <td className="px-4 py-3">
           <StatusBadge status={order.status} />

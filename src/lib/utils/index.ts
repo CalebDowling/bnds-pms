@@ -1,15 +1,16 @@
-/**
- * Format a date for display
- */
-export function formatDate(date: Date | string | null): string {
-  if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
-  });
-}
+// Re-export the centralized formatters so existing imports keep working.
+// New code should import from "@/lib/utils/formatters" directly.
+export {
+  toTitleCase,
+  formatPatientName,
+  formatPrescriberName,
+  formatDrugName,
+  formatFillNumber,
+  formatDate,
+  formatDOB,
+  formatDateTime,
+  formatDateRelative,
+} from "./formatters";
 
 /**
  * Format a phone number for display
@@ -66,14 +67,22 @@ export function validatePhone(phone: string | null | undefined): string | null {
 }
 
 /**
- * Calculate age from date of birth
+ * Calculate age from date of birth.
+ *
+ * Uses UTC parts on the birth date because Prisma maps Postgres DATE
+ * to UTC midnight. Reading getFullYear() in any negative-UTC zone
+ * would shift the birthday back one calendar day and round age down
+ * incorrectly on the user's actual birthday.
  */
 export function calculateAge(dob: Date | string): number {
   const birthDate = typeof dob === "string" ? new Date(dob) : dob;
   const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+  let age = today.getFullYear() - birthDate.getUTCFullYear();
+  const monthDiff = today.getMonth() - birthDate.getUTCMonth();
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birthDate.getUTCDate())
+  ) {
     age--;
   }
   return age;

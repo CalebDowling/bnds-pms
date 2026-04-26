@@ -464,3 +464,22 @@ export async function searchPatients(query: string) {
     orderBy: { lastName: "asc" },
   });
 }
+
+/**
+ * Fetch one patient in the same shape `searchPatients` returns. Used by
+ * /prescriptions/new?patientId=... so the form can pre-fill the patient
+ * picker server-side without re-using the search index.
+ */
+export async function getPatientForRx(patientId: string) {
+  if (!patientId) return null;
+  return prisma.patient.findUnique({
+    where: { id: patientId },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      mrn: true,
+      dateOfBirth: true,
+    },
+  });
+}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createFormulaVersion } from "@/app/(dashboard)/compounding/actions";
 import { searchItems } from "@/app/(dashboard)/inventory/actions";
 import { getErrorMessage } from "@/lib/errors";
+import { formatDrugName } from "@/lib/utils/formatters";
 import type { ItemSearchResult } from "@/types";
 
 type IngredientRow = {
@@ -73,7 +74,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
 
   function selectItem(key: number, item: ItemSearchResult) {
     updateIngredient(key, "itemId", item.id);
-    updateIngredient(key, "itemName", `${item.name}${item.strength ? ` (${item.strength})` : ""}`);
+    updateIngredient(key, "itemName", `${formatDrugName(item.name)}${item.strength ? ` (${item.strength})` : ""}`);
     updateIngredient(key, "unit", item.unitOfMeasure || "g");
     setSearchIdx(null);
     setSearchQuery("");
@@ -199,7 +200,7 @@ export default function NewVersionForm({ formulaId, userId }: { formulaId: strin
                           {searchResults.map((item) => (
                             <button key={item.id} type="button" onClick={() => selectItem(ing.key, item)}
                               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
-                              <span className="font-medium">{item.name}</span>
+                              <span className="font-medium">{formatDrugName(item.name)}</span>
                               {item.strength && <span className="text-gray-400 ml-1">({item.strength})</span>}
                             </button>
                           ))}

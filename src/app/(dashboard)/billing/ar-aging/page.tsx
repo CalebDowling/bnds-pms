@@ -3,21 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { getArAgingReport, type AgingSummary, type PatientAging } from "./actions";
+import { formatDate } from "@/lib/utils/formatters";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
   }).format(amount);
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function formatPhone(phone: string | null): string {

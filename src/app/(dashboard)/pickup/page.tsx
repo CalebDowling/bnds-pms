@@ -5,6 +5,7 @@ import Pagination from "@/components/ui/Pagination";
 import PageShell from "@/components/layout/PageShell";
 import FilterBar from "@/components/layout/FilterBar";
 import { Suspense } from "react";
+import { formatPatientName, formatDrugName } from "@/lib/utils/formatters";
 
 async function PickupQueueContent({
   searchParams,
@@ -79,8 +80,10 @@ async function PickupQueueContent({
                 >
                   <td className="px-6 py-4 text-sm">
                     <div className="font-medium text-gray-900">
-                      {fill.prescription.patient.firstName}{" "}
-                      {fill.prescription.patient.lastName}
+                      {formatPatientName({
+                        firstName: fill.prescription.patient.firstName,
+                        lastName: fill.prescription.patient.lastName,
+                      })}
                     </div>
                     <div className="text-xs text-gray-500">
                       MRN: {fill.prescription.patient.mrn}
@@ -90,7 +93,7 @@ async function PickupQueueContent({
                     {fill.prescription.rxNumber}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {fill.prescription.item?.name || "N/A"}
+                    {fill.prescription.item?.name ? formatDrugName(fill.prescription.item.name) : "N/A"}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
                     {fill.quantity.toString()}

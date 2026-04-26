@@ -9,6 +9,7 @@ import {
   deleteDocument,
   getDocumentDownloadUrl,
 } from "@/app/(dashboard)/patients/documents/actions";
+import { formatDate, formatPatientName } from "@/lib/utils/formatters";
 
 type Document = {
   id: string;
@@ -56,13 +57,6 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(date: string | Date): string {
-  return new Date(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 function getFileIcon(fileType: string): string {
   if (fileType.startsWith("image/")) return "🖼️";
@@ -366,7 +360,7 @@ export default function DocumentsTab({ patientId }: DocumentsTabProps) {
                   <span className="text-xs text-gray-400">{formatDate(doc.createdAt)}</span>
                   {doc.uploader && (
                     <span className="text-xs text-gray-400">
-                      by {doc.uploader.firstName} {doc.uploader.lastName}
+                      by {formatPatientName({ firstName: doc.uploader.firstName, lastName: doc.uploader.lastName })}
                     </span>
                   )}
                   {doc.description && (

@@ -17,6 +17,7 @@ import {
   type PatientPackDetail,
 } from "../actions";
 import type { PackManifest, PackRecord } from "@/lib/compliance-packaging/sync-list";
+import { formatDateTime } from "@/lib/utils/formatters";
 
 export default function PatientPackDetailPage() {
   const params = useParams();
@@ -298,13 +299,7 @@ export default function PatientPackDetailPage() {
               {detail.history.map((rec) => (
                 <tr key={rec.id} className="hover:bg-slate-800/40 transition-colors">
                   <td className="py-3 px-4 text-white">
-                    {new Date(rec.packedAt).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatDateTime(rec.packedAt)}
                   </td>
                   <td className="py-3 px-4 text-center text-slate-300 font-mono">{rec.medicationCount}</td>
                   <td className="py-3 px-4 text-center text-slate-300">{rec.daysSupply}</td>

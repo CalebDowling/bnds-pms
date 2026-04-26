@@ -1,6 +1,7 @@
 "use client";
 
 import DataTable, { type Column } from "./components/DataTable";
+import { formatDrugName } from "@/lib/utils/formatters";
 
 type TopDrug = {
   name: string;
@@ -15,7 +16,7 @@ const columns: Column<TopDrug>[] = [
     key: "name",
     header: "Drug Name",
     render: (row) => (
-      <span style={{ fontWeight: 500 }}>{row.name}</span>
+      <span style={{ fontWeight: 500 }}>{formatDrugName(row.name)}</span>
     ),
   },
   {

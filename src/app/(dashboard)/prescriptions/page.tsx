@@ -2,6 +2,11 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getPrescriptions } from "./actions";
 import { formatDate } from "@/lib/utils";
+import {
+  formatPatientName,
+  formatPrescriberName,
+  formatDrugName,
+} from "@/lib/utils/formatters";
 import SearchBar from "@/components/ui/SearchBar";
 import Pagination from "@/components/ui/Pagination";
 import ExportButton from "@/components/ui/ExportButton";
@@ -156,16 +161,16 @@ async function PrescriptionsContent({
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{rx.patient.firstName} {rx.patient.lastName}</p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{formatPatientName({ firstName: rx.patient.firstName, lastName: rx.patient.lastName })}</p>
                         <p className="text-xs" style={{ color: "var(--text-muted)" }}>{rx.patient.mrn}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{rx.item?.name || rx.formula?.name || "—"}</p>
+                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{rx.item?.name ? formatDrugName(rx.item.name) : (rx.formula?.name ? formatDrugName(rx.formula.name) : "—")}</p>
                         {rx.item?.strength && <p className="text-xs" style={{ color: "var(--text-muted)" }}>{rx.item.strength}</p>}
                       </td>
                       <td className="px-4 py-3">
                         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                          {rx.prescriber.firstName} {rx.prescriber.lastName}{rx.prescriber.suffix ? `, ${rx.prescriber.suffix}` : ""}
+                          {formatPrescriberName({ firstName: rx.prescriber.firstName, lastName: rx.prescriber.lastName })}{rx.prescriber.suffix ? `, ${rx.prescriber.suffix}` : ""}
                         </p>
                       </td>
                       <td className="px-4 py-3">

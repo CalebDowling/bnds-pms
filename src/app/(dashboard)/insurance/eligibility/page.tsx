@@ -17,6 +17,7 @@ import {
   Loader2,
   Search,
 } from "lucide-react";
+import { formatDateTime, formatPatientName } from "@/lib/utils/formatters";
 
 interface Patient {
   id: string;
@@ -261,15 +262,6 @@ export default function InsuranceEligibilityPage() {
     }
   };
 
-  const formatDate = (date: Date | null): string => {
-    if (!date) return "Never";
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -353,7 +345,7 @@ export default function InsuranceEligibilityPage() {
                       className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#40721D] hover:bg-green-50 transition-colors"
                     >
                       <p className="font-semibold text-gray-900">
-                        {patient.firstName} {patient.lastName}
+                        {formatPatientName({ firstName: patient.firstName, lastName: patient.lastName })}
                       </p>
                       <p className="text-sm text-gray-600">
                         MRN: {patient.mrn}
@@ -383,7 +375,7 @@ export default function InsuranceEligibilityPage() {
                       Selected Patient
                     </p>
                     <p className="font-semibold text-gray-900">
-                      {selectedPatient.firstName} {selectedPatient.lastName}
+                      {formatPatientName({ firstName: selectedPatient.firstName, lastName: selectedPatient.lastName })}
                     </p>
                     <p className="text-sm text-gray-600">
                       DOB: {selectedPatient.dateOfBirth}
@@ -429,7 +421,7 @@ export default function InsuranceEligibilityPage() {
                                 {insurance.lastEligibilityCheck && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border border-gray-300 bg-gray-50 text-gray-700">
                                     Checked:{" "}
-                                    {formatDate(insurance.lastEligibilityCheck)}
+                                    {formatDateTime(insurance.lastEligibilityCheck)}
                                   </span>
                                 )}
                               </div>
@@ -661,11 +653,10 @@ export default function InsuranceEligibilityPage() {
                       className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                     >
                       <td className="py-3 px-4 text-gray-600">
-                        {formatDate(check.checkedAt)}
+                        {formatDateTime(check.checkedAt)}
                       </td>
                       <td className="py-3 px-4 font-medium text-gray-900">
-                        {check.insurance.patient.firstName}{" "}
-                        {check.insurance.patient.lastName}
+                        {formatPatientName({ firstName: check.insurance.patient.firstName, lastName: check.insurance.patient.lastName })}
                       </td>
                       <td className="py-3 px-4 text-gray-600">
                         {check.insurance.thirdPartyPlan?.planName || "N/A"}

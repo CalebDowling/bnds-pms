@@ -12,6 +12,7 @@ import {
   getSyncCalendar,
   getAdherenceData,
 } from './actions';
+import { formatDate, formatPatientName, formatDrugName } from '@/lib/utils/formatters';
 
 export const dynamic = 'force-dynamic';
 
@@ -152,7 +153,7 @@ export function MedSyncPage({
       setShowEnrollModal(false);
       resetEnrollmentModal();
       await loadData();
-      alert(`Successfully enrolled ${selectedPatient.firstName} ${selectedPatient.lastName}`);
+      alert(`Successfully enrolled ${formatPatientName({ firstName: selectedPatient.firstName, lastName: selectedPatient.lastName })}`);
     } catch (error) {
       alert(`Enrollment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -303,12 +304,7 @@ export function MedSyncPage({
             <div className="space-y-2">
               <p className="text-sm text-gray-600">Next Batch Date</p>
               <p className="text-2xl font-bold text-gray-900">
-                {stats.nextBatchDate
-                  ? new Date(stats.nextBatchDate).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                    })
-                  : '—'}
+                {stats.nextBatchDate ? formatDate(stats.nextBatchDate) : '—'}
               </p>
             </div>
           </div>
@@ -404,7 +400,7 @@ export function MedSyncPage({
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {patient.firstName} {patient.lastName}
+                            {formatPatientName({ firstName: patient.firstName, lastName: patient.lastName })}
                           </h3>
                           <span
                             className="px-2 py-1 rounded-full text-xs font-medium text-white"
@@ -690,7 +686,7 @@ export function MedSyncPage({
                             className="w-full text-left p-3 rounded-lg hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-300"
                           >
                             <p className="font-medium text-gray-900">
-                              {patient.firstName} {patient.lastName}
+                              {formatPatientName({ firstName: patient.firstName, lastName: patient.lastName })}
                             </p>
                             <p className="text-sm text-gray-600">MRN: {patient.mrn}</p>
                           </button>
@@ -707,7 +703,7 @@ export function MedSyncPage({
                   <div>
                     <p className="text-sm text-gray-600 mb-2">
                       Selected Patient: <span className="font-medium text-gray-900">
-                        {selectedPatient.firstName} {selectedPatient.lastName}
+                        {formatPatientName({ firstName: selectedPatient.firstName, lastName: selectedPatient.lastName })}
                       </span>
                     </p>
                     <button
@@ -749,10 +745,10 @@ export function MedSyncPage({
                             />
                             <div>
                               <p className="font-medium text-gray-900">
-                                {rx.item.name}
+                                {formatDrugName(rx.item.name)}
                               </p>
                               <p className="text-xs text-gray-600">
-                                {rx.item.genericName}
+                                {rx.item.genericName ? formatDrugName(rx.item.genericName) : ""}
                               </p>
                             </div>
                           </label>
@@ -798,7 +794,7 @@ export function MedSyncPage({
                       Enrollment Summary
                     </p>
                     <ul className="text-sm text-gray-600 space-y-1">
-                      <li>Patient: {selectedPatient.firstName} {selectedPatient.lastName}</li>
+                      <li>Patient: {formatPatientName({ firstName: selectedPatient.firstName, lastName: selectedPatient.lastName })}</li>
                       <li>Medications: {selectedMeds.length} selected</li>
                       <li>Sync Schedule: Day {selectedSyncDay} of each month</li>
                     </ul>

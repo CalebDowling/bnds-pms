@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getFormula } from "@/app/(dashboard)/compounding/actions";
 import { formatDate } from "@/lib/utils";
+import { formatDrugName, formatPatientName } from "@/lib/utils/formatters";
 import { getCurrentUser } from "@/lib/auth";
 import NewVersionForm from "./NewVersionForm";
 import PermissionGuard from "@/components/auth/PermissionGuard";
@@ -74,7 +75,7 @@ async function FormulaDetailPageContent({
                   {currentVersion.ingredients.map((ing, idx) => (
                     <tr key={ing.id}>
                       <td className="py-2.5 text-sm text-gray-400">{idx + 1}</td>
-                      <td className="py-2.5 text-sm text-gray-900 font-medium">{ing.item.name}</td>
+                      <td className="py-2.5 text-sm text-gray-900 font-medium">{formatDrugName(ing.item.name)}</td>
                       <td className="py-2.5 text-sm text-gray-600">{ing.quantity.toString()}</td>
                       <td className="py-2.5 text-sm text-gray-600">{ing.unit}</td>
                       <td className="py-2.5">
@@ -153,7 +154,7 @@ async function FormulaDetailPageContent({
                         {b.status.replace(/_/g, " ")}
                       </span>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {b.compounder.firstName} {b.compounder.lastName}
+                        {formatPatientName({ firstName: b.compounder.firstName, lastName: b.compounder.lastName })}
                       </p>
                     </div>
                   </div>
@@ -201,7 +202,7 @@ async function FormulaDetailPageContent({
                       <p className="text-sm font-medium text-gray-900">v{v.versionNumber}</p>
                       <p className="text-xs text-gray-400">
                         {formatDate(v.effectiveDate)}
-                        {v.creator ? ` — ${v.creator.firstName} ${v.creator.lastName}` : ""}
+                        {v.creator ? ` — ${formatPatientName({ firstName: v.creator.firstName, lastName: v.creator.lastName })}` : ""}
                       </p>
                     </div>
                     {v.price && (
@@ -224,7 +225,7 @@ async function FormulaDetailPageContent({
                   <div key={rx.id} className="flex items-center justify-between py-1">
                     <div>
                       <p className="text-sm text-gray-900">Rx# {rx.rxNumber}</p>
-                      <p className="text-xs text-gray-400">{rx.patient.lastName}, {rx.patient.firstName}</p>
+                      <p className="text-xs text-gray-400">{formatPatientName({ firstName: rx.patient.firstName, lastName: rx.patient.lastName }, { format: "last-first" })}</p>
                     </div>
                     <span className="text-xs text-gray-400">{formatDate(rx.dateReceived)}</span>
                   </div>

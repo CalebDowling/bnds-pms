@@ -11,6 +11,7 @@ import {
   type PatientSearchResult,
 } from './actions';
 import type { ImmunizationRecord, VaccineRecommendation } from '@/lib/integrations/immunization-registry';
+import { formatPatientName } from '@/lib/utils/formatters';
 
 // ---------------------------------------------------------------------------
 // Urgency badge component
@@ -267,7 +268,7 @@ export default function ImmunizationsPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">
-                    {p.lastName}, {p.firstName}
+                    {formatPatientName({ firstName: p.firstName, lastName: p.lastName }, { format: 'last-first' })}
                   </p>
                   <p className="text-xs text-gray-500">
                     DOB: {p.dateOfBirth}
@@ -288,7 +289,7 @@ export default function ImmunizationsPage() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-blue-900">
-                {selectedPatient.lastName}, {selectedPatient.firstName}
+                {formatPatientName({ firstName: selectedPatient.firstName, lastName: selectedPatient.lastName }, { format: 'last-first' })}
               </p>
               <p className="text-xs text-blue-600">
                 DOB: {selectedPatient.dateOfBirth}
@@ -516,7 +517,7 @@ export default function ImmunizationsPage() {
       {showAdministerForm && selectedPatient && (
         <AdministerForm
           patientId={selectedPatient.id}
-          patientName={`${selectedPatient.firstName} ${selectedPatient.lastName}`}
+          patientName={formatPatientName({ firstName: selectedPatient.firstName, lastName: selectedPatient.lastName })}
           dateOfBirth={selectedPatient.dateOfBirth}
           pharmacistName="Current User"
           onClose={() => setShowAdministerForm(false)}

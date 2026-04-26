@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import ExportButton from "@/components/ui/ExportButton";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName } from "@/lib/utils/formatters";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
 interface AuditLogEntry {
@@ -370,7 +371,7 @@ function AuditLogPageContent() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-900">
-                        {log.user.firstName} {log.user.lastName}
+                        {formatPatientName({ firstName: log.user.firstName, lastName: log.user.lastName })}
                       </div>
                       <div className="text-xs text-gray-500 font-mono">{log.user.email}</div>
                     </td>

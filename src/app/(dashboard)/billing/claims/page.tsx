@@ -4,6 +4,7 @@ import { getClaims, getClaimStats } from "./actions";
 import Link from "next/link";
 import { Metadata } from "next";
 import { formatDate } from "@/lib/utils";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 export const dynamic = "force-dynamic";
 
@@ -99,7 +100,7 @@ async function ClaimsTable({ page = 1, status = "all", search = "" }: { page?: n
                   </Link>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {patient.firstName} {patient.lastName}
+                  {formatPatientName({ firstName: patient.firstName, lastName: patient.lastName })}
                   <br />
                   <span className="text-xs text-gray-500">{patient.mrn}</span>
                 </td>

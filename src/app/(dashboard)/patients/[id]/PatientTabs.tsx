@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDate, formatPhone } from "@/lib/utils";
+import { formatPrescriberName, formatDrugName } from "@/lib/utils/formatters";
 import type { PatientWithRelations } from "@/types/patient";
 import type { PatientPrescription } from "@/types/patient";
 import { addAllergy, deleteAllergy } from "@/app/(dashboard)/patients/actions";
@@ -110,10 +111,11 @@ function OverviewTab({ patient }: { patient: PatientWithRelations }) {
                 <div key={rx.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      {rx.item?.name || "Compound"} {rx.item?.strength || ""}
+                      {rx.item?.name ? formatDrugName(rx.item.name) : "Compound"} {rx.item?.strength || ""}
                     </p>
                     <p className="text-xs text-gray-400">
-                      Rx# {rx.rxNumber} — Dr. {rx.prescriber?.lastName}
+                      Rx# {rx.rxNumber}
+                      {rx.prescriber ? ` — ${formatPrescriberName({ firstName: rx.prescriber.firstName, lastName: rx.prescriber.lastName })}` : ""}
                     </p>
                   </div>
                   <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
@@ -155,10 +157,12 @@ function PrescriptionsTab({ patient }: { patient: PatientWithRelations }) {
               <tr key={rx.id} className="hover:bg-gray-50">
                 <td className="py-2.5 text-sm font-mono text-gray-600">{rx.rxNumber}</td>
                 <td className="py-2.5 text-sm text-gray-900">
-                  {rx.item?.name || "Compound"} {rx.item?.strength || ""}
+                  {rx.item?.name ? formatDrugName(rx.item.name) : "Compound"} {rx.item?.strength || ""}
                 </td>
                 <td className="py-2.5 text-sm text-gray-600">
-                  Dr. {rx.prescriber?.lastName}{rx.prescriber?.suffix ? `, ${rx.prescriber.suffix}` : ""}
+                  {rx.prescriber
+                    ? `${formatPrescriberName({ firstName: rx.prescriber.firstName, lastName: rx.prescriber.lastName })}${rx.prescriber.suffix ? `, ${rx.prescriber.suffix}` : ""}`
+                    : "—"}
                 </td>
                 <td className="py-2.5 text-sm text-gray-600">{formatDate(rx.dateReceived)}</td>
                 <td className="py-2.5 text-sm text-gray-600">

@@ -16,6 +16,7 @@ import {
   type CampaignDetailData,
 } from "./actions";
 import type { Campaign, CampaignType, CallResult } from "@/lib/communications/outbound-caller";
+import { formatDateTime } from "@/lib/utils/formatters";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -283,7 +284,7 @@ export default function CampaignManagementPage() {
                       {c.name}
                     </button>
                     <div className="text-xs text-gray-400 mt-0.5">
-                      {new Date(c.createdAt).toLocaleDateString()}
+                      {formatDateTime(c.createdAt)}
                     </div>
                   </td>
                   <td className="px-4 py-3">

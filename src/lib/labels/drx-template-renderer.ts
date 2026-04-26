@@ -111,6 +111,10 @@ const PREVIEW_SUPPRESS_KEYS = new Set([
   "partial_quantity",          // overlaps completion_quantity at same position
   "fill_date_plus_365_days",   // overlaps compound_batch.expiration_date
   "patient_education_url",     // QR code placeholder, renders as huge text without QR
+  "compound_disclaimer",       // never auto-show — only when rx.isCompound = true
+  "compound_batch.id",         // compound-only fields, suppressed for non-compounds
+  "compound_batch.compound_formula_id",
+  "compound_batch.expiration_date",
 ]);
 
 // ─── Helpers ───────────────────────────────────────────────────────
@@ -234,6 +238,14 @@ function resolveValue(
   if (element.template) {
     if (element.template.includes("{{el}}")) {
       val = val ? element.template.replace(/\{\{el\}\}/gi, val) : "";
+    } else if (isRealData && val === "") {
+      // Element has both an elementData key and a static template. The data
+      // pipeline explicitly resolved this slot to empty (e.g. compound_disclaimer
+      // when isCompound = false). Honor that intent — don't fall back to the
+      // template's static text. This matters for conditional fields whose
+      // template carries the human-readable copy ("This medication has been
+      // compounded by this pharmacy") that must NOT appear on regular fills.
+      val = "";
     } else {
       // Static template text (no placeholder) — always show it
       val = element.template;
@@ -345,25 +357,34 @@ async function renderElement(
     //   landscape_y = pageWidth - portrait_x  (x increases right in portrait → y increases downward in landscape, inverted)
     xIn = portraitY;
     yIn = landscape.pageWidthIn - portraitX;
-    // 3-tier vertical compression with continuous boundaries:
+    // 4-tier vertical compression with continuous boundaries:
     // Tier 1 (y < 0.5"): sparse aux labels — compress 40% to close top gap
     // Tier 2 (0.5" - 2.0"): dense content — 5% compression
-    // Tier 3 (>= 2.0"): bottom half — shift up AND expand spacing so the
-    //   tightly-packed bottom-right blocks (signature line, expiration,
-    //   prescriber, lot/BUD) don't overlap. Gives ~5% extra spread relative
-    //   to the y=2.0 anchor, which clears the documented bottom-right
-    //   collision without touching individual element coordinates.
+    // Tier 3a (2.0" - 2.7"): mid-bottom — gentle 10% expansion
+    // Tier 3b (>= 2.7"): bottom-right cluster — stronger 18% expansion to
+    //   clear the documented overlap among signature line, expiration,
+    //   prescriber, and lot/BUD blocks. Final yIn is clamped to page
+    //   height − 0.05" so elements never bleed off the bottom.
     if (yIn < 0.5) {
       yIn = yIn * 0.60;
     } else if (yIn < 2.0) {
       // At boundary y=0.5: tier1 gives 0.30, so offset = 0.5 - 0.30 = 0.20
       const t1Offset = 0.20;
       yIn = (yIn - t1Offset) * 0.95;
-    } else {
+    } else if (yIn < 2.7) {
       // At boundary y=2.0: tier2 gives (2.0 - 0.20) * 0.95 = 1.71
-      // Anchor tier3 at the same point and stretch downward by 5%
-      // (1.05x) to add inter-block headroom in the bottom region.
-      yIn = 1.71 + (yIn - 2.0) * 1.05;
+      // Anchor tier3a at 1.71 and stretch by 10% to give bottom-mid
+      // blocks (e.g. expiration row) clear separation from tier 2.
+      yIn = 1.71 + (yIn - 2.0) * 1.10;
+    } else {
+      // At boundary y=2.7: tier3a gives 1.71 + 0.7 * 1.10 = 2.48
+      // Tier 3b takes over for the dense bottom-right cluster
+      // (signature line, prescriber, lot/BUD). Stronger 18% spread.
+      yIn = 2.48 + (yIn - 2.7) * 1.18;
+    }
+    // Safety clamp so no element drops off the page bottom edge.
+    if (pageHeightIn && yIn > pageHeightIn - 0.05) {
+      yIn = pageHeightIn - 0.05;
     }
     rotation = 0; // text rendered horizontal
   } else {
@@ -959,16 +980,22 @@ export function extractCanvasElements(
     if (useLandscape) {
       xIn = portraitY;
       yIn = template.pageWidth - portraitX;
-      // 3-tier vertical compression (must match PDF renderer above)
+      // 4-tier vertical compression (must match PDF renderer above)
       if (yIn < 0.5) {
         yIn = yIn * 0.60;
       } else if (yIn < 2.0) {
         const t1Offset = 0.20;
         yIn = (yIn - t1Offset) * 0.95;
+      } else if (yIn < 2.7) {
+        // Tier 3a: gentle bottom-mid stretch
+        yIn = 1.71 + (yIn - 2.0) * 1.10;
       } else {
-        // Bottom region: anchor at 1.71 (continuous with tier 2) and stretch
-        // by 5% to give bottom-right blocks clear vertical separation.
-        yIn = 1.71 + (yIn - 2.0) * 1.05;
+        // Tier 3b: stronger stretch for the bottom-right cluster
+        yIn = 2.48 + (yIn - 2.7) * 1.18;
+      }
+      // Clamp to page bottom (must match PDF renderer)
+      if (renderedPageHeightIn && yIn > renderedPageHeightIn - 0.05) {
+        yIn = renderedPageHeightIn - 0.05;
       }
     } else {
       xIn = portraitX;

@@ -9,6 +9,7 @@ import {
   type DrugOption,
   type PatientMedProfile,
 } from "./actions";
+import { formatDrugName, toTitleCase } from "@/lib/utils/formatters";
 
 type Interaction = {
   drugA: string;
@@ -188,7 +189,7 @@ export default function InteractionCheckerPage() {
                       onClick={() => loadPatientProfile(p.id)}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-50 last:border-0"
                     >
-                      <span className="font-medium text-gray-900">{p.name}</span>
+                      <span className="font-medium text-gray-900">{toTitleCase(p.name)}</span>
                       <span className="text-xs text-gray-400 ml-2">{p.mrn}</span>
                     </button>
                   ))}
@@ -198,7 +199,7 @@ export default function InteractionCheckerPage() {
             {patientProfile && (
               <div className="mt-2 px-2 py-1.5 bg-green-50 rounded text-xs text-green-700">
                 Loaded {patientProfile.medications.length} active meds for{" "}
-                <span className="font-medium">{patientProfile.patientName}</span>
+                <span className="font-medium">{toTitleCase(patientProfile.patientName)}</span>
               </div>
             )}
           </div>
@@ -236,10 +237,10 @@ export default function InteractionCheckerPage() {
                       onClick={() => addDrug(drug.genericName || drug.name)}
                       className="w-full text-left px-3 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0"
                     >
-                      <p className="text-sm font-medium text-gray-900">{drug.name}</p>
+                      <p className="text-sm font-medium text-gray-900">{formatDrugName(drug.name)}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {drug.genericName && (
-                          <span className="text-xs text-gray-500">{drug.genericName}</span>
+                          <span className="text-xs text-gray-500">{formatDrugName(drug.genericName)}</span>
                         )}
                         {drug.strength && (
                           <span className="text-xs text-gray-400">{drug.strength}</span>
