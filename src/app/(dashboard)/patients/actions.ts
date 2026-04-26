@@ -177,12 +177,17 @@ export async function createPatient(data: PatientFormData) {
       return patient;
     } catch (err) {
       lastError = err;
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === "P2002" &&
-        Array.isArray(err.meta?.target) &&
-        (err.meta?.target as string[]).includes("mrn")
-      ) {
+      // Retry on any P2002. Prisma's `meta.target` reports the mapped
+      // Postgres COLUMN name (which differs from the model field name
+      // when `@map` is used), so a strict equality check is brittle.
+      // The 5-attempt cap bounds the worst case.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        if (attempt === 0) {
+          console.warn("[createPatient] P2002 on attempt 0", {
+            target: err.meta?.target,
+            modelName: err.meta?.modelName,
+          });
+        }
         await new Promise((r) => setTimeout(r, 25 + Math.random() * 50));
         continue;
       }

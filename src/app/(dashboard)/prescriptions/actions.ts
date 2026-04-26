@@ -191,14 +191,22 @@ export async function createPrescription(data: PrescriptionFormData) {
       return prescription;
     } catch (err) {
       lastError = err;
-      // Only retry on a unique-constraint collision on rxNumber.
-      // Re-throw anything else immediately.
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === "P2002" &&
-        Array.isArray(err.meta?.target) &&
-        (err.meta?.target as string[]).includes("rxNumber")
-      ) {
+      // Retry on any P2002 (unique-constraint violation). Prisma's
+      // `meta.target` reports the mapped Postgres COLUMN name
+      // (`rx_number` because of `@map`), not the model field name
+      // (`rxNumber`), so a strict equality check is brittle. The only
+      // unique constraint on Prescription is on rx_number, and the
+      // 5-attempt cap bounds the worst case if that ever changes.
+      //
+      // Log the meta shape on first attempt so we can verify what
+      // Postgres is actually sending us in production.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        if (attempt === 0) {
+          console.warn("[createPrescription] P2002 on attempt 0", {
+            target: err.meta?.target,
+            modelName: err.meta?.modelName,
+          });
+        }
         // small jittered backoff to spread concurrent retries
         await new Promise((r) => setTimeout(r, 25 + Math.random() * 50));
         continue;
