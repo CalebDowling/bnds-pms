@@ -46,7 +46,13 @@ export interface FillDetail {
     dateOfBirth: string | null;
     allergies: { allergen: string; severity: string | null }[];
     phoneNumbers: { number: string; type: string | null }[];
-    insurance: { planName: string | null; memberId: string | null; isActive: boolean }[];
+    insurance: {
+      id: string;
+      planName: string | null;
+      memberId: string | null;
+      priority: string;
+      isActive: boolean;
+    }[];
   };
   prescriber: {
     firstName: string;
@@ -77,6 +83,20 @@ export interface FillDetail {
     notes: string | null;
     createdAt: string;
   }[];
+
+  // Latest claim — surfaced on the Adjudicating panel so the tech can see
+  // status / paid amount / rejection codes without bouncing to /billing.
+  latestClaim: {
+    id: string;
+    status: string;
+    claimNumber: string | null;
+    amountPaid: number | null;
+    patientCopay: number | null;
+    rejectionCodes: string[];
+    rejectionMessages: Record<string, string>;
+    submittedAt: string | null;
+    adjudicatedAt: string | null;
+  } | null;
 
   // Workflow info
   nextStatuses: string[];
@@ -135,6 +155,28 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
     },
   });
 
+  // Pull the most recent claim attempt for this fill so the Adjudicating
+  // panel can render status / rejection codes / paid amount inline without
+  // a round-trip to /billing. Excludes reversed claims so re-submissions
+  // show the live attempt.
+  const latestClaimRow = fill
+    ? await prisma.claim.findFirst({
+        where: { fillId: fill.id, status: { notIn: ["reversed"] } },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          claimNumber: true,
+          amountPaid: true,
+          patientCopay: true,
+          rejectionCodes: true,
+          rejectionMessages: true,
+          submittedAt: true,
+          adjudicatedAt: true,
+        },
+      })
+    : null;
+
   if (!fill) return null;
 
   const rx = fill.prescription;
@@ -173,8 +215,10 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
       allergies: patient.allergies.map((a: any) => ({ allergen: a.allergen, severity: a.severity })),
       phoneNumbers: patient.phoneNumbers.map((p: any) => ({ number: p.number, type: p.phoneType })),
       insurance: patient.insurance.map((i: any) => ({
+        id: i.id,
         planName: i.thirdPartyPlan?.planName || null,
         memberId: i.memberId || null,
+        priority: i.priority || "primary",
         isActive: i.isActive,
       })),
     },
@@ -197,6 +241,30 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
       notes: e.notes,
       createdAt: e.createdAt.toISOString(),
     })),
+
+    latestClaim: latestClaimRow
+      ? {
+          id: latestClaimRow.id,
+          status: latestClaimRow.status,
+          claimNumber: latestClaimRow.claimNumber,
+          amountPaid: latestClaimRow.amountPaid
+            ? Number(latestClaimRow.amountPaid)
+            : null,
+          patientCopay: latestClaimRow.patientCopay
+            ? Number(latestClaimRow.patientCopay)
+            : null,
+          rejectionCodes: Array.isArray(latestClaimRow.rejectionCodes)
+            ? (latestClaimRow.rejectionCodes as string[])
+            : [],
+          rejectionMessages:
+            latestClaimRow.rejectionMessages &&
+            typeof latestClaimRow.rejectionMessages === "object"
+              ? (latestClaimRow.rejectionMessages as Record<string, string>)
+              : {},
+          submittedAt: latestClaimRow.submittedAt?.toISOString() || null,
+          adjudicatedAt: latestClaimRow.adjudicatedAt?.toISOString() || null,
+        }
+      : null,
 
     nextStatuses: getNextStatuses(fill.status),
     happyPathNext: getHappyPathNext(fill.status),
@@ -657,4 +725,98 @@ export async function verifyScan(
       ? `NDC match confirmed: ${expectedNdc}`
       : `NDC MISMATCH — Expected: ${expectedNdc}, Scanned: ${scannedNdc}`,
   };
+}
+
+// ─── Adjudication (claim submission from the Process page) ────────
+
+/**
+ * Submit (or resubmit) an insurance claim for a fill currently sitting in
+ * the Adjudicating queue. Wraps the existing /api/claims/submit pipeline
+ * so the Process page can fire it inline without bouncing to /billing.
+ *
+ * Picks the patient's primary active insurance unless `insuranceId` is
+ * passed explicitly. Override codes are forwarded verbatim — used for the
+ * "submit with NCPDP override" flow when a payer wants prior auth /
+ * step therapy bypass codes.
+ */
+export async function submitAdjudicationForFill(
+  fillId: string,
+  options?: { insuranceId?: string; overrideCodes?: string[] }
+): Promise<{
+  success: boolean;
+  error?: string;
+  status?: string;
+  rejectionCodes?: string[];
+  rejectionMessages?: Record<string, string>;
+  paidAmount?: number;
+  copayAmount?: number;
+}> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // Resolve the patient + active insurance for this fill so we can pick
+  // the primary plan when the caller doesn't specify one.
+  const fill = await prisma.prescriptionFill.findUnique({
+    where: { id: fillId },
+    select: {
+      id: true,
+      prescription: {
+        select: {
+          patient: {
+            select: {
+              insurance: {
+                where: { isActive: true },
+                orderBy: { priority: "asc" },
+                select: { id: true, priority: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!fill) return { success: false, error: "Fill not found" };
+
+  const insurance =
+    options?.insuranceId
+      ? fill.prescription.patient.insurance.find(
+          (i) => i.id === options.insuranceId
+        )
+      : fill.prescription.patient.insurance[0];
+
+  if (!insurance) {
+    return {
+      success: false,
+      error:
+        "No active insurance on file. Add an insurance card before submitting a claim, or send to Prepay.",
+    };
+  }
+
+  // Lazy-load the adjudicator so the action file doesn't pull in NCPDP code
+  // when this action isn't called.
+  const { submitClaim } = await import("@/lib/claims/adjudicator");
+  try {
+    const response = await submitClaim(
+      {
+        fillId,
+        insuranceId: insurance.id,
+        overrideCodes: options?.overrideCodes,
+      },
+      user.id
+    );
+    revalidatePath(`/queue/process/${fillId}`);
+    revalidatePath("/queue");
+    return {
+      success: true,
+      status: response.status,
+      rejectionCodes: response.rejectionCodes,
+      rejectionMessages: response.rejectionMessages,
+      paidAmount: response.paidAmount,
+      copayAmount: response.copayAmount,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Adjudication failed";
+    return { success: false, error: msg };
+  }
 }

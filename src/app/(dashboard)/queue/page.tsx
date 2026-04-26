@@ -2,10 +2,15 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getQueueFills } from "./actions";
 import { getQueueCounts } from "../dashboard/actions";
-import { QUEUE_LABELS } from "./constants";
+import {
+  QUEUE_LABELS,
+  PRIMARY_QUEUE_KEYS,
+  SECONDARY_QUEUE_KEYS,
+} from "./constants";
 import Pagination from "@/components/ui/Pagination";
 import QueueTable from "./QueueTable";
 import QueuePollingWrapper from "./QueuePollingWrapper";
+import QueueMoreDropdown from "./QueueMoreDropdown";
 import PageShell from "@/components/layout/PageShell";
 import FilterBar from "@/components/layout/FilterBar";
 import { Suspense } from "react";
@@ -37,47 +42,60 @@ function QueueSkeleton() {
 }
 
 // ─── Queue selector pills (live counts) — rendered inside a FilterBar ───
+// Only the primary daily-workflow stages are shown as pills. Secondary
+// stages (renewals, todo, ok-to-charge, etc.) live behind a single
+// "More" dropdown so the header stays scannable.
 async function QueuePills({ activeStatus }: { activeStatus: string }) {
   const counts = await getQueueCounts();
 
+  const renderPill = (key: string) => {
+    const qLabel = QUEUE_LABELS[key] ?? key;
+    const count = counts[key as keyof typeof counts] ?? 0;
+    const isActive = activeStatus === key;
+    return (
+      <Link
+        key={key}
+        href={`/queue?status=${key}`}
+        className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
+        style={{
+          backgroundColor: isActive ? "var(--color-primary)" : "transparent",
+          color: isActive ? "#fff" : "var(--text-secondary)",
+          borderColor: isActive ? "var(--color-primary)" : "var(--border)",
+        }}
+      >
+        {qLabel}
+        <span
+          className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[11px] font-bold tabular-nums px-1"
+          style={{
+            backgroundColor: isActive
+              ? "rgba(255,255,255,0.22)"
+              : count > 0
+              ? "var(--green-100)"
+              : "var(--green-50)",
+            color: isActive
+              ? "#fff"
+              : count > 0
+              ? "var(--green-700)"
+              : "var(--text-muted)",
+          }}
+        >
+          {count}
+        </span>
+      </Link>
+    );
+  };
+
+  // Build the "More" dropdown payload from secondary keys + their counts.
+  const moreItems = SECONDARY_QUEUE_KEYS.map((key) => ({
+    key,
+    label: QUEUE_LABELS[key] ?? key,
+    count: counts[key as keyof typeof counts] ?? 0,
+  }));
+
   return (
     <>
-      {Object.entries(QUEUE_LABELS).map(([key, qLabel]) => {
-        const count = counts[key as keyof typeof counts] ?? 0;
-        const isActive = activeStatus === key;
-
-        return (
-          <Link
-            key={key}
-            href={`/queue?status=${key}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
-            style={{
-              backgroundColor: isActive ? "var(--color-primary)" : "transparent",
-              color: isActive ? "#fff" : "var(--text-secondary)",
-              borderColor: isActive ? "var(--color-primary)" : "var(--border)",
-            }}
-          >
-            {qLabel}
-            <span
-              className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[11px] font-bold tabular-nums px-1"
-              style={{
-                backgroundColor: isActive
-                  ? "rgba(255,255,255,0.22)"
-                  : count > 0
-                  ? "var(--green-100)"
-                  : "var(--green-50)",
-                color: isActive
-                  ? "#fff"
-                  : count > 0
-                  ? "var(--green-700)"
-                  : "var(--text-muted)",
-              }}
-            >
-              {count}
-            </span>
-          </Link>
-        );
-      })}
+      {PRIMARY_QUEUE_KEYS.map(renderPill)}
+      <QueueMoreDropdown items={moreItems} activeStatus={activeStatus} />
     </>
   );
 }
@@ -85,15 +103,21 @@ async function QueuePills({ activeStatus }: { activeStatus: string }) {
 function QueuePillsFallback() {
   return (
     <>
-      {Object.entries(QUEUE_LABELS).map(([key, qLabel]) => (
+      {PRIMARY_QUEUE_KEYS.map((key) => (
         <span
           key={key}
           className="px-3 py-1 text-xs rounded-full border"
           style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
         >
-          {qLabel}
+          {QUEUE_LABELS[key] ?? key}
         </span>
       ))}
+      <span
+        className="px-3 py-1 text-xs rounded-full border"
+        style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+      >
+        More
+      </span>
     </>
   );
 }

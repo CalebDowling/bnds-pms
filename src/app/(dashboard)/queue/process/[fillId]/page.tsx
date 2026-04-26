@@ -40,6 +40,7 @@ import {
   runDurForFill,
   getDurAlertsForCurrentFill,
   overrideDurAlertOnFill,
+  submitAdjudicationForFill,
   type FillDetail,
 } from "./actions";
 import { FILL_STATUS_META } from "@/lib/workflow/fill-status";
@@ -117,6 +118,15 @@ export default function FillProcessPage() {
   const [overriding, setOverriding] = useState<string | null>(null);
   const [overrideReason, setOverrideReason] = useState<Record<string, string>>({});
   const [overrideNotes, setOverrideNotes] = useState<Record<string, string>>({});
+
+  // Adjudication — submit / re-submit the insurance claim from the
+  // Adjudicating stage so the tech doesn't have to bounce to /billing.
+  // overrideCodes lets the user pass NCPDP override codes for prior auth /
+  // step therapy / refill-too-soon bypasses.
+  const [submittingClaim, setSubmittingClaim] = useState(false);
+  const [claimMessage, setClaimMessage] = useState<string | null>(null);
+  const [overrideCodesInput, setOverrideCodesInput] = useState("");
+  const [selectedInsuranceId, setSelectedInsuranceId] = useState<string>("");
 
   const loadFill = useCallback(async () => {
     try {
@@ -268,6 +278,48 @@ export default function FillProcessPage() {
       setError(e instanceof Error ? e.message : "DUR run failed");
     } finally {
       setDurLoading(false);
+    }
+  };
+
+  // Submit (or re-submit) the insurance claim. Surfaces the response inline
+  // so the tech sees rejection codes / paid amount without leaving the page.
+  // After paid claims the workflow guard advances naturally to print.
+  const submitInsuranceClaim = async () => {
+    if (!fill) return;
+    setSubmittingClaim(true);
+    setClaimMessage(null);
+    setError(null);
+    try {
+      const codes = overrideCodesInput
+        .split(/[\s,]+/)
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean);
+      const result = await submitAdjudicationForFill(fill.id, {
+        insuranceId: selectedInsuranceId || undefined,
+        overrideCodes: codes.length > 0 ? codes : undefined,
+      });
+      if (!result.success) {
+        setError(result.error || "Claim submission failed");
+        return;
+      }
+      if (result.status === "paid") {
+        setClaimMessage(
+          `Paid. Plan paid $${result.paidAmount?.toFixed(2) ?? "0.00"}, copay $${
+            result.copayAmount?.toFixed(2) ?? "0.00"
+          }.`
+        );
+      } else if (result.status === "rejected") {
+        const codes = result.rejectionCodes?.join(", ") || "—";
+        setClaimMessage(`Rejected (${codes}). See details below.`);
+      } else {
+        setClaimMessage(`Status: ${result.status}`);
+      }
+      setOverrideCodesInput("");
+      await loadFill();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Claim submission failed");
+    } finally {
+      setSubmittingClaim(false);
     }
   };
 
@@ -531,6 +583,157 @@ export default function FillProcessPage() {
             </div>
 
             {/* Status-Specific Processing Panel */}
+
+            {/* ── Adjudication panel (Adjudicating / Reject / Prepay stages) ──
+                Shows the latest claim status inline so the tech can resubmit,
+                add NCPDP override codes, or read rejection reasons without
+                bouncing to the /billing page. Visible whenever the fill is
+                stuck in a payer-related state. */}
+            {(fill.status === "adjudicating" ||
+              fill.status === "rejected" ||
+              fill.status === "prepay" ||
+              fill.status === "decline" ||
+              fill.status === "price_check") && (
+              <div className="bg-white rounded-lg border p-4" style={{ borderColor: "var(--border)" }}>
+                <h3 className="text-xs font-semibold uppercase tracking-wide mb-3 flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                  <DollarSign className="w-3.5 h-3.5" /> Insurance Adjudication
+                </h3>
+
+                {/* Current claim status — paid / rejected / pending */}
+                {fill.latestClaim ? (
+                  <div
+                    className={`mb-3 rounded border p-3 ${
+                      fill.latestClaim.status === "paid"
+                        ? "bg-green-50 border-green-200"
+                        : fill.latestClaim.status === "rejected"
+                        ? "bg-red-50 border-red-200"
+                        : "bg-amber-50 border-amber-200"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span
+                        className={`text-xs font-bold uppercase ${
+                          fill.latestClaim.status === "paid"
+                            ? "text-green-700"
+                            : fill.latestClaim.status === "rejected"
+                            ? "text-red-700"
+                            : "text-amber-700"
+                        }`}
+                      >
+                        Claim {fill.latestClaim.status}
+                      </span>
+                      {fill.latestClaim.adjudicatedAt && (
+                        <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                          {new Date(fill.latestClaim.adjudicatedAt).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    {fill.latestClaim.status === "paid" && (
+                      <div className="text-xs text-green-700 font-tabular">
+                        Plan paid <strong>${fill.latestClaim.amountPaid?.toFixed(2) ?? "0.00"}</strong>
+                        {" · "}Patient copay <strong>${fill.latestClaim.patientCopay?.toFixed(2) ?? "0.00"}</strong>
+                      </div>
+                    )}
+                    {fill.latestClaim.status === "rejected" && fill.latestClaim.rejectionCodes.length > 0 && (
+                      <div className="text-xs text-red-700">
+                        <div className="font-semibold mb-0.5">Rejection codes:</div>
+                        <ul className="list-disc list-inside space-y-0.5">
+                          {fill.latestClaim.rejectionCodes.map((code) => (
+                            <li key={code}>
+                              <span className="font-mono font-bold">{code}</span>
+                              {fill.latestClaim?.rejectionMessages[code] &&
+                                ` — ${fill.latestClaim.rejectionMessages[code]}`}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {fill.latestClaim.claimNumber && (
+                      <div className="text-[11px] mt-1.5 font-mono" style={{ color: "var(--text-muted)" }}>
+                        Txn: {fill.latestClaim.claimNumber}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mb-3 text-xs italic" style={{ color: "var(--text-muted)" }}>
+                    No claim submitted yet for this fill.
+                  </div>
+                )}
+
+                {/* Insurance plan picker — defaults to primary */}
+                {fill.patient.insurance.length > 0 && (
+                  <div className="mb-2">
+                    <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--text-muted)" }}>
+                      Insurance Plan
+                    </label>
+                    <select
+                      value={selectedInsuranceId || fill.patient.insurance[0]?.id || ""}
+                      onChange={(e) => setSelectedInsuranceId(e.target.value)}
+                      className="w-full px-2 py-1.5 border rounded text-xs focus:outline-none focus:ring-2"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      {fill.patient.insurance.map((ins) => (
+                        <option key={ins.id} value={ins.id}>
+                          {ins.priority} · {ins.planName || "Unknown plan"}
+                          {ins.memberId ? ` (${ins.memberId})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* NCPDP override codes (DUR override / prior auth bypass / etc.) */}
+                <div className="mb-2">
+                  <label className="block text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--text-muted)" }}>
+                    Override Codes (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={overrideCodesInput}
+                    onChange={(e) => setOverrideCodesInput(e.target.value)}
+                    placeholder="e.g. DUR override (1G), prior auth (1)"
+                    className="w-full px-2 py-1.5 border rounded text-xs focus:outline-none focus:ring-2"
+                    style={{ borderColor: "var(--border)" }}
+                  />
+                  <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    Comma- or space-separated NCPDP override codes. Use after a payer rejection that allows override.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <button
+                    onClick={submitInsuranceClaim}
+                    disabled={submittingClaim || fill.patient.insurance.length === 0}
+                    className="px-3 py-2 text-xs font-semibold text-white rounded-md disabled:opacity-50 inline-flex items-center gap-1.5"
+                    style={{ backgroundColor: "var(--green-700)" }}
+                  >
+                    {submittingClaim ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <DollarSign className="w-3 h-3" />
+                    )}
+                    {fill.latestClaim
+                      ? submittingClaim
+                        ? "Re-submitting..."
+                        : "Re-submit Claim"
+                      : submittingClaim
+                      ? "Submitting..."
+                      : "Submit Claim"}
+                  </button>
+                  {fill.patient.insurance.length === 0 && (
+                    <p className="text-[11px] text-amber-700">
+                      No active insurance on file — add a plan or send to Prepay.
+                    </p>
+                  )}
+                </div>
+                {claimMessage && (
+                  <p className="text-xs mt-2 font-medium" style={{ color: "var(--text-secondary)" }}>
+                    {claimMessage}
+                  </p>
+                )}
+              </div>
+            )}
+
             {fill.status === "scan" && (
               <div className="bg-white rounded-lg border p-4" style={{ borderColor: "var(--border)" }}>
                 <h3 className="text-xs font-semibold uppercase tracking-wide mb-3 flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>

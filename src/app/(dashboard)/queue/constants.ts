@@ -26,6 +26,35 @@ export const QUEUE_LABELS: Record<string, string> = {
   mochi: "Mochi (legacy)",
 };
 
+// Primary queues — the everyday workflow stages a tech / pharmacist hits
+// dozens of times a day. Rendered as visible pills in the queue header.
+export const PRIMARY_QUEUE_KEYS: string[] = [
+  "intake",
+  "print",
+  "scan",
+  "verify",
+  "waiting_bin",
+  "rph_rejected",
+  "reject",
+];
+
+// Secondary queues — specialty / lower-traffic stages tucked behind a
+// "More" dropdown so the header isn't a wall of 19+ pills.
+export const SECONDARY_QUEUE_KEYS: string[] = [
+  "sync",
+  "oos",
+  "renewals",
+  "todo",
+  "price_check",
+  "prepay",
+  "ok_to_charge",
+  "decline",
+  "ok_to_charge_clinic",
+  "compound_qa",
+  "telehealth",
+  "mochi",
+];
+
 // Plain-language description for each queue. Surfaced in tooltips and the
 // queue page header. Updated per pharmacist review (April 2026):
 //   - "Decline" was reading as "patient declined to fill" but is actually
