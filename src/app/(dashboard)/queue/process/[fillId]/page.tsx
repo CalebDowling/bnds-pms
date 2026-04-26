@@ -26,6 +26,8 @@ import {
   MessageCircle,
   PenLine,
   Bell,
+  ShieldCheck,
+  RotateCw,
 } from "lucide-react";
 import {
   getFillDetail,
@@ -35,9 +37,13 @@ import {
   recordVerifyChecklist,
   recordPickupChecklist,
   notifyPatientReady,
+  runDurForFill,
+  getDurAlertsForCurrentFill,
+  overrideDurAlertOnFill,
   type FillDetail,
 } from "./actions";
 import { FILL_STATUS_META } from "@/lib/workflow/fill-status";
+import { DUR_OVERRIDE_REASON_CODES, type DURAlert } from "@/lib/clinical/dur-engine";
 
 // ─── Status Colors ────────────────────────────────────────────────
 
@@ -102,6 +108,16 @@ export default function FillProcessPage() {
   const [notifying, setNotifying] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
 
+  // DUR (Drug Utilization Review) — auto-fired when entering Verify so the
+  // pharmacist sees interactions / allergies / duplications inline. Each
+  // alert can be overridden via the engine's reason-code dropdown.
+  const [durAlerts, setDurAlerts] = useState<DURAlert[]>([]);
+  const [durLoading, setDurLoading] = useState(false);
+  const [durLastRunAt, setDurLastRunAt] = useState<Date | null>(null);
+  const [overriding, setOverriding] = useState<string | null>(null);
+  const [overrideReason, setOverrideReason] = useState<Record<string, string>>({});
+  const [overrideNotes, setOverrideNotes] = useState<Record<string, string>>({});
+
   const loadFill = useCallback(async () => {
     try {
       const data = await getFillDetail(fillId);
@@ -139,6 +155,14 @@ export default function FillProcessPage() {
             pickupNotes: (storedPickup.pickupNotes as string) || "",
           });
         }
+        // Hydrate any DUR alerts that were already saved for this fill so the
+        // pharmacist sees prior overrides on reload without having to re-run.
+        try {
+          const alerts = await getDurAlertsForCurrentFill(fillId);
+          setDurAlerts(alerts);
+        } catch {
+          // Non-critical — DUR engine errors shouldn't block the page
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load fill");
@@ -148,6 +172,32 @@ export default function FillProcessPage() {
   }, [fillId]);
 
   useEffect(() => { loadFill(); }, [loadFill]);
+
+  // Auto-fire the DUR engine the first time we land on Verify. Subsequent
+  // re-runs happen via the manual "Re-run DUR" button so we don't spam the
+  // engine on every state update.
+  useEffect(() => {
+    if (!fill) return;
+    if (fill.status !== "verify") return;
+    if (durLastRunAt) return;
+    let cancelled = false;
+    setDurLoading(true);
+    runDurForFill(fill.id)
+      .then((alerts) => {
+        if (cancelled) return;
+        setDurAlerts(alerts);
+        setDurLastRunAt(new Date());
+      })
+      .catch((e) => {
+        console.warn("DUR run failed:", e);
+      })
+      .finally(() => {
+        if (!cancelled) setDurLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fill, durLastRunAt]);
 
   const handleAdvance = async (newStatus: string) => {
     if (!fill) return;
@@ -201,6 +251,64 @@ export default function FillProcessPage() {
       setError(e instanceof Error ? e.message : "Failed to save pickup checklist");
     } finally {
       setSavingPickup(false);
+    }
+  };
+
+  // Manual re-run for the DUR engine — used after the pharmacist updates
+  // allergies, doses, or refill counts and wants a fresh check.
+  const runDurNow = async () => {
+    if (!fill) return;
+    setDurLoading(true);
+    setError(null);
+    try {
+      const alerts = await runDurForFill(fill.id);
+      setDurAlerts(alerts);
+      setDurLastRunAt(new Date());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "DUR run failed");
+    } finally {
+      setDurLoading(false);
+    }
+  };
+
+  // Submit an override for a single alert. Reason code is required (regulatory).
+  // Notes are optional but encouraged.
+  const submitOverride = async (alertId: string) => {
+    if (!fill) return;
+    const reason = overrideReason[alertId];
+    if (!reason) {
+      setError("Select an override reason code first");
+      return;
+    }
+    setOverriding(alertId);
+    setError(null);
+    try {
+      const result = await overrideDurAlertOnFill(
+        fill.id,
+        alertId,
+        reason,
+        overrideNotes[alertId]?.trim() || undefined
+      );
+      if (!result.success) {
+        setError(result.error || "Override failed");
+        return;
+      }
+      if (result.alerts) setDurAlerts(result.alerts);
+      // Clear the per-alert form state once the override is recorded.
+      setOverrideReason((prev) => {
+        const next = { ...prev };
+        delete next[alertId];
+        return next;
+      });
+      setOverrideNotes((prev) => {
+        const next = { ...prev };
+        delete next[alertId];
+        return next;
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Override failed");
+    } finally {
+      setOverriding(null);
     }
   };
 
@@ -541,6 +649,168 @@ export default function FillProcessPage() {
                         </label>
                       )}
                     </div>
+                  </div>
+
+                  {/* DUR (Drug Utilization Review) results panel.
+                      Auto-fired when the pharmacist lands on Verify and
+                      blocking criticals must be overridden before advancing
+                      to Waiting Bin (enforced by the workflow guard in
+                      fill-status.ts). Each alert exposes a reason-code
+                      dropdown so the override is regulatory-compliant. */}
+                  <div className="bg-white border rounded mt-3" style={{ borderColor: "var(--border)" }}>
+                    <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                      <h4 className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                        <ShieldCheck className="w-3.5 h-3.5" /> DUR Alerts
+                        {durAlerts.length > 0 && (
+                          <span className="ml-1 inline-flex items-center justify-center text-[10px] font-bold w-5 h-5 rounded-full bg-amber-100 text-amber-700">
+                            {durAlerts.filter((a) => !a.overridden).length}
+                          </span>
+                        )}
+                      </h4>
+                      <button
+                        onClick={runDurNow}
+                        disabled={durLoading}
+                        className="text-xs font-medium inline-flex items-center gap-1 disabled:opacity-50"
+                        style={{ color: "var(--green-700)" }}
+                      >
+                        {durLoading ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <RotateCw className="w-3 h-3" />
+                        )}
+                        {durLoading ? "Running..." : "Re-run DUR"}
+                      </button>
+                    </div>
+
+                    {durLoading && durAlerts.length === 0 && (
+                      <div className="px-3 py-3 text-xs italic" style={{ color: "var(--text-muted)" }}>
+                        Running drug utilization review...
+                      </div>
+                    )}
+
+                    {!durLoading && durAlerts.length === 0 && (
+                      <div className="px-3 py-3 text-xs flex items-center gap-1.5 text-green-700">
+                        <CheckCircle2 className="w-4 h-4" />
+                        No interactions, allergies, or duplications detected.
+                        {durLastRunAt && (
+                          <span className="ml-1" style={{ color: "var(--text-muted)" }}>
+                            (run {durLastRunAt.toLocaleTimeString()})
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {durAlerts.length > 0 && (
+                      <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+                        {durAlerts.map((alert) => {
+                          const sevColor =
+                            alert.severity === "critical"
+                              ? { bg: "bg-red-50", border: "border-l-red-600", text: "text-red-700", chip: "bg-red-100 text-red-700" }
+                              : alert.severity === "major"
+                              ? { bg: "bg-amber-50", border: "border-l-amber-500", text: "text-amber-700", chip: "bg-amber-100 text-amber-700" }
+                              : alert.severity === "moderate"
+                              ? { bg: "bg-yellow-50", border: "border-l-yellow-500", text: "text-yellow-700", chip: "bg-yellow-100 text-yellow-700" }
+                              : { bg: "bg-blue-50", border: "border-l-blue-500", text: "text-blue-700", chip: "bg-blue-100 text-blue-700" };
+                          return (
+                            <div
+                              key={alert.id}
+                              className={`px-3 py-2.5 border-l-[3px] ${alert.overridden ? "bg-gray-50 border-l-gray-400" : `${sevColor.bg} ${sevColor.border}`}`}
+                            >
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${alert.overridden ? "bg-gray-200 text-gray-600" : sevColor.chip}`}>
+                                    {alert.severity}
+                                  </span>
+                                  <span className={`text-[10px] font-semibold uppercase ${alert.overridden ? "text-gray-500" : "text-gray-600"}`}>
+                                    {alert.alertType.replace(/_/g, " ")}
+                                  </span>
+                                  <span className={`text-xs font-semibold ${alert.overridden ? "text-gray-500 line-through" : sevColor.text}`}>
+                                    {alert.drugA}
+                                    {alert.drugB ? ` + ${alert.drugB}` : ""}
+                                  </span>
+                                </div>
+                              </div>
+                              <p className={`text-xs mb-1 ${alert.overridden ? "text-gray-500" : "text-gray-700"}`}>
+                                {alert.description}
+                              </p>
+                              {alert.clinicalEffect && !alert.overridden && (
+                                <p className="text-[11px] italic mb-1" style={{ color: "var(--text-secondary)" }}>
+                                  Effect: {alert.clinicalEffect}
+                                </p>
+                              )}
+                              {alert.recommendation && !alert.overridden && (
+                                <p className="text-[11px] mb-1.5" style={{ color: "var(--text-secondary)" }}>
+                                  <strong>Recommend:</strong> {alert.recommendation}
+                                </p>
+                              )}
+
+                              {alert.overridden ? (
+                                <div className="text-[11px] mt-1 p-1.5 rounded bg-gray-100" style={{ color: "var(--text-muted)" }}>
+                                  Overridden{alert.overriddenBy ? ` by ${alert.overriddenBy}` : ""}
+                                  {alert.overriddenAt ? ` on ${new Date(alert.overriddenAt).toLocaleString()}` : ""}
+                                  {alert.overrideReasonCode && (
+                                    <> &middot; Reason: <span className="font-mono">{alert.overrideReasonCode}</span></>
+                                  )}
+                                  {alert.overrideNotes && <> &middot; {alert.overrideNotes}</>}
+                                </div>
+                              ) : (
+                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                  <select
+                                    value={overrideReason[alert.id] || ""}
+                                    onChange={(e) =>
+                                      setOverrideReason((prev) => ({
+                                        ...prev,
+                                        [alert.id]: e.target.value,
+                                      }))
+                                    }
+                                    className="text-[11px] px-2 py-1 border rounded focus:outline-none focus:ring-1"
+                                    style={{ borderColor: "var(--border)" }}
+                                  >
+                                    <option value="">Select override reason...</option>
+                                    {DUR_OVERRIDE_REASON_CODES.map((c) => (
+                                      <option key={c.code} value={c.code}>
+                                        {c.code} — {c.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <input
+                                    type="text"
+                                    value={overrideNotes[alert.id] || ""}
+                                    onChange={(e) =>
+                                      setOverrideNotes((prev) => ({
+                                        ...prev,
+                                        [alert.id]: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Notes (optional)"
+                                    className="flex-1 min-w-[120px] text-[11px] px-2 py-1 border rounded focus:outline-none focus:ring-1"
+                                    style={{ borderColor: "var(--border)" }}
+                                  />
+                                  <button
+                                    onClick={() => submitOverride(alert.id)}
+                                    disabled={overriding === alert.id || !overrideReason[alert.id]}
+                                    className="text-[11px] font-semibold px-2.5 py-1 rounded text-white disabled:opacity-50 inline-flex items-center gap-1"
+                                    style={{ backgroundColor: "#dc2626" }}
+                                  >
+                                    {overriding === alert.id && (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    )}
+                                    Override
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {durAlerts.some((a) => a.severity === "critical" && !a.overridden) && (
+                      <div className="px-3 py-2 border-t bg-red-50 text-[11px] font-semibold text-red-700 flex items-center gap-1.5" style={{ borderColor: "var(--border)" }}>
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Critical alerts must be overridden before advancing to Waiting Bin.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

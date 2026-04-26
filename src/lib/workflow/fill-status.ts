@@ -243,6 +243,34 @@ export async function advanceFillStatus(
     };
   }
 
+  // ── DUR critical-alert guard (verify → waiting_bin) ──────────────
+  // The pharmacist must explicitly override every critical DUR alert before
+  // a fill can leave Verify. We refuse the transition rather than silently
+  // dispensing a flagged interaction / allergy.
+  if (fill.status === "verify" && newStatus === "waiting_bin") {
+    try {
+      const { getDurAlertsForFill } = await import("@/lib/clinical/dur-engine");
+      const alerts = await getDurAlertsForFill(fillId);
+      const blockingCriticals = alerts.filter(
+        (a) => a.severity === "critical" && !a.overridden
+      );
+      if (blockingCriticals.length > 0) {
+        const summary = blockingCriticals
+          .map((a) => `${a.drugA}${a.drugB ? ` + ${a.drugB}` : ""}`)
+          .slice(0, 3)
+          .join(", ");
+        return {
+          success: false,
+          error: `${blockingCriticals.length} unresolved critical DUR alert(s) — ${summary}. Override before verifying.`,
+        };
+      }
+    } catch (err) {
+      // Don't fail the workflow if the DUR store is unavailable — log it
+      // and let the pharmacist proceed (they've still got the visual alerts).
+      console.warn("[advanceFillStatus] DUR alert lookup failed:", err);
+    }
+  }
+
   // ── Pickup checklist guard (waiting_bin → sold) ─────────────────
   // The OBRA-90 counseling offer, patient signature, and payment must be
   // attested to before a fill can be marked as sold/dispensed. The Process

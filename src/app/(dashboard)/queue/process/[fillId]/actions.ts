@@ -3,6 +3,12 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { advanceFillStatus, canTransition, getNextStatuses, getHappyPathNext } from "@/lib/workflow/fill-status";
+import {
+  runFullDUR,
+  getDurAlertsForFill,
+  overrideDurAlert,
+  type DURAlert,
+} from "@/lib/clinical/dur-engine";
 import { revalidatePath } from "next/cache";
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -559,6 +565,56 @@ export async function notifyPatientReady(fillId: string) {
   revalidatePath(`/queue/process/${fillId}`);
 
   return { success: true, phone, messageId: result.messageId };
+}
+
+// ─── DUR (Drug Utilization Review) ────────────────────────────────
+
+/**
+ * Runs the full DUR engine for this fill. Idempotent — calling it again
+ * recomputes the alerts and replaces any prior set for this fill in the
+ * StoreSetting JSON store (see dur-engine.ts).
+ *
+ * The Verify-stage UI auto-fires this when the fill enters Verify so the
+ * pharmacist sees interaction / allergy / duplication / dose-range / age-gender
+ * alerts inline. Pre-existing overridden alerts stay overridden.
+ */
+export async function runDurForFill(fillId: string): Promise<DURAlert[]> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
+  // Run the engine — it persists the alerts as a side effect.
+  await runFullDUR(fillId);
+  return getDurAlertsForFill(fillId);
+}
+
+/** Read current DUR alerts (no recompute). Used on page hydration. */
+export async function getDurAlertsForCurrentFill(
+  fillId: string
+): Promise<DURAlert[]> {
+  return getDurAlertsForFill(fillId);
+}
+
+/**
+ * Pharmacist override for a DUR alert. Wraps the engine helper so the
+ * Process page can call it directly without going through the /clinical/dur
+ * page. Audit / authorization happens inside overrideDurAlert (only users
+ * with isPharmacist=true are allowed).
+ */
+export async function overrideDurAlertOnFill(
+  fillId: string,
+  alertId: string,
+  reasonCode: string,
+  notes?: string
+): Promise<{ success: boolean; error?: string; alerts?: DURAlert[] }> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const result = await overrideDurAlert(alertId, user.id, reasonCode, notes);
+  if (!result.success) return result;
+
+  revalidatePath(`/queue/process/${fillId}`);
+  const alerts = await getDurAlertsForFill(fillId);
+  return { success: true, alerts };
 }
 
 // ─── Verify Barcode Scan ──────────────────────────────────────────
