@@ -191,7 +191,10 @@ export async function convertToPrescription(
     const itemId = overrides?.itemId || null;
     const formulaId = overrides?.formulaId || null;
 
-    // Create prescription in a transaction
+    // Create prescription + initial Fill in a transaction. The Fill at
+    // status="intake" surfaces the Rx in the Workflow Queue's Intake stage
+    // (DRX parity). IntakeQueueItem stays as the SureScripts staging buffer
+    // but is no longer the user-facing intake surface.
     const [prescription] = await prisma.$transaction([
       prisma.prescription.create({
         data: {
@@ -214,6 +217,15 @@ export async function convertToPrescription(
           expirationDate: parsed.effectiveDate ? new Date(parsed.effectiveDate) : null,
           prescriberNotes: parsed.prescriberNotes || null,
           internalNotes: intakeItem.notes || null,
+          fills: {
+            create: {
+              fillNumber: 0,
+              status: "intake",
+              quantity: parsed.medication.quantity || 0,
+              daysSupply: parsed.medication.daysSupply || null,
+              itemId: itemId,
+            },
+          },
         },
       }),
       prisma.intakeQueueItem.update({

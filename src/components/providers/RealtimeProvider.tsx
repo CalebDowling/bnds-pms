@@ -18,10 +18,11 @@ import { useRealtimeMulti } from "@/hooks/useRealtime";
  */
 
 const ROUTE_SUBSCRIPTIONS: Array<{ match: RegExp; tables: string[] }> = [
-  // Queue + intake + dashboard need a lot of live signals
+  // Queue + dashboard need a lot of live signals. Intake is now part of
+  // the workflow queue (DRX parity) so /queue?status=intake covers it; the
+  // standalone /intake page was removed.
   { match: /^\/dashboard/, tables: ["prescriptions", "prescription_fills", "intake_queue"] },
   { match: /^\/queue/, tables: ["prescriptions", "prescription_fills"] },
-  { match: /^\/intake/, tables: ["intake_queue", "prescriptions"] },
 
   // Patients / prescriptions / fills pages: their own records
   { match: /^\/patients/, tables: ["patients"] },

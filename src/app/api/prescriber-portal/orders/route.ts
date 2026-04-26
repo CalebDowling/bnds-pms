@@ -132,7 +132,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Create prescription
+    // Create prescription + initial Fill at status="intake" so the order
+    // lands in the Workflow Queue's Intake stage immediately. (DRX parity:
+    // every Rx — keyed in, prescriber portal, or SureScripts — starts at
+    // Intake and walks the same pipeline.)
     const prescription = await prisma.prescription.create({
       data: {
         rxNumber,
@@ -155,6 +158,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           patientPhone: body.patientPhone || null,
           patientAddress: body.patientAddress || null,
         },
+        fills: {
+          create: {
+            fillNumber: 0,
+            status: "intake",
+            quantity: body.quantity,
+            daysSupply: body.daysSupply,
+          },
+        },
       },
       select: {
         id: true,
@@ -166,22 +177,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             lastName: true,
           },
         },
-      },
-    });
-
-    // Create intake queue item
-    await prisma.intakeQueueItem.create({
-      data: {
-        source: "prescriber_portal",
-        prescriptionId: prescription.id,
-        patientId: patient.id,
-        prescriberId: prescriberRecord.id,
-        status: "pending",
-        patientName: `${patient.firstName} ${patient.lastName}`,
-        prescriberName: `${prescriberRecord.firstName} ${prescriberRecord.lastName}`,
-        drugName: body.customCompound?.name || "Formula Order",
-        priority: body.priority || "normal",
-        notes: body.notes,
       },
     });
 

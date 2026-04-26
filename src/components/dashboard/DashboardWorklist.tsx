@@ -191,9 +191,9 @@ export default function DashboardWorklist({ data }: { data: DashboardData }) {
             <WorklistRow
               icon={<Inbox size={15} />}
               iconColor="#3b82f6"
-              title="eRx Awaiting Entry"
+              title="Intake Queue"
               count={data.pendingRefills}
-              href="/intake"
+              href="/queue?status=intake"
             />
             <WorklistRow
               icon={<CheckCircle2 size={15} />}

@@ -181,6 +181,12 @@ export async function createPrescription(data: PrescriptionFormData) {
     const rxNumber = candidate.toString();
 
     try {
+      // Atomic: Prescription + initial Fill (status="intake") so the Rx
+      // immediately surfaces in the Workflow Queue's Intake stage. Mirrors
+      // the DRX flow where every Rx — whether keyed in here, sent in via
+      // the prescriber portal, or imported from SureScripts — starts at
+      // Intake and walks the same pipeline. fillNumber=0 is the original
+      // dispense; refills create fills 1, 2, ...
       const prescription = await prisma.prescription.create({
         data: {
           rxNumber,
@@ -203,10 +209,21 @@ export async function createPrescription(data: PrescriptionFormData) {
           prescriberNotes: data.prescriberNotes?.trim() || null,
           internalNotes: data.internalNotes?.trim() || null,
           insuranceId: data.insuranceId || null,
+          fills: {
+            create: {
+              fillNumber: 0,
+              status: "intake",
+              quantity: data.quantityPrescribed || 0,
+              daysSupply: data.daysSupply || null,
+              itemId: data.itemId || null,
+            },
+          },
         },
       });
 
       revalidatePath("/prescriptions");
+      revalidatePath("/queue");
+      revalidatePath("/dashboard");
       return prescription;
     } catch (err) {
       lastError = err;
