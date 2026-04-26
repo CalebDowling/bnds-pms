@@ -35,6 +35,7 @@ import {
   verifyScan,
   setFillFinancials,
   recordVerifyChecklist,
+  saveVerifyChecklistDraft,
   recordPickupChecklist,
   notifyPatientReady,
   runDurForFill,
@@ -93,6 +94,10 @@ export default function FillProcessPage() {
     ndcVerified: false,
     pdmpChecked: false,
   });
+  // Last successful save timestamp for the verify checklist. Drives the
+  // "Last saved at..." indicator next to the panel title so the pharmacist
+  // gets visual confirmation each toggle is being persisted.
+  const [verifyLastSavedAt, setVerifyLastSavedAt] = useState<Date | null>(null);
 
   // Pickup checklist — gates waiting_bin → sold. Counsel offer (OBRA-90),
   // patient signature / HIPAA ack, and payment must be attested before
@@ -100,7 +105,9 @@ export default function FillProcessPage() {
   // before the patient arrives.
   const [pickup, setPickup] = useState({
     counselOffered: false,
-    counselAccepted: false,
+    // Patients accept counseling more often than they decline, so default to
+    // accepted. The cashier unchecks only when the patient declines.
+    counselAccepted: true,
     signatureCaptured: false,
     paymentReceived: false,
     pickupNotes: "",
@@ -362,6 +369,26 @@ export default function FillProcessPage() {
     } finally {
       setOverriding(null);
     }
+  };
+
+  // Toggle one item on the verify checklist and persist a draft so the
+  // pharmacist's progress is never lost. Drives the "Last saved at..."
+  // indicator. The immutable all-checked attestation still happens at
+  // advance time via recordVerifyChecklist().
+  const toggleChecklistItem = (
+    key: keyof typeof checklist,
+    value: boolean
+  ) => {
+    const next = { ...checklist, [key]: value };
+    setChecklist(next);
+    if (!fill) return;
+    saveVerifyChecklistDraft(fill.id, next)
+      .then((res) => {
+        setVerifyLastSavedAt(new Date(res.savedAt));
+      })
+      .catch((e) => {
+        console.warn("Verify checklist draft save failed:", e);
+      });
   };
 
   const handleScan = async () => {
@@ -808,7 +835,21 @@ export default function FillProcessPage() {
                       via recordVerifyChecklist() in the advance handler so we
                       have an audit trail showing who attested to what. */}
                   <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2 mt-2">
-                    <span className="text-xs font-semibold text-blue-700">Pharmacist Review Checklist:</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-blue-700">Pharmacist Review Checklist:</span>
+                      {/* Per-toggle save feedback. Each checkbox change fires
+                          saveVerifyChecklistDraft, which stamps this timestamp
+                          on success — so the pharmacist sees their progress is
+                          persisted without leaving the page. */}
+                      {verifyLastSavedAt && (
+                        <span className="text-[10px] italic text-blue-600">
+                          Last saved at {verifyLastSavedAt.toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-1.5 space-y-1">
                       {[
                         { key: "drugCorrect", label: "Drug, strength, and dosage form correct" },
@@ -825,10 +866,10 @@ export default function FillProcessPage() {
                             type="checkbox"
                             checked={(checklist as Record<string, boolean>)[item.key] || false}
                             onChange={(e) =>
-                              setChecklist((prev) => ({
-                                ...prev,
-                                [item.key]: e.target.checked,
-                              }))
+                              toggleChecklistItem(
+                                item.key as keyof typeof checklist,
+                                e.target.checked
+                              )
                             }
                             className="rounded border-blue-300 text-blue-700 focus:ring-blue-500 w-4 h-4"
                           />
@@ -841,10 +882,7 @@ export default function FillProcessPage() {
                             type="checkbox"
                             checked={checklist.pdmpChecked}
                             onChange={(e) =>
-                              setChecklist((prev) => ({
-                                ...prev,
-                                pdmpChecked: e.target.checked,
-                              }))
+                              toggleChecklistItem("pdmpChecked", e.target.checked)
                             }
                             className="rounded border-red-300 text-red-700 focus:ring-red-500 w-4 h-4"
                           />
@@ -949,10 +987,33 @@ export default function FillProcessPage() {
 
                               {alert.overridden ? (
                                 <div className="text-[11px] mt-1 p-1.5 rounded bg-gray-100" style={{ color: "var(--text-muted)" }}>
-                                  Overridden{alert.overriddenBy ? ` by ${alert.overriddenBy}` : ""}
+                                  {/* Prefer the stored display name; fall back to the
+                                      UUID for legacy overrides recorded before the
+                                      name was being persisted. */}
+                                  Overridden
+                                  {alert.overriddenByName
+                                    ? ` by ${alert.overriddenByName}`
+                                    : alert.overriddenBy
+                                    ? ` by ${alert.overriddenBy}`
+                                    : ""}
                                   {alert.overriddenAt ? ` on ${new Date(alert.overriddenAt).toLocaleString()}` : ""}
                                   {alert.overrideReasonCode && (
-                                    <> &middot; Reason: <span className="font-mono">{alert.overrideReasonCode}</span></>
+                                    <>
+                                      {" "}&middot; Reason:{" "}
+                                      <span className="font-mono">{alert.overrideReasonCode}</span>
+                                      {/* Render the full NCPDP label when we have it
+                                          (new overrides). Older alerts only carry the
+                                          code — look it up against the canonical list
+                                          so the audit string stays human-readable. */}
+                                      {(() => {
+                                        const label =
+                                          alert.overrideReasonLabel ||
+                                          DUR_OVERRIDE_REASON_CODES.find(
+                                            (r) => r.code === alert.overrideReasonCode
+                                          )?.label;
+                                        return label ? ` — ${label}` : null;
+                                      })()}
+                                    </>
                                   )}
                                   {alert.overrideNotes && <> &middot; {alert.overrideNotes}</>}
                                 </div>

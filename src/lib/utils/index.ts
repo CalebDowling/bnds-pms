@@ -26,6 +26,46 @@ export function formatPhone(phone: string): string {
 }
 
 /**
+ * Validate that a phone number isn't an obvious placeholder.
+ *
+ * We do NOT reject every 555 number — real numbers exist with that exchange.
+ * We only catch:
+ *   - The official "fictional" range: 555-555-0100 through 555-555-0199
+ *   - Any 555-prefix exchange whose subscriber starts "01" (the Hollywood pattern)
+ *   - Runs of identical digits, e.g. (555) 555-5555 or (111) 111-1111
+ *
+ * Returns null when the number looks real, otherwise a user-facing message.
+ * Empty input returns null — callers decide whether phone is required.
+ */
+export function validatePhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 0) return null;
+  // Strip an optional leading country code "1"
+  const local = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  if (local.length !== 10) {
+    return "Please enter a 10-digit phone number.";
+  }
+
+  // All identical digits: (111) 111-1111, (555) 555-5555, etc.
+  if (/^(\d)\1{9}$/.test(local)) {
+    return "That looks like a placeholder phone — please enter a real number.";
+  }
+
+  const exchange = local.slice(3, 6);
+  const subscriber = local.slice(6, 10);
+
+  // 555-555-0100 through 555-555-0199 (FCC fictional range)
+  // Any 555-exchange number with subscriber starting "01" — the canonical
+  // "fake number for movies / TV" pattern. Real 555 numbers don't begin 01XX.
+  if (exchange === "555" && subscriber.startsWith("01")) {
+    return "That looks like a placeholder phone — please enter a real number.";
+  }
+
+  return null;
+}
+
+/**
  * Calculate age from date of birth
  */
 export function calculateAge(dob: Date | string): number {

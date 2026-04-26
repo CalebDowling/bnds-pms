@@ -351,8 +351,30 @@ export async function advanceFillStatus(
     additionalData.verifiedAt = new Date();
   }
 
+  // Sold capture — record who marked the fill sold and when.
+  //
+  // We mirror the data into THREE places so it's reachable without a schema
+  // change:
+  //   1. PrescriptionFill.dispensedAt (already a column)
+  //   2. PrescriptionFill.metadata.soldInfo = { soldBy, soldAt } — fast path
+  //      for the Process page / receipts to render without joining events
+  //   3. FillEvent.notes JSON payload {soldBy, soldAt} on the status_change
+  //      row — so audit queries can extract sold-by directly from the event
+  //
+  // TODO: when the next prisma migration runs, add `soldBy String? @db.Uuid`
+  // and `soldAt DateTime?` columns on PrescriptionFill and backfill from
+  // metadata.soldInfo. Until then we DO NOT run prisma migrate from this
+  // change set — the activity-log payload is the source of truth.
+  let soldInfoPayload: { soldBy: string; soldAt: string } | null = null;
   if (newStatus === "sold") {
-    additionalData.dispensedAt = new Date();
+    const soldAt = new Date();
+    additionalData.dispensedAt = soldAt;
+    soldInfoPayload = { soldBy: userId, soldAt: soldAt.toISOString() };
+    const existingMeta = (fill.metadata as Record<string, unknown>) || {};
+    additionalData.metadata = {
+      ...existingMeta,
+      soldInfo: soldInfoPayload,
+    };
   }
 
   // Compute the new prescription-level status. If the fill is moving forward
@@ -373,6 +395,17 @@ export async function advanceFillStatus(
         },
       });
 
+      // For sold transitions we serialize the soldBy/soldAt payload into
+      // the event notes so audit / reporting queries don't need to read
+      // PrescriptionFill.metadata. Free-text notes (when provided) are
+      // preserved alongside the JSON payload.
+      const eventNotes = soldInfoPayload
+        ? JSON.stringify({
+            ...soldInfoPayload,
+            ...(notes ? { note: notes } : {}),
+          })
+        : notes || null;
+
       await tx.fillEvent.create({
         data: {
           fillId,
@@ -380,7 +413,7 @@ export async function advanceFillStatus(
           fromValue: fill.status,
           toValue: newStatus,
           performedBy: userId,
-          notes: notes || null,
+          notes: eventNotes,
         },
       });
 

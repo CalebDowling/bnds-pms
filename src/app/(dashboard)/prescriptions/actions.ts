@@ -279,7 +279,7 @@ export async function updatePrescriptionStatus(
   newStatus: string,
   userId: string,
   notes?: string
-) {
+): Promise<void> {
   const rx = await prisma.prescription.findUnique({
     where: { id },
     select: { status: true },
@@ -292,10 +292,16 @@ export async function updatePrescriptionStatus(
     throw new Error(`Cannot move from "${rx.status}" to "${newStatus}"`);
   }
 
-  const [prescription] = await prisma.$transaction([
+  // Returning `void` rather than the Prisma row keeps the server-action
+  // response plain JSON. Prisma `Decimal` and `Date` values returned across
+  // the server-action boundary cause "An unexpected response was received
+  // from the server" hangs (mirrors commit 01bfde1's fix in
+  // `createPrescription`). The sole caller discards the return value.
+  await prisma.$transaction([
     prisma.prescription.update({
       where: { id },
       data: { status: newStatus },
+      select: { id: true },
     }),
     prisma.prescriptionStatusLog.create({
       data: {
@@ -305,12 +311,12 @@ export async function updatePrescriptionStatus(
         changedBy: userId,
         notes: notes || null,
       },
+      select: { id: true },
     }),
   ]);
 
   revalidatePath("/prescriptions");
   revalidatePath(`/prescriptions/${id}`);
-  return prescription;
 }
 
 // ─── CREATE FILL ────────────────────────────

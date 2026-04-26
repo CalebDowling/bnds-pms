@@ -58,7 +58,7 @@ export default async function DashboardLayout({
     <PermissionsProvider permissions={userPermissions}>
       <ToastProvider>
         <KeyboardShortcutsProvider>
-          <SessionTimeoutProvider>
+          <SessionTimeoutProvider timeoutMinutes={120} warningMinutes={5}>
             <div className="min-h-screen bg-[var(--page-bg)]">
               {/* <ShadowModeBanner /> — hidden while DRX sync is off (2026-04-17) */}
               <SidebarLayoutShell>

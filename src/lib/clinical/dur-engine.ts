@@ -43,8 +43,22 @@ export interface DURAlert {
   recommendation: string;
   overridden: boolean;
   overriddenBy?: string;
+  /**
+   * Display name of the pharmacist who overrode the alert. Stored on the
+   * alert at override-time so we don't have to re-resolve the user every
+   * time the audit panel renders. Optional for backwards compat with alerts
+   * stored before this field existed (those still surface the UUID).
+   */
+  overriddenByName?: string;
   overriddenAt?: string;
   overrideReasonCode?: string;
+  /**
+   * Display label for the override reason code (e.g. "Dose Verified with
+   * Prescriber" for code "05"). Stored alongside the code so the audit
+   * panel can render the full NCPDP Result-of-Service label without
+   * looking the code up on every render.
+   */
+  overrideReasonLabel?: string;
   overrideNotes?: string;
   createdAt: string;
 }
@@ -431,10 +445,119 @@ export function checkDuplication(
 // DUR CHECK: DOSE RANGE
 // ═══════════════════════════════════════════════
 
+/**
+ * Parse strength string (e.g. "10 mg", "500MG", "2.5 mg") into a number of mg.
+ * Returns null if the string is missing or not in mg.
+ */
+export function parseStrengthMg(strength: string | null | undefined): number | null {
+  if (!strength) return null;
+  const s = strength.trim().toLowerCase();
+  // Match "<number> mg" — accept decimals, optional whitespace
+  const mgMatch = s.match(/(\d+(?:\.\d+)?)\s*mg\b/);
+  if (mgMatch) {
+    const n = parseFloat(mgMatch[1]);
+    return isFinite(n) && n > 0 ? n : null;
+  }
+  // Convert micrograms → mg
+  const mcgMatch = s.match(/(\d+(?:\.\d+)?)\s*(mcg|µg|ug)\b/);
+  if (mcgMatch) {
+    const n = parseFloat(mcgMatch[1]);
+    return isFinite(n) && n > 0 ? n / 1000 : null;
+  }
+  // Convert grams → mg
+  const gMatch = s.match(/(\d+(?:\.\d+)?)\s*g\b/);
+  if (gMatch) {
+    const n = parseFloat(gMatch[1]);
+    return isFinite(n) && n > 0 ? n * 1000 : null;
+  }
+  return null;
+}
+
+/**
+ * Parse a sig/directions string for tablets-or-capsules per day.
+ * Recognizes "1 tablet daily", "2 caps bid", "1 tab twice daily", "1 tablet q12h", etc.
+ * Returns null if it cannot determine a quantity-per-dose AND a frequency.
+ */
+export function parseTabletsPerDayFromSig(
+  directions: string | null | undefined
+): number | null {
+  if (!directions) return null;
+  const sig = directions.toLowerCase();
+
+  // Quantity per dose: "take N", "N tab", "N tablet", "N cap", or leading "N "
+  let perDose: number | null = null;
+  const qtyMatch =
+    sig.match(/take\s+(\d+(?:\.\d+)?)\b/) ||
+    sig.match(/(\d+(?:\.\d+)?)\s*(?:tab|tablet|cap|capsule)/) ||
+    sig.match(/^\s*(\d+(?:\.\d+)?)\b/);
+  if (qtyMatch) {
+    const n = parseFloat(qtyMatch[1]);
+    if (isFinite(n) && n > 0) perDose = n;
+  }
+
+  // Frequency per day
+  let perDay: number | null = null;
+  if (/\b(qid|four times (?:a |per )?day|4 times (?:a |per )?day)\b/.test(sig)) perDay = 4;
+  else if (/\b(tid|three times (?:a |per )?day|3 times (?:a |per )?day|q8h)\b/.test(sig)) perDay = 3;
+  else if (/\b(bid|twice (?:a |per )?day|two times (?:a |per )?day|2 times (?:a |per )?day|q12h)\b/.test(sig)) perDay = 2;
+  else if (/\b(qd|once (?:a |per )?day|daily|every day|q24h|qhs|qam|qpm|at bedtime|in the morning|nightly)\b/.test(sig)) perDay = 1;
+  else if (/\bq6h\b/.test(sig)) perDay = 4;
+  else if (/\bq4h\b/.test(sig)) perDay = 6;
+
+  if (perDose !== null && perDay !== null) return perDose * perDay;
+  return null;
+}
+
+/**
+ * Compute daily dose in mg for solid oral forms.
+ * Returns null when we can't reliably compute (non-tablet form, missing/unparseable strength,
+ * etc.) so dose alerts are skipped rather than producing wrong numbers.
+ */
+export function computeDailyDoseMg(args: {
+  strength: string | null | undefined;
+  dosageForm: string | null | undefined;
+  directions: string | null | undefined;
+  quantity: number;
+  daysSupply: number;
+}): { dailyDoseMg: number; tabletsPerDay: number } | null {
+  const { strength, dosageForm, directions, quantity, daysSupply } = args;
+
+  // Only handle solid oral forms reliably. For liquids/creams/patches, strength
+  // units differ (mg/mL, mcg/hr, %) and we'd need volume-per-dose to compute mg/day.
+  const form = (dosageForm || "").toLowerCase();
+  const isSolidOral =
+    !form ||
+    form.includes("tab") ||
+    form.includes("cap") ||
+    form.includes("caplet") ||
+    form.includes("pill");
+  if (!isSolidOral) return null;
+
+  const strengthMg = parseStrengthMg(strength);
+  if (strengthMg === null) return null;
+
+  // Prefer sig-derived tablets/day; fall back to quantity ÷ daysSupply (which
+  // is tablets/day, NOT mg/day — that confusion was the bug).
+  let tabletsPerDay = parseTabletsPerDayFromSig(directions);
+  if (tabletsPerDay === null) {
+    if (daysSupply > 0 && quantity > 0) tabletsPerDay = quantity / daysSupply;
+    else return null;
+  }
+
+  if (!isFinite(tabletsPerDay) || tabletsPerDay <= 0) return null;
+
+  return { dailyDoseMg: strengthMg * tabletsPerDay, tabletsPerDay };
+}
+
 export function checkDoseRange(
   drugName: string,
   quantity: number,
-  daysSupply: number
+  daysSupply: number,
+  context?: {
+    strength?: string | null;
+    dosageForm?: string | null;
+    directions?: string | null;
+  }
 ): DURAlert[] {
   const alerts: DURAlert[] = [];
   const normalized = normalizeDrugName(drugName);
@@ -453,36 +576,49 @@ export function checkDoseRange(
 
   if (!matchedDrug || !range || daysSupply <= 0) return alerts;
 
-  const dailyDose = quantity / daysSupply;
+  // Compute true daily dose in mg using strength × tablets/day.
+  // If we can't compute it (non-tablet form, missing strength, etc.), skip
+  // the dose-too-high/low check rather than emitting bogus mg values.
+  const computed = computeDailyDoseMg({
+    strength: context?.strength,
+    dosageForm: context?.dosageForm,
+    directions: context?.directions,
+    quantity,
+    daysSupply,
+  });
 
-  if (dailyDose > range.maxDaily) {
-    alerts.push({
-      id: generateAlertId(),
-      fillId: "",
-      patientId: "",
-      alertType: "dose_range",
-      severity: "major",
-      drugA: drugName,
-      description: `Daily dose exceeds maximum: ${dailyDose.toFixed(1)}${range.unit}/day (max: ${range.maxDaily}${range.unit}/day)`,
-      clinicalEffect: `Calculated daily dose of ${dailyDose.toFixed(1)}${range.unit} exceeds the recommended maximum of ${range.maxDaily}${range.unit}/day for ${matchedDrug}.`,
-      recommendation: `Verify dose with prescriber. Confirm quantity (${quantity}) and days supply (${daysSupply}) are correct.`,
-      overridden: false,
-      createdAt: new Date().toISOString(),
-    });
-  } else if (dailyDose < range.minDaily) {
-    alerts.push({
-      id: generateAlertId(),
-      fillId: "",
-      patientId: "",
-      alertType: "dose_range",
-      severity: "minor",
-      drugA: drugName,
-      description: `Daily dose below minimum: ${dailyDose.toFixed(1)}${range.unit}/day (min: ${range.minDaily}${range.unit}/day)`,
-      clinicalEffect: `Calculated daily dose of ${dailyDose.toFixed(1)}${range.unit} is below the typical minimum of ${range.minDaily}${range.unit}/day for ${matchedDrug}. May be subtherapeutic.`,
-      recommendation: `Verify dose with prescriber. May be an initial titration dose.`,
-      overridden: false,
-      createdAt: new Date().toISOString(),
-    });
+  if (computed !== null && range.unit === "mg") {
+    const dailyDose = computed.dailyDoseMg;
+
+    if (dailyDose > range.maxDaily) {
+      alerts.push({
+        id: generateAlertId(),
+        fillId: "",
+        patientId: "",
+        alertType: "dose_range",
+        severity: "major",
+        drugA: drugName,
+        description: `Daily dose exceeds maximum: ${dailyDose.toFixed(1)} ${range.unit}/day (max: ${range.maxDaily} ${range.unit}/day)`,
+        clinicalEffect: `Calculated daily dose of ${dailyDose.toFixed(1)} ${range.unit} exceeds the recommended maximum of ${range.maxDaily} ${range.unit}/day for ${matchedDrug}.`,
+        recommendation: `Verify dose with prescriber. Confirm quantity (${quantity}) and days supply (${daysSupply}) are correct.`,
+        overridden: false,
+        createdAt: new Date().toISOString(),
+      });
+    } else if (dailyDose < range.minDaily) {
+      alerts.push({
+        id: generateAlertId(),
+        fillId: "",
+        patientId: "",
+        alertType: "dose_range",
+        severity: "minor",
+        drugA: drugName,
+        description: `Daily dose below minimum: ${dailyDose.toFixed(1)} ${range.unit}/day (min: ${range.minDaily} ${range.unit}/day)`,
+        clinicalEffect: `Calculated daily dose of ${dailyDose.toFixed(1)} ${range.unit} is below the typical minimum of ${range.minDaily} ${range.unit}/day for ${matchedDrug}. May be subtherapeutic.`,
+        recommendation: `Verify dose with prescriber. May be an initial titration dose.`,
+        overridden: false,
+        createdAt: new Date().toISOString(),
+      });
+    }
   }
 
   // Days supply check
@@ -646,8 +782,12 @@ export async function runFullDUR(fillId: string): Promise<DURResult> {
   const dupAlerts = checkDuplication(drugName, activeMeds);
   allAlerts.push(...dupAlerts);
 
-  // 4. Dose range
-  const doseAlerts = checkDoseRange(drugName, quantity, daysSupply);
+  // 4. Dose range — pass strength + form + sig so we can compute mg/day correctly.
+  const doseAlerts = checkDoseRange(drugName, quantity, daysSupply, {
+    strength: rx.item?.strength ?? null,
+    dosageForm: rx.item?.dosageForm ?? null,
+    directions: rx.directions ?? null,
+  });
   allAlerts.push(...doseAlerts);
 
   // 5. Age/gender
@@ -814,8 +954,14 @@ export async function overrideDurAlert(
     const alert = alerts[alertIndex] as DURAlert;
     alert.overridden = true;
     alert.overriddenBy = userId;
+    // Stamp the pharmacist's display name so the audit panel renders
+    // "Overridden by Caleb Dowling" instead of a raw UUID.
+    alert.overriddenByName = `${user.firstName} ${user.lastName}`.trim();
     alert.overriddenAt = new Date().toISOString();
     alert.overrideReasonCode = reasonCode;
+    // Stamp the full NCPDP Result-of-Service label alongside the code so
+    // the audit string can render "Reason: 05 — Dose Verified with Prescriber".
+    alert.overrideReasonLabel = reasonLabel;
     alert.overrideNotes = notes || undefined;
 
     await setSettingValue(DUR_ALERTS_KEY, alerts, userId);

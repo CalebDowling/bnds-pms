@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Printer, ScanLine, Pencil, CheckCircle, UserPlus, MessageSquare } from "lucide-react";
+import Link from "next/link";
+import { Printer, MessageSquare } from "lucide-react";
 import type { QueueFill } from "./constants";
 
 function formatDate(dateStr: string | null): string {
@@ -13,6 +14,38 @@ function formatDate(dateStr: string | null): string {
   } catch {
     return dateStr;
   }
+}
+
+// ─── Title-case display for ALL-CAPS DRX-legacy drug names ──────────────
+// Capitalizes the first letter of each word, but preserves:
+//   - all-numeric tokens ("500", "100")
+//   - dose strings where digits and a unit are joined ("10mg", "500MG")
+//   - dose strings split by a space ("10 MG", "500 MCG") — collapsed to
+//     lowercase units ("10 mg", "500 mcg")
+// Applied at render only — the underlying data is untouched.
+const DOSE_UNITS = new Set([
+  "mg", "mcg", "g", "kg", "ml", "l", "iu", "u", "meq", "mmol", "mol",
+  "mg/ml", "mcg/ml", "mg/kg", "mcg/kg", "%",
+]);
+function toTitleCase(s: string): string {
+  if (!s) return s;
+  return s
+    .split(/\s+/)
+    .map((token) => {
+      if (!token) return token;
+      // All-numeric token → leave as-is
+      if (/^\d+$/.test(token)) return token;
+      // Lone unit token ("MG", "MCG/ML") → lowercase
+      if (DOSE_UNITS.has(token.toLowerCase())) return token.toLowerCase();
+      // Joined dose like "10MG", "500mcg" → digits + lowercase unit
+      const dose = token.match(/^(\d+(?:\.\d+)?)([A-Za-z/%]+)$/);
+      if (dose && DOSE_UNITS.has(dose[2].toLowerCase())) {
+        return `${dose[1]}${dose[2].toLowerCase()}`;
+      }
+      // Default: Title Case the word
+      return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+    })
+    .join(" ");
 }
 
 // ─── Types ──────────────────────────────────────
@@ -34,12 +67,11 @@ const COLUMNS: { key: ColKey; label: string }[] = [
 const COL_COUNT = COLUMNS.length + 1; // +1 for checkbox column
 
 // ─── Bulk action definitions ────────────────────
+// Only actions wired to real server endpoints are exposed. Stubbed
+// Scan/Edit/Verify/Assign buttons that fired `alert()` have been removed
+// pending real bulk server actions in a future round.
 const BULK_ACTIONS = [
   { key: "print", label: "Print", icon: Printer, bg: "#40721D", hover: "#2D5114" },
-  { key: "scan", label: "Scan", icon: ScanLine, bg: "#0d9488", hover: "#0f766e" },
-  { key: "edit", label: "Edit", icon: Pencil, bg: "#2563eb", hover: "#1d4ed8" },
-  { key: "verify", label: "Verify", icon: CheckCircle, bg: "#10b981", hover: "#059669" },
-  { key: "assign", label: "Assign", icon: UserPlus, bg: "#f59e0b", hover: "#d97706" },
   { key: "notify", label: "Notify", icon: MessageSquare, bg: "#8b5cf6", hover: "#7c3aed" },
 ] as const;
 
@@ -278,9 +310,6 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
       alert(`Pickup SMS sent: ${sent} success, ${failed} failed`);
       return;
     }
-
-    const count = selectedRows.size;
-    alert(`${action} action on ${count} fill(s):\n${ids.join(", ")}`);
   }
 
 
@@ -415,9 +444,14 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                           className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-4 h-4 cursor-pointer"
                         />
                       </td>
-                      {/* RX — monospace, bold, green accent */}
-                      <td className="px-3 py-2.5">
-                        <span className="text-sm font-mono font-bold text-[#40721D]">{fill.rxId}</span>
+                      {/* RX — monospace, bold, green accent, clickable */}
+                      <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                        <Link
+                          href={`/queue/process/${fill.fillId}`}
+                          className="text-sm font-mono font-bold text-[#40721D] hover:underline"
+                        >
+                          {fill.rxId}
+                        </Link>
                       </td>
                       {/* Patient — bold black, key identifier */}
                       <td className="px-3 py-2.5 border-l border-gray-100">
@@ -427,9 +461,10 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                       <td className="px-3 py-2.5 border-l border-gray-100">
                         <span className="text-xs text-gray-500 font-mono">{fill.phone || "—"}</span>
                       </td>
-                      {/* Drug — regular weight, slightly emphasized */}
+                      {/* Drug — regular weight, slightly emphasized; DRX
+                          legacy data is ALL CAPS, title-cased at render */}
                       <td className="px-3 py-2.5 border-l border-gray-200" style={{ maxWidth: "300px" }}>
-                        <span className="text-sm text-gray-700 line-clamp-1">{fill.itemName}</span>
+                        <span className="text-sm text-gray-700 line-clamp-1">{toTitleCase(fill.itemName)}</span>
                       </td>
                       {/* Qty — centered, bold */}
                       <td className="px-3 py-2.5 border-l border-gray-100 text-center">

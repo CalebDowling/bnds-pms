@@ -348,7 +348,11 @@ async function renderElement(
     // 3-tier vertical compression with continuous boundaries:
     // Tier 1 (y < 0.5"): sparse aux labels — compress 40% to close top gap
     // Tier 2 (0.5" - 2.0"): dense content — 5% compression
-    // Tier 3 (>= 2.0"): bottom half — shift up by accumulated savings
+    // Tier 3 (>= 2.0"): bottom half — shift up AND expand spacing so the
+    //   tightly-packed bottom-right blocks (signature line, expiration,
+    //   prescriber, lot/BUD) don't overlap. Gives ~5% extra spread relative
+    //   to the y=2.0 anchor, which clears the documented bottom-right
+    //   collision without touching individual element coordinates.
     if (yIn < 0.5) {
       yIn = yIn * 0.60;
     } else if (yIn < 2.0) {
@@ -357,8 +361,9 @@ async function renderElement(
       yIn = (yIn - t1Offset) * 0.95;
     } else {
       // At boundary y=2.0: tier2 gives (2.0 - 0.20) * 0.95 = 1.71
-      // So tier3 offset = 2.0 - 1.71 = 0.29
-      yIn = yIn - 0.29;
+      // Anchor tier3 at the same point and stretch downward by 5%
+      // (1.05x) to add inter-block headroom in the bottom region.
+      yIn = 1.71 + (yIn - 2.0) * 1.05;
     }
     rotation = 0; // text rendered horizontal
   } else {
@@ -954,14 +959,16 @@ export function extractCanvasElements(
     if (useLandscape) {
       xIn = portraitY;
       yIn = template.pageWidth - portraitX;
-      // 3-tier vertical compression (same as PDF renderer)
+      // 3-tier vertical compression (must match PDF renderer above)
       if (yIn < 0.5) {
         yIn = yIn * 0.60;
       } else if (yIn < 2.0) {
         const t1Offset = 0.20;
         yIn = (yIn - t1Offset) * 0.95;
       } else {
-        yIn = yIn - 0.29;
+        // Bottom region: anchor at 1.71 (continuous with tier 2) and stretch
+        // by 5% to give bottom-right blocks clear vertical separation.
+        yIn = 1.71 + (yIn - 2.0) * 1.05;
       }
     } else {
       xIn = portraitX;

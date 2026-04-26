@@ -3,7 +3,9 @@ import Link from "next/link";
 import { getPrescription } from "../actions";
 import { formatDate } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
-import PrescriptionStatusBar from "./PrescriptionStatusBar";
+// PrescriptionStatusBar (legacy `Prescription.status` state machine) is no
+// longer rendered — `PrescriptionFill.status` is the canonical workflow
+// state. The component file is preserved for reference but unused.
 import FillForm from "./FillForm";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 import type { PrescriptionFillWithRelations, StatusLog } from "@/types";
@@ -119,8 +121,9 @@ async function PrescriptionDetailPageContent({
         </Link>
       </div>
 
-      {/* Status Actions */}
-      <PrescriptionStatusBar prescriptionId={rx.id} currentStatus={rx.status} />
+      {/* Status actions removed: per-fill workflow lives on the queue/process
+          pages (driven by PrescriptionFill.status), not on the prescription
+          detail page. */}
 
       {/* Allergy Warning */}
       {activeAllergies.length > 0 && (

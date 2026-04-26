@@ -287,8 +287,12 @@ export async function processFill(
     throw new Error(result.error || "Failed to advance fill");
   }
 
+  // Invalidate every surface that shows live fill counts. The Process page
+  // uses 'layout' to bust its parent dynamic segments too, otherwise the
+  // back-link to /queue can render stale counts.
+  revalidatePath("/dashboard");
   revalidatePath("/queue");
-  revalidatePath(`/queue/process/${fillId}`);
+  revalidatePath(`/queue/process/${fillId}`, "layout");
 
   return result.fill;
 }
@@ -452,6 +456,51 @@ export async function recordVerifyChecklist(
   revalidatePath(`/queue/process/${fillId}`);
 
   return { success: true };
+}
+
+/**
+ * Persist a partial / in-progress verify checklist without recording an
+ * "all_checked" attestation. Used by the per-toggle save on the Process page
+ * so the pharmacist can step away and come back without losing state, and
+ * so the UI can show a "Last saved at HH:MM" indicator.
+ *
+ * Deliberately does NOT append a FillEvent — drafts shouldn't pollute the
+ * audit trail. The immutable attestation event is still written by
+ * recordVerifyChecklist() at advance time.
+ */
+export async function saveVerifyChecklistDraft(
+  fillId: string,
+  checklist: Partial<VerifyChecklistInput>
+): Promise<{ success: boolean; savedAt: string }> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const fill = await prisma.prescriptionFill.findUnique({
+    where: { id: fillId },
+    select: { metadata: true },
+  });
+  if (!fill) throw new Error("Fill not found");
+
+  const existingMetadata = (fill.metadata as Record<string, unknown>) || {};
+  const savedAt = new Date().toISOString();
+
+  await prisma.prescriptionFill.update({
+    where: { id: fillId },
+    data: {
+      metadata: {
+        ...existingMetadata,
+        verifyChecklist: {
+          ...((existingMetadata.verifyChecklist as Record<string, unknown>) || {}),
+          ...checklist,
+          performedBy: user.id,
+          performedAt: savedAt,
+          draft: true,
+        },
+      },
+    },
+  });
+
+  return { success: true, savedAt };
 }
 
 // ─── Pickup Checklist (Waiting Bin → Sold) ────────────────────────
@@ -805,8 +854,9 @@ export async function submitAdjudicationForFill(
       },
       user.id
     );
-    revalidatePath(`/queue/process/${fillId}`);
+    revalidatePath("/dashboard");
     revalidatePath("/queue");
+    revalidatePath(`/queue/process/${fillId}`, "layout");
     return {
       success: true,
       status: response.status,

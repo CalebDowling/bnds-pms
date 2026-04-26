@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { formatMRN, nextMRNSeed } from "@/lib/utils/mrn";
+import { validatePhone } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 import type { PatientFormData, PhoneFormData, AddressFormData, AllergyFormData, InsuranceFormData } from "@/types/patient";
 
@@ -116,6 +117,13 @@ export async function getPatient(id: string) {
 // ─── CREATE PATIENT ─────────────────────────
 
 export async function createPatient(data: PatientFormData) {
+  // Server-side phone guard — mirrors the client check so a placeholder
+  // can't slip in via direct server-action calls or a tampered form.
+  if (data.phone) {
+    const phoneError = validatePhone(data.phone);
+    if (phoneError) throw new Error(phoneError);
+  }
+
   // The "read max, +1" pattern collides on two distinct failure modes:
   //   1. Concurrent inserts both reading the same max
   //   2. Pre-existing rows already at-or-above the proposed max
@@ -230,6 +238,11 @@ export async function updatePatient(id: string, data: PatientFormData) {
 // ─── PHONE NUMBERS ──────────────────────────
 
 export async function addPhoneNumber(patientId: string, data: PhoneFormData) {
+  // Reject obvious placeholders here too — addPhoneNumber is reachable from
+  // the patient detail page independently of PatientForm.
+  const phoneError = validatePhone(data.number);
+  if (phoneError) throw new Error(phoneError);
+
   // If setting as primary, unset existing primary
   if (data.isPrimary) {
     await prisma.patientPhoneNumber.updateMany({

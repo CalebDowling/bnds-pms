@@ -1,5 +1,9 @@
 "use client";
 
+// Note: `export const dynamic = "force-dynamic"` cannot live in a client
+// component. The parent (dashboard) layout already sets it for the route
+// group, so this page inherits force-dynamic correctly.
+
 import { useEffect, useState } from "react";
 import type { DashboardData } from "@/components/dashboard/CardGrid";
 import DashboardCommandCenter from "@/components/dashboard/DashboardCommandCenter";
@@ -24,8 +28,27 @@ const DEFAULT_DATA: DashboardData = {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>(DEFAULT_DATA);
 
+  // Quick Access counts (Patient / Rx / Item / Prescriber / Inventory etc.)
+  // need to refresh after fill state changes. Because this page is a client
+  // component, server-side revalidatePath('/dashboard') alone won't update
+  // the in-memory state — we mirror the 30s refresh cadence DashboardCommandCenter
+  // uses for queue counts so the Quick Access tiles stay in sync. Failed
+  // fetches keep the previous values rather than blanking to zero.
   useEffect(() => {
-    getDashboardData().then(setData);
+    let cancelled = false;
+    const load = () => {
+      getDashboardData()
+        .then((next) => {
+          if (!cancelled) setData(next);
+        })
+        .catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   return (

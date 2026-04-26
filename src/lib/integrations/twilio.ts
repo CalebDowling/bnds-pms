@@ -184,6 +184,17 @@ class TwilioClient {
       formData.append("From", this.phoneNumber);
       formData.append("Body", body);
 
+      // Status callbacks let the webhook receiver record delivered / failed
+      // for each outbound message. Skipped when no public base URL is
+      // configured (local dev without a tunnel).
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (baseUrl) {
+        formData.append(
+          "StatusCallback",
+          `${baseUrl.replace(/\/$/, "")}/api/notifications/twilio-status`
+        );
+      }
+
       const message = await this.fetchTwilio<TwilioMessage>("/Messages.json", "POST", formData);
 
       logger.info(`[Twilio SMS] Sent to ${to} (SID: ${message.sid})`);

@@ -2,6 +2,119 @@ import { prisma } from "@/lib/prisma";
 import { formatDirections } from "@/lib/labels/rx-label";
 
 /**
+ * Convert ALL CAPS / lowercase / mixed-case names from the DRX legacy feed
+ * into Title Case for label display only. Handles:
+ *   - Single letters (middle initials): "JOHN P SMITH" → "John P Smith"
+ *   - Hyphenated names: "SMITH-JONES" → "Smith-Jones"
+ *   - Apostrophes: "O'BRIEN" → "O'Brien"
+ *   - Common particles: stays simple — capitalize each whitespace-separated
+ *     token; within a token, capitalize after each '-' or "'" boundary.
+ *
+ * Pure formatter — never mutates DB values.
+ */
+export function toTitleCase(s: string | null | undefined): string {
+  if (!s) return "";
+  return s
+    .toLowerCase()
+    .split(/(\s+)/) // preserve whitespace runs (incl. commas attached to tokens)
+    .map((token) => {
+      if (!token.trim()) return token;
+      // Capitalize the first alpha char of each subgroup split by - or '
+      return token.replace(/([A-Za-z])([A-Za-z'-]*)/g, (_, first: string, rest: string) => {
+        const head = first.toUpperCase();
+        const tail = rest.replace(/([-'])([a-z])/g, (_m, sep: string, ch: string) => sep + ch.toUpperCase());
+        return head + tail;
+      });
+    })
+    .join("");
+}
+
+/**
+ * DEA-schedule-aware expiration cutoff for a label.
+ *   - Schedule II:           fillDate + 6 months
+ *   - Schedules III, IV, V:  fillDate + 6 months
+ *   - Non-controlled / null: fillDate + 1 year
+ *
+ * Returns a new Date (does not mutate input).
+ */
+export function computeExpirationDate(
+  fillDate: Date,
+  deaSchedule: string | null | undefined
+): Date {
+  const out = new Date(fillDate);
+  const sched = (deaSchedule || "").trim().toUpperCase();
+  // Match "II", "C-II", "CII", "2", etc.
+  const isControlled = /^(C-?)?(II|III|IV|V|2|3|4|5)$/.test(sched);
+  if (isControlled) {
+    out.setMonth(out.getMonth() + 6);
+  } else {
+    out.setFullYear(out.getFullYear() + 1);
+  }
+  return out;
+}
+
+/**
+ * Aux warning label map — keyed by case-insensitive substrings of the drug
+ * name. The first matching rule contributes its warnings; multiple rules can
+ * stack (e.g. an opioid that also matches a brand-specific rule).
+ *
+ * Returns a newline-joined string suitable for the DRX template's repeating
+ * `aux_labels` element (which splits on \n and renders one slot per line).
+ */
+export function buildAuxWarnings(drugName: string): string {
+  if (!drugName) return "";
+  const name = drugName.toLowerCase();
+  const warnings: string[] = [];
+
+  const opioidNeedles = [
+    "hydrocodone",
+    "oxycodone",
+    "tramadol",
+    "morphine",
+    "codeine",
+    "fentanyl",
+    "hydromorphone",
+    "oxymorphone",
+    "buprenorphine",
+    "methadone",
+  ];
+  const ssriNeedles = [
+    "sertraline",
+    "fluoxetine",
+    "paroxetine",
+    "citalopram",
+    "escitalopram",
+    "fluvoxamine",
+  ];
+
+  if (name.includes("lisinopril")) {
+    warnings.push(
+      "Take with or without food. May cause dizziness. Avoid potassium supplements unless directed."
+    );
+  }
+  if (name.includes("metformin")) {
+    warnings.push("Take with food to reduce stomach upset.");
+  }
+  if (opioidNeedles.some((n) => name.includes(n))) {
+    warnings.push(
+      "May cause drowsiness. Do not drink alcohol. Do not drive."
+    );
+  }
+  if (name.includes("amoxicillin") || name.includes("penicillin")) {
+    warnings.push(
+      "Finish all medication unless otherwise directed by your doctor."
+    );
+  }
+  if (ssriNeedles.some((n) => name.includes(n))) {
+    warnings.push(
+      "May cause drowsiness. Avoid alcohol. May take 2-4 weeks to feel full effect."
+    );
+  }
+
+  return warnings.join("\n");
+}
+
+/**
  * Maps a PrescriptionFill record to a flat Record<string, string>
  * whose keys match DRX template elementData variable names.
  *
@@ -81,10 +194,11 @@ export async function buildTemplateDataFromFill(
     return `${mm}/${dd}/${yyyy}`;
   };
 
-  // Date + 365 days
   const fillDate = fill.filledAt || fill.createdAt;
-  const fillDatePlus365 = new Date(fillDate);
-  fillDatePlus365.setDate(fillDatePlus365.getDate() + 365);
+
+  // Schedule-aware expiration: CII–CV → +6mo, otherwise +1yr. Wired into
+  // the "Use until ___" template slot (replaces the prior naive +365 days).
+  const expirationDate = computeExpirationDate(fillDate, item?.deaSchedule ?? null);
 
   // SIG
   const sig = formatDirections(rx.directions);
@@ -94,6 +208,19 @@ export async function buildTemplateDataFromFill(
   const printName = item?.name || formula?.name || drugName;
   const ndc = fill.ndc || item?.ndc || "";
   const ndcFormatted = ndc; // already formatted in DB
+
+  // Aux warning labels (newline-joined for the repeating aux_labels slot)
+  const auxWarnings = buildAuxWarnings(drugName);
+
+  // Display-only Title Case for the patient name. We do NOT mutate the DB
+  // values — DRX's ALL CAPS convention is preserved upstream for matching.
+  const displayFirstName = toTitleCase(patient.firstName);
+  const displayLastName = toTitleCase(patient.lastName);
+
+  // Fill number defaults — guard against legacy "Fill #0" leak. Schema declares
+  // PrescriptionFill.fillNumber as a 1-indexed Int with no default; the leak
+  // is from imported rows where DRX seeded 0 for the original fill.
+  const safeFillNumber = fill.fillNumber && fill.fillNumber > 0 ? fill.fillNumber : 1;
 
   // Prescriber address
   const drAddr1 = prescriber.addressLine1 || "";
@@ -105,9 +232,11 @@ export async function buildTemplateDataFromFill(
   // Build the flat data map — keys match DRX template elementData values
   const data: Record<string, string> = {
     // ── Patient ──
-    "patient.first_name": patient.firstName,
-    "patient.last_name": patient.lastName,
-    "patient.first_name|patient.last_name": `${patient.firstName} ${patient.lastName}`,
+    // Names are Title-Cased for label display only. Source-of-truth values
+    // in the DB (often ALL CAPS from DRX) are not mutated.
+    "patient.first_name": displayFirstName,
+    "patient.last_name": displayLastName,
+    "patient.first_name|patient.last_name": `${displayFirstName} ${displayLastName}`,
     "patient.date_of_birth": fmt(patient.dateOfBirth),
     "patient.default_address.lineOne": addrLine1,
     "patient.default_address.lineTwo": addrLine2,
@@ -131,7 +260,9 @@ export async function buildTemplateDataFromFill(
     "prescription.sig_translated": sig,
     "prescription.refills": String(rx.refillsRemaining || 0),
     "prescription.total_qty_remaining": String(rx.refillsRemaining || 0),
-    "prescription.date_expires": fmt(rx.expirationDate),
+    // Use the explicit Rx expiration if present; otherwise fall back to the
+    // schedule-aware computed value (CII–CV: +6mo, otherwise +1yr).
+    "prescription.date_expires": fmt(rx.expirationDate ?? expirationDate),
     // NB: Rx# (numeric) — NOT the row UUID. The DRX templates expect the
     // pharmacy-facing Rx number (e.g. "725366") so it can be barcoded and
     // human-read on the bottle label.
@@ -139,8 +270,10 @@ export async function buildTemplateDataFromFill(
 
     // ── Fill ──
     "fill_date": fmt(fillDate),
-    "fill_date_plus_365_days": fmt(fillDatePlus365),
-    "fill_number": String(fill.fillNumber),
+    // Schedule-aware expiration ("Use until ___"). Replaces the prior naive
+    // +365d so CII–CV controlled fills correctly print a 6-month window.
+    "fill_date_plus_365_days": fmt(expirationDate),
+    "fill_number": String(safeFillNumber),
     "dispensed_quantity": String(fill.quantity || 0),
     "dispensed_quantity|qty_type": String(fill.quantity || 0),
     "completion_quantity": "",
@@ -191,15 +324,25 @@ export async function buildTemplateDataFromFill(
     "pharmacist.last_name": "",
 
     // ── Compounding ──
-    "compound_batch.id": "",
-    "compound_batch.compound_formula_id": formula?.id || "",
-    "compound_batch.expiration_date": "",
+    // Compound-disclaimer fields are populated ONLY when the Rx is flagged
+    // as a compound. Previously `compound_formula_id` was always set when a
+    // formula record was linked (e.g. Cetirizine for ingredient tracking),
+    // which caused DRX templates conditioned on that key to print the
+    // "compounded by this pharmacy" disclaimer on every label.
+    "compound_batch.id": rx.isCompound ? rx.id : "",
+    "compound_batch.compound_formula_id": rx.isCompound ? formula?.id || "" : "",
+    "compound_batch.expiration_date": rx.isCompound ? fmt(expirationDate) : "",
+    // Disclaimer text element — empty unless this is a true compound.
+    "compound_disclaimer": rx.isCompound
+      ? "This medication has been compounded by this pharmacy"
+      : "",
 
     // ── Insurance ──
     "primary_third_party.name": primaryIns?.thirdPartyPlan?.planName || "",
 
     // ── Labels & Warnings ──
-    "aux_labels": "",
+    // Drug-keyed aux warnings, newline-joined for the repeating slot.
+    "aux_labels": auxWarnings,
     "prescription_fill_tags": "",
     "pickup_time": "",
     "hold_warning": "",

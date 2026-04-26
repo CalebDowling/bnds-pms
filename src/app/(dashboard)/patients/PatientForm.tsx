@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createPatient, updatePatient } from "./actions";
 import type { PatientFormData } from "@/types/patient";
 import { getErrorMessage } from "@/lib/errors";
+import { validatePhone } from "@/lib/utils";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
@@ -58,6 +59,13 @@ export default function PatientForm({
     try {
       if (!form.firstName.trim() || !form.lastName.trim() || !form.dateOfBirth) {
         throw new Error("First name, last name, and date of birth are required.");
+      }
+
+      // Reject obvious placeholder phone numbers before we hit the server.
+      // The same check runs server-side so a power user can't bypass this.
+      const phoneError = validatePhone(form.phone);
+      if (phoneError) {
+        throw new Error(phoneError);
       }
 
       if (isEdit) {

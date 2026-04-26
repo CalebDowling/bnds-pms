@@ -38,6 +38,17 @@ export async function sendSMS(
     formData.append("From", twilioPhoneNumber!);
     formData.append("Body", message);
 
+    // Ask Twilio to POST delivery-status callbacks to our webhook so we can
+    // record sent / delivered / failed / undelivered as fill events. The
+    // webhook validates Twilio's signature using TWILIO_AUTH_TOKEN.
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (baseUrl) {
+      formData.append(
+        "StatusCallback",
+        `${baseUrl.replace(/\/$/, "")}/api/notifications/twilio-status`
+      );
+    }
+
     // Create basic auth header
     const credentials = Buffer.from(`${twilioAccountSid}:${twilioAuthToken}`).toString(
       "base64"
