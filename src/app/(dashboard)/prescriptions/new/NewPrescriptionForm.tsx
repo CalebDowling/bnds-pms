@@ -11,6 +11,29 @@ import { formatDrugName, formatPatientName, formatPrescriberName } from "@/lib/u
 
 import type { PatientSearchResult, PrescriberSearchResult, FormulaSearchResult, ItemSearchResult, SearchableItem, DrugSearchResult } from "@/types";
 
+/**
+ * Compose the bold first-line label for a drug picker row.
+ *
+ * The DRX feed often stores the strength inside `name` (e.g.
+ * "Lisinopril 1.25 mg Capsule") AND repeats it in the dedicated
+ * `strength` column ("1.25 MG"). A naive `${name} ${strength}`
+ * concat then renders "Lisinopril 1.25 mg Capsule 1.25 MG", which
+ * looks like a typo to a tech. Detect that overlap by normalising
+ * both sides (case-insensitive, whitespace-collapsed, strip the
+ * unit suffix) and skip the suffix when it's already represented.
+ */
+function buildDrugLabel(name: string | null | undefined, strength: string | null | undefined): string {
+  const formattedName = formatDrugName(name);
+  if (!strength) return formattedName;
+  const normalize = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  const stripUnits = (s: string) => normalize(s).replace(/[\s.]+/g, "");
+  const nameNorm = stripUnits(formattedName);
+  const strengthNorm = stripUnits(strength);
+  // Strength already embedded in name — don't repeat.
+  if (strengthNorm && nameNorm.includes(strengthNorm)) return formattedName;
+  return `${formattedName} ${strength}`;
+}
+
 export default function NewPrescriptionForm({
   // Pre-selected patient (e.g. when arriving from /patients/[id] via the
   // "+ New Rx" button with ?patientId=...). The form still allows the
@@ -78,11 +101,31 @@ export default function NewPrescriptionForm({
         // manufacturer in the dropdown so the tech can disambiguate two
         // entries with the same name. `label` is what we render bold;
         // `sub` is the muted second-line metadata.
-        setDrugResults(items.map((i: ItemSearchResult) => ({
+        //
+        // Dedup by NDC: legacy DRX import created duplicate item rows for
+        // the same product (e.g. two "Lisinopril 10 MG" entries with NDC
+        // 68180051401 LUPIN). Without a dedup pass the picker shows the
+        // same drug twice. Items without an NDC keep their own ids as
+        // dedup keys so unrelated compound ingredients don't collapse.
+        const seen = new Set<string>();
+        const deduped: ItemSearchResult[] = [];
+        for (const i of items) {
+          const key = i.ndc ? `ndc:${i.ndc}` : `id:${i.id}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          deduped.push(i);
+        }
+        setDrugResults(deduped.map((i: ItemSearchResult) => ({
           ...i,
           _type: "item",
-          label: `${formatDrugName(i.name)}${i.strength ? ` ${i.strength}` : ""}`,
-          sub: [i.ndc ? `NDC ${i.ndc}` : null, i.manufacturer || null].filter(Boolean).join(" \u00B7 "),
+          label: buildDrugLabel(i.name, i.strength),
+          // Always render an NDC slot — even when missing — so dispensers
+          // see the gap in product data instead of mistaking a missing
+          // line for "no metadata available".
+          sub: [
+            i.ndc ? `NDC ${i.ndc}` : "NDC unavailable",
+            i.manufacturer || null,
+          ].filter(Boolean).join(" \u00B7 "),
         })));
       }
       setShowDrugDD(true);

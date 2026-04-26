@@ -117,6 +117,29 @@ const PREVIEW_SUPPRESS_KEYS = new Set([
   "compound_batch.expiration_date",
 ]);
 
+// elementData keys that are ALWAYS list-style (newline-joined slots), not
+// character-sliced strings. DRX uses sliceStart/sliceEnd as array indices for
+// these keys regardless of whether the resolved value contains newlines.
+//
+// Without this list a single-warning aux_labels payload (e.g. just the
+// lisinopril warning) would fall through to character slicing and emit
+// stray letters at each slot position — observed as "T", "a", "k", "e"
+// floating around the label, plus a "ESY"-like 3-char string between DOB
+// and SIG, plus the compound-disclaimer leaking onto non-compound fills
+// (the disclaimer is gated on the slot-4 element resolving to non-empty).
+const LIST_STYLE_KEYS = new Set([
+  "aux_labels",
+  "in_pack_items",
+  "days",
+]);
+
+// Substring fingerprint of the compound-disclaimer template text. We use this
+// to enforce a hard belt-and-suspenders gate: any element whose template
+// emits this copy must NOT render unless the data envelope marks the fill as
+// a compound (compound_batch.id populated, which fill-data-mapper only does
+// when rx.isCompound = true).
+const COMPOUND_DISCLAIMER_FINGERPRINT = "compounded by this pharmacy";
+
 // ─── Helpers ───────────────────────────────────────────────────────
 
 function parseColor(color: string | null): string {
@@ -217,15 +240,23 @@ function resolveValue(
   }
 
   // Apply slice for real data only.
-  // For list elements (aux_labels), sliceStart/End are array indices — split by newline.
-  // For string elements (item.print_name), sliceStart/End are character indices.
-  // When using exampleText, skip slicing — the example already represents this element's slot.
+  // For list elements (aux_labels, in_pack_items, days), sliceStart/End are
+  // ALWAYS array indices — split by newline. Even if the value has only one
+  // entry (no embedded newline), slot 0 receives the full value and slots
+  // 1+ are empty. Character-slicing a single warning string by mistake is
+  // what produced the "T", "a", "k" stray letters and the compound-
+  // disclaimer leak observed on non-compound vial labels.
+  // For string elements (item.print_name), sliceStart/End are character
+  // indices used to wrap long drug names across multiple lines.
+  // When using exampleText, skip slicing — the example already represents
+  // this element's slot.
   if (isRealData && val && (element.sliceStart != null || element.sliceEnd != null)) {
     const start = element.sliceStart ?? 0;
     const end = element.sliceEnd ?? undefined;
 
-    // If the value contains newlines, treat slicing as array indices
-    if (val.includes("\n")) {
+    if (LIST_STYLE_KEYS.has(key) || val.includes("\n")) {
+      // Array-index slicing — single-entry payloads still get split into
+      // a 1-item array, so slot >0 collapses to empty.
       const items = val.split("\n");
       val = items.slice(start, end).join("\n").trim();
     } else {
@@ -235,16 +266,37 @@ function resolveValue(
   }
 
   // Apply template string (e.g. "Use By: {{el}}", or static "Signature: ____")
+  //
+  // Special-case: if the static template carries the compound-disclaimer
+  // copy, gate it directly on whether the fill is flagged as a compound
+  // (compound_batch.id is only populated when rx.isCompound = true). This
+  // bypasses the slot-empty heuristic below, which is unreliable for the
+  // disclaimer because the DRX-stored element binds to "aux_labels" with
+  // sliceStart=3 and a malformed ifElementData=null/ifDisplay="iftrue".
+  // The Lisinopril-on-template-94 leak (real-world prod repro) hit because
+  // single-warning aux_labels char-sliced to "e" (truthy → fell through
+  // to "show static template"), and compounds with <4 aux warnings would
+  // otherwise be suppressed entirely.
+  const templateIsCompoundDisclaimer =
+    !!element.template &&
+    !element.template.includes("{{el}}") &&
+    element.template.toLowerCase().includes(COMPOUND_DISCLAIMER_FINGERPRINT);
+
   if (element.template) {
-    if (element.template.includes("{{el}}")) {
+    if (templateIsCompoundDisclaimer) {
+      const isCompoundFill = !!(
+        data["compound_batch.id"] ||
+        data["compoundBatchId"] ||
+        data["compound_batch.compound_formula_id"] ||
+        data["compoundBatchCompoundFormulaId"]
+      );
+      val = isCompoundFill ? element.template : "";
+    } else if (element.template.includes("{{el}}")) {
       val = val ? element.template.replace(/\{\{el\}\}/gi, val) : "";
     } else if (isRealData && val === "") {
       // Element has both an elementData key and a static template. The data
-      // pipeline explicitly resolved this slot to empty (e.g. compound_disclaimer
-      // when isCompound = false). Honor that intent — don't fall back to the
-      // template's static text. This matters for conditional fields whose
-      // template carries the human-readable copy ("This medication has been
-      // compounded by this pharmacy") that must NOT appear on regular fills.
+      // pipeline explicitly resolved this slot to empty — honor that intent
+      // and don't fall back to the template's static text.
       val = "";
     } else {
       // Static template text (no placeholder) — always show it
@@ -270,6 +322,20 @@ function resolveValue(
   return val;
 }
 
+// Normalize the various ifDisplay vocabularies seen across DRX exports.
+//   "truthy" / "iftrue"  → render only when condVal is truthy
+//   "falsey" / "iffalse" → render only when condVal is falsy
+// Anything else is treated as an exact-string match (legacy behavior).
+function evalIfDisplay(
+  ifDisplay: string,
+  condVal: string
+): boolean | null {
+  const mode = ifDisplay.toLowerCase();
+  if (mode === "truthy" || mode === "iftrue") return !!condVal;
+  if (mode === "falsey" || mode === "iffalse") return !condVal;
+  return null; // not a known mode → fall through to exact-match
+}
+
 function shouldDisplay(
   element: DRXElement,
   data: Record<string, string>
@@ -277,15 +343,15 @@ function shouldDisplay(
   // Check conditional display (ifElementData / ifDisplay)
   if (element.ifElementData && element.ifDisplay) {
     const condVal = data[element.ifElementData] || data[element.ifElementData.replace(/[._]([a-z])/g, (_, c) => c.toUpperCase())] || "";
-    if (element.ifDisplay === "truthy" && !condVal) return false;
-    if (element.ifDisplay === "falsey" && condVal) return false;
-    if (element.ifDisplay !== "truthy" && element.ifDisplay !== "falsey" && condVal !== element.ifDisplay) return false;
+    const result = evalIfDisplay(element.ifDisplay, condVal);
+    if (result === false) return false;
+    if (result === null && condVal !== element.ifDisplay) return false;
   }
   if (element.ifElementData2 && element.ifDisplay2) {
     const condVal2 = data[element.ifElementData2] || data[element.ifElementData2.replace(/[._]([a-z])/g, (_, c) => c.toUpperCase())] || "";
-    if (element.ifDisplay2 === "truthy" && !condVal2) return false;
-    if (element.ifDisplay2 === "falsey" && condVal2) return false;
-    if (element.ifDisplay2 !== "truthy" && element.ifDisplay2 !== "falsey" && condVal2 !== element.ifDisplay2) return false;
+    const result2 = evalIfDisplay(element.ifDisplay2, condVal2);
+    if (result2 === false) return false;
+    if (result2 === null && condVal2 !== element.ifDisplay2) return false;
   }
   return true;
 }
@@ -509,7 +575,7 @@ function renderTextElement(
   if (!text) return;
 
   const rawFontSize = element.fontSize || 8;
-  const fontSize = fontSizeOverride || Math.max(4, Math.round(rawFontSize * FONT_SCALE * 10) / 10);
+  let fontSize = fontSizeOverride || Math.max(4, Math.round(rawFontSize * FONT_SCALE * 10) / 10);
   const fontName = getPDFFont(element.fontName, element.fontStyle);
   const textColor = parseColor(element.textColor || element.color);
 
@@ -547,8 +613,13 @@ function renderTextElement(
   }
 
   // Constrain height to prevent vertical overflow.
-  // Many DRX templates have oversized height values (e.g., 20" on a 4" label)
-  // which are effectively "no limit" — not actual bounding boxes.
+  // DRX heights are mixed-unit:
+  //   - h < ~3 → INCHES (typical for QR/image elements, e.g. 1.25" QR)
+  //   - h between 4 and ~200 → POINTS (the SIG element h=30, aux slots h=20)
+  //   - very large or unset → "no limit" (effectively unbounded)
+  // Without this discrimination a SIG with h=30 (30pt = 0.42") was treated
+  // as "oversized" and given fs*3.6 ≈ 0.66" of room, which let a long
+  // 2-line SIG bleed into the toll-free / Use By rows below.
   const maxReasonableHeightIn = pageHeightIn ? pageHeightIn * 0.5 : 2;
   const hasMultiLineIntent = !!element.paragraphWidth;
 
@@ -557,9 +628,17 @@ function renderTextElement(
     ? Math.max(fontSize * 1.2, (pageHeightIn - yIn - 0.02) * IN)
     : fontSize * 4;
 
-  if (element.height && element.height > 0.05 && element.height <= maxReasonableHeightIn) {
+  const rawH = element.height ?? 0;
+  let interpretedHeightPt: number | null = null;
+  if (rawH > 0.05 && rawH <= maxReasonableHeightIn) {
+    interpretedHeightPt = rawH * IN; // inches → points
+  } else if (rawH > maxReasonableHeightIn && rawH <= 200) {
+    interpretedHeightPt = rawH;      // already points
+  }
+
+  if (interpretedHeightPt !== null) {
     // Reasonable height — use it as a bounding box, clamped to page bottom
-    const heightPt = Math.min(element.height * IN, remainingHeightPt);
+    const heightPt = Math.min(interpretedHeightPt, remainingHeightPt);
     textOptions.height = heightPt;
     textOptions.ellipsis = "…";
     if (heightPt < fontSize * 2.2) {
@@ -575,6 +654,59 @@ function renderTextElement(
     textOptions.height = Math.min(fontSize * 1.4, remainingHeightPt);
     textOptions.lineBreak = false;
     textOptions.ellipsis = "…";
+  }
+
+  // Extra-tight cap for the primary SIG element (Tier 4 SIG compression).
+  // The standard 4×8 vial template stacks SIG, toll-free, and Use By into
+  // the same landscape row with only ~0.28" of vertical separation between
+  // tier-2-compressed neighbors. The element's nominal height (30pt) covers
+  // the worst case but a real SIG like "TAKE 1 TABLET BY MOUTH ONCE DAILY
+  // FOR BLOOD PRESSURE" wraps to 2 lines that still overflow into the
+  // toll-free row. Cap SIG height tighter so the auto-shrink loop below
+  // engages and steps the font down until the wrapped text fits cleanly.
+  const isSig = element.elementData === "prescription.sig_translated";
+  if (
+    isSig &&
+    hasMultiLineIntent &&
+    typeof textOptions.height === "number"
+  ) {
+    // 20pt = ~0.28", which is the post-tier-2 gap between the SIG row
+    // (landscape_y ≈ 1.14") and the toll-free row (landscape_y ≈ 1.43").
+    // Picking the gap as the cap forces the auto-shrink loop below to step
+    // fontSize down to whatever fits 1–2 wrapped lines without bleeding
+    // into the toll-free / Use By row.
+    textOptions.height = Math.min(textOptions.height, 20);
+  }
+
+  // Auto-shrink for paragraph-wrap elements that would overflow their box
+  // (Tier 4 SIG compression). The SIG element on the standard 4×8 vial
+  // template renders at 14pt with paragraphWidth=2.8" — a 50-char SIG like
+  // "TAKE 1 TABLET BY MOUTH ONCE DAILY FOR BLOOD PRESSURE" wraps to two
+  // lines that exceed the gap to the toll-free / Use By rows below. We
+  // measure the wrapped height with pdfkit's heightOfString and step the
+  // font down (down to 4pt) until the text fits, also tightening lineGap.
+  // Single-line and bounded-height elements already use ellipsis truncation.
+  if (
+    hasMultiLineIntent &&
+    typeof textOptions.width === "number" &&
+    typeof textOptions.height === "number" &&
+    textOptions.lineBreak !== false
+  ) {
+    const targetH = textOptions.height;
+    const measureOpts = {
+      width: textOptions.width,
+      lineGap: textOptions.lineGap ?? 0,
+    };
+    let measured = doc.heightOfString(text, measureOpts);
+    let safety = 24;
+    while (measured > targetH && fontSize > 4 && safety-- > 0) {
+      fontSize = Math.max(4, Math.round((fontSize - 0.5) * 10) / 10);
+      doc.fontSize(fontSize);
+      // Tighten leading slightly as font shrinks so wrap stays compact.
+      textOptions.lineGap = 0;
+      measureOpts.lineGap = 0;
+      measured = doc.heightOfString(text, measureOpts);
+    }
   }
 
   doc.text(text, 0, 0, textOptions);
@@ -1021,14 +1153,23 @@ export function extractCanvasElements(
       maxWidthPt = Math.max(0.5, renderedPageWidthIn - xIn - 0.05) * IN;
     }
 
-    // Compute height constraint (same logic as renderTextElement)
+    // Compute height constraint (same logic as renderTextElement, including
+    // mixed-unit interpretation: small h is inches, mid-range h is points).
     const maxReasonableHeightIn = renderedPageHeightIn * 0.5;
     const hasMultiLineIntent = !!element.paragraphWidth;
     const remainingHeightPt = Math.max(fontSize * 1.2, (renderedPageHeightIn - yIn - 0.02) * IN);
 
+    const rawH = element.height ?? 0;
+    let interpretedHeightPt: number | null = null;
+    if (rawH > 0.05 && rawH <= maxReasonableHeightIn) {
+      interpretedHeightPt = rawH * IN;
+    } else if (rawH > maxReasonableHeightIn && rawH <= 200) {
+      interpretedHeightPt = rawH;
+    }
+
     let maxHeightPt: number | undefined;
-    if (element.height && element.height > 0.05 && element.height <= maxReasonableHeightIn) {
-      maxHeightPt = Math.min(element.height * IN, remainingHeightPt);
+    if (interpretedHeightPt !== null) {
+      maxHeightPt = Math.min(interpretedHeightPt, remainingHeightPt);
     } else if (hasMultiLineIntent) {
       maxHeightPt = Math.min(fontSize * 3.6, remainingHeightPt);
     } else {

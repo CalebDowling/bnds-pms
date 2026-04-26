@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { formatDirections } from "@/lib/labels/rx-label";
-import { toTitleCase as sharedToTitleCase, formatDrugName } from "@/lib/utils/formatters";
+import {
+  toTitleCase as sharedToTitleCase,
+  formatDrugName,
+  formatPatientName,
+  formatPrescriberName,
+} from "@/lib/utils/formatters";
 
 /**
  * Re-export the centralized title-caser so existing imports of
@@ -201,13 +206,31 @@ export async function buildTemplateDataFromFill(
 
   // Display-only Title Case for the patient name. We do NOT mutate the DB
   // values — DRX's ALL CAPS convention is preserved upstream for matching.
+  // toTitleCase trims and collapses whitespace, which fixes the
+  // "JESSICA  ANTER" double-space artifact that surfaced when raw DRX rows
+  // carried a trailing space on firstName.
   const displayFirstName = toTitleCase(patient.firstName);
   const displayLastName = toTitleCase(patient.lastName);
+  // Centralized helper handles middle-name omission, casing, and joining.
+  // Used for the combined patient_name slot on vial top, vial bottom, bag,
+  // and receipt — every section funnels through one formatter.
+  const displayPatientName = formatPatientName({
+    firstName: patient.firstName,
+    lastName: patient.lastName,
+    middleName: patient.middleName,
+  });
 
   // Same treatment for prescriber and manufacturer — DRX feed is ALL CAPS,
   // labels should be Title Case for readability.
   const displayPrescFirst = toTitleCase(prescriber.firstName);
   const displayPrescLast = toTitleCase(prescriber.lastName);
+  // No "Dr." prefix and no credentials suffix on bottle labels — the DRX
+  // template renders the bare name, with role context provided by the
+  // surrounding label copy ("Prescriber:").
+  const displayPrescriberName = formatPrescriberName(
+    { firstName: prescriber.firstName, lastName: prescriber.lastName },
+    { withPrefix: false, withCredentials: false }
+  );
   const displayManufacturer = item?.manufacturer
     ? toTitleCase(item.manufacturer)
     : (rx.isCompound ? "Compounded In-House" : "");
@@ -232,7 +255,12 @@ export async function buildTemplateDataFromFill(
     // in the DB (often ALL CAPS from DRX) are not mutated.
     "patient.first_name": displayFirstName,
     "patient.last_name": displayLastName,
-    "patient.first_name|patient.last_name": `${displayFirstName} ${displayLastName}`,
+    // Combined name is sourced from formatPatientName, which trims, collapses
+    // whitespace, skips an empty middle, and Title-Cases each part. This
+    // single key feeds the vial-top, vial-bottom, bag, and receipt slots so
+    // all four render identically (no more "JESSICA  ANTER" double-space on
+    // bottom/bag/receipt while top shows "Jessica Anter").
+    "patient.first_name|patient.last_name": displayPatientName,
     "patient.date_of_birth": fmt(patient.dateOfBirth),
     "patient.default_address.lineOne": addrLine1,
     "patient.default_address.lineTwo": addrLine2,
@@ -298,8 +326,10 @@ export async function buildTemplateDataFromFill(
     // Display-only Title Case, parallel to patient. DB values stay raw.
     "prescription.doctor.first_name": displayPrescFirst,
     "prescription.doctor.last_name": displayPrescLast,
-    "prescription.doctor.first_name|prescription.doctor.last_name":
-      `${displayPrescFirst} ${displayPrescLast}`.trim(),
+    // Same treatment as patient: route the combined-name key through the
+    // central helper so trailing/leading spaces and casing are normalized
+    // consistently across every label section.
+    "prescription.doctor.first_name|prescription.doctor.last_name": displayPrescriberName,
     "prescription.doctor.dea": prescriber.deaNumber || "",
     "prescription.doctor.npi": prescriber.npi || "",
     "prescription.doctor.default_phone.number": prescriber.phone || "",

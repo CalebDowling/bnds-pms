@@ -322,14 +322,35 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
 
 // ─── Process Fill (advance status) ────────────────────────────────
 
+/**
+ * Result envelope returned by the {@link processFill} server action.
+ *
+ * We intentionally return `{ success, error }` instead of throwing so the
+ * Next.js production runtime doesn't strip the message to the generic
+ * "An error occurred in the Server Components render" — which hides the
+ * actionable detail (e.g. "Pickup checklist incomplete — Counseling not
+ * offered, Signature missing") that the workflow guard computes for
+ * the user.
+ *
+ * The client reads `result.success` and renders `result.error` directly
+ * in the soldGateError / inline error banners.
+ */
+export interface ProcessFillResult {
+  success: boolean;
+  fill?: { id: string; status: string };
+  error?: string;
+}
+
 export async function processFill(
   fillId: string,
   newStatus: string,
   notes?: string,
   options?: { override?: boolean; overrideReason?: string }
-) {
+): Promise<ProcessFillResult> {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Not authenticated");
+  if (!user) {
+    return { success: false, error: "Not authenticated" };
+  }
 
   const result = await advanceFillStatus(
     fillId,
@@ -340,7 +361,10 @@ export async function processFill(
   );
 
   if (!result.success) {
-    throw new Error(result.error || "Failed to advance fill");
+    // Pass the workflow-layer message through verbatim so the client can
+    // render "Pickup checklist incomplete — Counseling not offered,
+    // Signature missing" instead of a sanitized server-component error.
+    return { success: false, error: result.error || "Failed to advance fill" };
   }
 
   // Invalidate every surface that shows live fill counts. The Process page
@@ -350,7 +374,7 @@ export async function processFill(
   revalidatePath("/queue");
   revalidatePath(`/queue/process/${fillId}`, "layout");
 
-  return result.fill;
+  return { success: true, fill: result.fill };
 }
 
 // ─── Update Fill Financials / Bin Location ────────────────────────

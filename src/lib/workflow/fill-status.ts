@@ -323,12 +323,15 @@ export async function advanceFillStatus(
         (schedule.startsWith("C") ||
           ["II", "III", "IV", "V"].includes(schedule)));
 
+    // Friendly labels that read naturally in the UI banner — e.g.
+    // "Pickup checklist incomplete — Counseling not offered, Signature
+    // missing, Payment not collected." rather than internal field names.
     const missing: string[] = [];
-    if (!checklist?.counselOffered) missing.push("counseling decision");
-    if (!checklist?.signatureCaptured) missing.push("patient signature");
-    if (!checklist?.paymentReceived) missing.push("payment received");
+    if (!checklist?.counselOffered) missing.push("Counseling not offered");
+    if (!checklist?.signatureCaptured) missing.push("Signature missing");
+    if (!checklist?.paymentReceived) missing.push("Payment not collected");
     if (isControlled && !checklist?.idVerified) {
-      missing.push("government-issued ID check (controlled substance)");
+      missing.push("ID not verified (controlled substance)");
     }
 
     if (missing.length > 0) {
@@ -337,7 +340,7 @@ export async function advanceFillStatus(
       if (!options?.override) {
         return {
           success: false,
-          error: `Pickup checklist incomplete — missing: ${missing.join(", ")}.`,
+          error: `Pickup checklist incomplete — ${missing.join(", ")}.`,
         };
       }
       // Override path — require a non-trivial reason (>= 5 chars).

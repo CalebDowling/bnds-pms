@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Printer, MessageSquare } from "lucide-react";
 import type { QueueFill } from "./constants";
 import { formatDate, formatDrugName, toTitleCase } from "@/lib/utils/formatters";
+import { formatPhone } from "@/lib/utils";
 
 // ─── Types ──────────────────────────────────────
 type SortDir = "asc" | "desc" | null;
@@ -419,7 +420,7 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                       </td>
                       {/* Phone — muted, smaller */}
                       <td className="px-3 py-2.5 border-l border-gray-100">
-                        <span className="text-xs text-gray-500 font-mono">{fill.phone || "—"}</span>
+                        <span className="text-xs text-gray-500 font-mono">{fill.phone ? formatPhone(fill.phone) : "—"}</span>
                       </td>
                       {/* Drug — regular weight, slightly emphasized; DRX
                           legacy data is ALL CAPS, title-cased at render */}

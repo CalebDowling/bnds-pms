@@ -25,18 +25,26 @@
  */
 export function toTitleCase(s: string | null | undefined): string {
   if (!s) return "";
+  // Trim leading/trailing whitespace and collapse internal whitespace runs
+  // BEFORE casing. Raw DRX-imported values sometimes carry a trailing space
+  // (e.g. "JESSICA ") which would otherwise bleed through into combined-name
+  // keys as a double space ("Jessica  Anter"). Names should never have
+  // significant runs of whitespace; collapsing here keeps the formatter as a
+  // single source of truth for all surfaces.
   return s
+    .replace(/\s+/g, " ")
+    .trim()
     .toLowerCase()
-    .split(/(\s+)/) // preserve whitespace runs
+    .split(" ")
     .map((token) => {
-      if (!token.trim()) return token;
+      if (!token) return token;
       return token.replace(/([A-Za-z])([A-Za-z'-]*)/g, (_, first: string, rest: string) => {
         const head = first.toUpperCase();
         const tail = rest.replace(/([-'])([a-z])/g, (_m, sep: string, ch: string) => sep + ch.toUpperCase());
         return head + tail;
       });
     })
-    .join("");
+    .join(" ");
 }
 
 export interface PatientNameInput {
@@ -141,10 +149,17 @@ export function formatFillNumber(n: number | null | undefined): number {
 }
 
 // ─── Dates ────────────────────────────────────────────────────────────
+//
+// Convention: every date the UI shows is formatted as **MM/DD/YYYY** (2-digit
+// month and day, 4-digit year) — the standard for US pharmacy / medical
+// contexts. Both `formatDate` and `formatDateTime` enforce this; do NOT use
+// raw `new Date(...).toLocaleString()` in the UI, which produces
+// "4/26/2026" (1-digit month) and would render inconsistently next to
+// values that go through these helpers ("04/26/2026").
 
 /**
- * Format a date-only field (DOB, written date, expiration, etc.) using
- * UTC parts.
+ * Format a date-only field (DOB, written date, expiration, etc.) as
+ * `MM/DD/YYYY` using UTC parts.
  *
  * Why UTC: Prisma maps Postgres DATE → JS Date as UTC midnight. If we
  * formatted via toLocaleDateString in any negative-UTC zone, we'd
@@ -170,9 +185,13 @@ export function formatDOB(date: Date | string | null | undefined): string {
 }
 
 /**
- * Format a timestamp (sold-at, created-at, label-printed-at, etc.)
- * in the user's local zone. Use this for events, NOT for date-only
- * fields like DOB.
+ * Format a timestamp (sold-at, created-at, label-printed-at, etc.) as
+ * `MM/DD/YYYY, h:mm AM/PM` in the user's local zone. Use this for events,
+ * NOT for date-only fields like DOB.
+ *
+ * Always emits 2-digit month and day so it lines up with formatDate
+ * elsewhere on the same panel (e.g. Fill Details > "Sold at" /
+ * "Created").
  */
 export function formatDateTime(date: Date | string | null | undefined): string {
   if (!date) return "—";

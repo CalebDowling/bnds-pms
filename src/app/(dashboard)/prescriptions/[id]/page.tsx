@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPrescription } from "../actions";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatPhone } from "@/lib/utils";
 import {
   formatPatientName,
   formatPrescriberName,
   formatDrugName,
   formatFillNumber,
+  formatDateTime,
 } from "@/lib/utils/formatters";
 import { prisma } from "@/lib/prisma";
 // PrescriptionStatusBar (legacy `Prescription.status` state machine) is no
@@ -14,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 // state. The component file is preserved for reference but unused.
 import FillForm from "./FillForm";
 import PermissionGuard from "@/components/auth/PermissionGuard";
+import { BreadcrumbLabel } from "@/components/ui/Breadcrumbs";
 import type { PrescriptionFillWithRelations, StatusLog } from "@/types";
 import type { PatientWithRelations } from "@/types/patient";
 
@@ -94,6 +96,12 @@ async function PrescriptionDetailPageContent({
 
   return (
     <div>
+      {/* Register a friendly label for the [id] segment so the dashboard
+          breadcrumbs render "Rx# 725369" instead of "#5f8ef518...". The
+          BreadcrumbLabelProvider lives in the (dashboard) layout, so this
+          side-effect component just publishes the override. */}
+      <BreadcrumbLabel segment={id} label={`Rx# ${rx.rxNumber}`} />
+
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -275,7 +283,7 @@ async function PrescriptionDetailPageContent({
             </p>
             <p className="text-xs text-gray-500">NPI: {rx.prescriber.npi}</p>
             {rx.prescriber.specialty && <p className="text-xs text-gray-500">{rx.prescriber.specialty}</p>}
-            {rx.prescriber.phone && <p className="text-xs text-gray-500">Ph: {rx.prescriber.phone}</p>}
+            {rx.prescriber.phone && <p className="text-xs text-gray-500">Ph: {formatPhone(rx.prescriber.phone)}</p>}
           </div>
 
           {/* Notes */}
@@ -313,7 +321,7 @@ async function PrescriptionDetailPageContent({
                         <span className="font-medium capitalize">{log.toStatus.replace(/_/g, " ")}</span>
                       </p>
                       <p className="text-xs text-gray-400">
-                        {formatPatientName({ firstName: log.changer.firstName, lastName: log.changer.lastName })} — {formatDate(log.changedAt)}
+                        {formatPatientName({ firstName: log.changer.firstName, lastName: log.changer.lastName })} — {formatDateTime(log.changedAt)}
                       </p>
                       {log.notes && <p className="text-xs text-gray-500 mt-0.5">{log.notes}</p>}
                     </div>

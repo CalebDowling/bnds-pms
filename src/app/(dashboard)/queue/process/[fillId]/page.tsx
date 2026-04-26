@@ -55,6 +55,7 @@ import {
   formatDrugName,
   formatFillNumber,
 } from "@/lib/utils/formatters";
+import { formatPhone } from "@/lib/utils";
 
 // ─── Status Colors ────────────────────────────────────────────────
 
@@ -212,6 +213,28 @@ export default function FillProcessPage() {
 
   useEffect(() => { loadFill(); }, [loadFill]);
 
+  // ── Auto-clear the stale "Cannot mark Sold yet" banner ─────────
+  // Whenever the local pickup checklist transitions to a satisfied state
+  // (counsel + signature + payment + ID-for-controls), the soldGateError
+  // banner is no longer accurate — the underlying validation now passes.
+  // We clear it on the next render so the user doesn't have to manually
+  // dismiss a stale warning. Subscribed to `pickup` so it tracks every
+  // checkbox toggle, not just the explicit Save button.
+  useEffect(() => {
+    if (!soldGateError) return;
+    if (!fill) return;
+    const isControlled =
+      fill.item?.isControlled || (fill.item?.deaSchedule && fill.item.deaSchedule >= 2);
+    const satisfied =
+      pickup.counselOffered &&
+      pickup.signatureCaptured &&
+      pickup.paymentReceived &&
+      (!isControlled || pickup.idVerified);
+    if (satisfied) {
+      setSoldGateError(null);
+    }
+  }, [pickup, soldGateError, fill]);
+
   // Auto-fire the DUR engine the first time we land on Verify. Subsequent
   // re-runs happen via the manual "Re-run DUR" button so we don't spam the
   // engine on every state update.
@@ -237,6 +260,25 @@ export default function FillProcessPage() {
       cancelled = true;
     };
   }, [fill, durLastRunAt]);
+
+  // ── Helper: route a workflow error to the right surface ─────────
+  // Sold-gate failures (waiting_bin → sold with an incomplete pickup
+  // checklist) drop into the soldGateError banner so the override modal
+  // can offer a bypass path. Everything else is a generic action error.
+  const surfaceWorkflowError = useCallback(
+    (msg: string, newStatus: string, fromStatus: string) => {
+      if (
+        newStatus === "sold" &&
+        fromStatus === "waiting_bin" &&
+        /pickup checklist incomplete|missing:/i.test(msg)
+      ) {
+        setSoldGateError(msg);
+      } else {
+        setError(msg);
+      }
+    },
+    []
+  );
 
   const handleAdvance = async (newStatus: string) => {
     if (!fill) return;
@@ -265,23 +307,31 @@ export default function FillProcessPage() {
           return;
         }
       }
-      await processFill(fill.id, newStatus, actionNotes || undefined);
+      // processFill now returns { success, error } instead of throwing so
+      // the Next.js production runtime can't sanitize the workflow message
+      // ("Pickup checklist incomplete — Counseling not offered, Signature
+      // missing") into the generic "Server Components render error".
+      // We branch on the result envelope here.
+      const result = await processFill(
+        fill.id,
+        newStatus,
+        actionNotes || undefined
+      );
+      if (!result.success) {
+        surfaceWorkflowError(
+          result.error || "Failed to advance fill",
+          newStatus,
+          fill.status
+        );
+        return;
+      }
       setActionNotes("");
       await loadFill();
     } catch (e) {
+      // Defensive — covers unexpected throws (auth, network) outside the
+      // workflow envelope. The workflow gate is now in the success branch.
       const msg = e instanceof Error ? e.message : "Action failed";
-      // The waiting_bin → sold guard returns a "missing: ..." message — when
-      // we see one, route the user into the override-with-reason modal
-      // instead of just dumping the error to the action panel.
-      if (
-        newStatus === "sold" &&
-        fill.status === "waiting_bin" &&
-        /pickup checklist incomplete|missing:/i.test(msg)
-      ) {
-        setSoldGateError(msg);
-      } else {
-        setError(msg);
-      }
+      surfaceWorkflowError(msg, newStatus, fill.status);
     } finally {
       setProcessing(false);
     }
@@ -299,16 +349,27 @@ export default function FillProcessPage() {
     setProcessing(true);
     setError(null);
     try {
-      await processFill(fill.id, "sold", actionNotes || undefined, {
-        override: true,
-        overrideReason: overrideReasonText.trim(),
-      });
+      const result = await processFill(
+        fill.id,
+        "sold",
+        actionNotes || undefined,
+        {
+          override: true,
+          overrideReason: overrideReasonText.trim(),
+        }
+      );
+      if (!result.success) {
+        setError(result.error || "Override failed");
+        return;
+      }
       setActionNotes("");
       setSoldGateError(null);
       setShowOverrideModal(false);
       setOverrideReasonText("");
       await loadFill();
     } catch (e) {
+      // Defensive — auth/network errors only; the workflow gate is in the
+      // success branch.
       setError(e instanceof Error ? e.message : "Override failed");
     } finally {
       setProcessing(false);
@@ -337,6 +398,12 @@ export default function FillProcessPage() {
     setError(null);
     try {
       await recordPickupChecklist(fill.id, pickup);
+      // The save itself enforces the same gate as advance — if it
+      // succeeded the checklist now satisfies the waiting_bin → sold
+      // contract, so clear the stale "Cannot mark Sold yet" banner.
+      // (Previously the banner stuck around until the user clicked
+      // Dismiss, even though the underlying validation now passed.)
+      setSoldGateError(null);
       await loadFill();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save pickup checklist");
@@ -742,7 +809,7 @@ export default function FillProcessPage() {
                       </span>
                       {fill.latestClaim.adjudicatedAt && (
                         <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                          {new Date(fill.latestClaim.adjudicatedAt).toLocaleString()}
+                          {formatDateTime(fill.latestClaim.adjudicatedAt)}
                         </span>
                       )}
                     </div>
@@ -1087,7 +1154,7 @@ export default function FillProcessPage() {
                                     : alert.overriddenBy
                                     ? ` by ${alert.overriddenBy}`
                                     : ""}
-                                  {alert.overriddenAt ? ` on ${new Date(alert.overriddenAt).toLocaleString()}` : ""}
+                                  {alert.overriddenAt ? ` on ${formatDateTime(alert.overriddenAt)}` : ""}
                                   {alert.overrideReasonCode && (
                                     <>
                                       {" "}&middot; Reason:{" "}
@@ -1289,7 +1356,7 @@ export default function FillProcessPage() {
                     if (notif?.sentAt) {
                       return (
                         <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
-                          Last sent {new Date(notif.sentAt).toLocaleString()} to {notif.phone || "patient"}.
+                          Last sent {formatDateTime(notif.sentAt)} to {notif.phone || "patient"}.
                         </p>
                       );
                     }
@@ -1410,7 +1477,7 @@ export default function FillProcessPage() {
                     if (stored?.performedAt) {
                       return (
                         <p className="text-xs mt-1 text-green-700">
-                          Last saved {new Date(stored.performedAt).toLocaleString()}.
+                          Last saved {formatDateTime(stored.performedAt)}.
                         </p>
                       );
                     }
@@ -1618,7 +1685,7 @@ export default function FillProcessPage() {
                   NPI: {fill.prescriber.npi || "—"}
                 </p>
                 {fill.prescriber.phone && (
-                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{fill.prescriber.phone}</p>
+                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{formatPhone(fill.prescriber.phone)}</p>
                 )}
               </div>
             )}
@@ -1630,9 +1697,15 @@ export default function FillProcessPage() {
               </h3>
               <div className="space-y-1 text-xs" style={{ color: "var(--text-secondary)" }}>
                 <p>Fill #{formatFillNumber(fill.fillNumber)}</p>
-                <p>Created: {new Date(fill.createdAt).toLocaleString()}</p>
-                {fill.filledAt && <p>Filled: {new Date(fill.filledAt).toLocaleString()}</p>}
-                {fill.verifiedAt && <p>Verified: {new Date(fill.verifiedAt).toLocaleString()}</p>}
+                {/* Use the shared formatDateTime so Created / Filled /
+                    Verified / Sold all render with the same 2-digit
+                    month + day format ("04/26/2026, 4:30 PM"), matching
+                    the Sold-at line below. Previously this row used the
+                    raw toLocaleString() which gave us "4/26/2026" while
+                    Sold-at gave "04/26/2026" — same panel, two formats. */}
+                <p>Created: {formatDateTime(fill.createdAt)}</p>
+                {fill.filledAt && <p>Filled: {formatDateTime(fill.filledAt)}</p>}
+                {fill.verifiedAt && <p>Verified: {formatDateTime(fill.verifiedAt)}</p>}
                 {fill.filler && <p>Filled by: {formatPatientName({ firstName: fill.filler.firstName, lastName: fill.filler.lastName })}</p>}
                 {fill.verifier && <p>Verified by: {formatPatientName({ firstName: fill.verifier.firstName, lastName: fill.verifier.lastName })}</p>}
                 {/* R6-#21: Sold-by/at surfaced from the FillEvent audit row
@@ -1671,7 +1744,7 @@ export default function FillProcessPage() {
                           : event.eventType}
                       </p>
                       <p style={{ color: "var(--text-muted)" }}>
-                        {event.performerName} &middot; {new Date(event.createdAt).toLocaleString()}
+                        {event.performerName} &middot; {formatDateTime(event.createdAt)}
                       </p>
                       {event.notes && (
                         <p className="italic" style={{ color: "var(--text-secondary)" }}>{event.notes}</p>

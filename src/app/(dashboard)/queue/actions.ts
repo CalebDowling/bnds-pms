@@ -61,10 +61,17 @@ export async function getQueueFills({
                 select: {
                   firstName: true,
                   lastName: true,
+                  // Surface a phone for the queue's Phone column. Patient
+                  // records often have phoneNumbers without an `isPrimary`
+                  // flag set (DRX feed didn't carry the bit). Filtering on
+                  // `isPrimary: true` drops every such patient and the
+                  // column ends up "—" for the whole queue. Mirror the
+                  // patient-list rendering: order by isPrimary desc so the
+                  // flagged number wins, but fall back to whatever phone
+                  // exists.
                   phoneNumbers: {
-                    where: { isPrimary: true },
-                    select: { number: true },
-                    take: 1,
+                    select: { number: true, isPrimary: true },
+                    orderBy: { isPrimary: "desc" },
                   },
                 },
               },
@@ -90,6 +97,8 @@ export async function getQueueFills({
         ? `${patient.firstName || ""} ${patient.lastName || ""}`.trim()
         : "Unknown";
 
+      // After ordering by isPrimary desc, [0] is either the primary phone
+      // or — if no phone is flagged primary — the first phone we have.
       const phone = patient?.phoneNumbers?.[0]?.number || null;
 
       const itemName =
