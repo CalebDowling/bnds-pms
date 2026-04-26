@@ -82,6 +82,16 @@ function NewPrescriptionPageContent() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Safety net: if the action neither resolves nor rejects within 30s
+    // (e.g. session expired mid-action and the server-action POST got
+    // intercepted by middleware → /login), surface a clear error and
+    // un-stick the button instead of sitting on "Creating..." forever.
+    const timeoutId = setTimeout(() => {
+      setError("This is taking too long. Your session may have expired — refresh the page and sign in again.");
+      setLoading(false);
+    }, 30_000);
+
     try {
       if (!selectedPatient) throw new Error("Please select a patient");
       if (!selectedPrescriber) throw new Error("Please select a prescriber");
@@ -105,9 +115,19 @@ function NewPrescriptionPageContent() {
         internalNotes: form.internalNotes,
       });
 
+      clearTimeout(timeoutId);
+
+      // Defensive: a server-action POST intercepted by middleware can
+      // return undefined instead of throwing. Surface that as an error
+      // rather than crashing on `rx.id`.
+      if (!rx?.id) {
+        throw new Error("Prescription was not created. Try refreshing and signing in again.");
+      }
+
       router.push(`/prescriptions/${rx.id}`);
       router.refresh();
     } catch (err: unknown) {
+      clearTimeout(timeoutId);
       setError((err instanceof Error ? err.message : String(err)) || "Something went wrong");
       setLoading(false);
     }

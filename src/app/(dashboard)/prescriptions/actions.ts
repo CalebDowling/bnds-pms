@@ -187,6 +187,11 @@ export async function createPrescription(data: PrescriptionFormData) {
       // the prescriber portal, or imported from SureScripts — starts at
       // Intake and walks the same pipeline. fillNumber=0 is the original
       // dispense; refills create fills 1, 2, ...
+      //
+      // We `select: { id, rxNumber }` rather than returning the full row so
+      // the response is plain JSON — Prisma `Decimal` and `Date` values
+      // returned across the server-action boundary have caused intermittent
+      // hangs in the past (the client-side React state never settles).
       const prescription = await prisma.prescription.create({
         data: {
           rxNumber,
@@ -219,6 +224,7 @@ export async function createPrescription(data: PrescriptionFormData) {
             },
           },
         },
+        select: { id: true, rxNumber: true },
       });
 
       revalidatePath("/prescriptions");
