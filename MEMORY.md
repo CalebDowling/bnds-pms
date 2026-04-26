@@ -1,6 +1,6 @@
 # Memory
 
-_Last updated: April 17, 2026_
+_Last updated: April 26, 2026_
 
 ## Memory
 <!-- Things the user has asked to remember. Persistent — only remove or change if the user asks. -->
@@ -75,3 +75,22 @@ _Last updated: April 17, 2026_
 - User dislikes emojis in the UI — wants professional SVG icons (Lucide) throughout. (added 2026-04-16)
 - User wants the Dashboard untouched from the current 3-column layout (Workflow Queue / Quick Access + Phone / Activity + Stock Alerts). (added 2026-04-16)
 - User wants all documents to exclude DRX references — PMS workflows should be standalone. (added 2026-04-16)
+
+### Session Work Log (April 26, 2026)
+
+**Pharmacist Review (Alexis Nguyen, 2026-04-23) — DRX-using RPh walked through the PMS:**
+- Extracted all 58 PDF annotations from `BNDS_PMS_Complete_Workflow_Guide (1).pdf` using a custom pypdf-based script (`docs/extract_pdf_annotations.py`); raw output saved to `docs/Workflow_Guide_Annotations.txt`. Standard `pdftotext` couldn't see sticky notes — only body text. (added 2026-04-26)
+- Triaged all 29 unique annotations into `docs/Workflow_Review_Triage.md` (DONE 6 / SCHEMA 4 / DESIGN 12 / CLARIFY 4 / Acknowledged 3). (added 2026-04-26)
+- Implemented DONE-tier changes: added 3 new fill statuses (`rph_rejected`, `compound_qa`, `telehealth`) to `src/lib/workflow/fill-status.ts` with transitions and queue mapping; updated `QueueOverview.tsx` (RPh Rejected → Attention Needed; Compound QA + Telehealth → Custom Queues; removed Mochi); updated `QueueBar.tsx` and `queue/constants.ts` with descriptions; corrected `generate-workflow-guide.js` (Decline copy, batch label spec to drop Storage/Lot + add NDC, BUD step says "auto-assigned BUD"). Commit: `9052075`. (added 2026-04-26)
+- Drafted (NOT yet applied) `prisma/migrations/20260427_pharmacist_review_schema.sql` with: `batch_ingredients.exclude_from_bud`, `batch_ingredients.photo_url`, `batches.{vial_lot, capper_lot, stopper_lot, psi}`, `patients.stripe_customer_id` + index. Non-destructive — apply after spec signoff. (added 2026-04-26)
+
+**Intake Queue Clarification:**
+- Discovered the PMS has TWO distinct "Intake" surfaces, frequently conflated: (1) **eRx Intake Queue** at `/intake` backed by `intake_queue_items` table — pre-Rx triage, populated only by API (`/api/erx/intake`, `/api/prescriber-portal/orders`); no manual-create UI. (2) **Workflow Queue → Intake** at `/queue?status=intake` backed by `prescription_fills.status="intake"` — populated by `createPrescription()` + `createFill()`. Just creating a Patient record does NOT put anything in either. (added 2026-04-26)
+
+**Race-Condition Bugfix — `prisma:error` on Rx/Patient creates:**
+- Vercel runtime logs showed POST `/prescriptions/new` and POST `/patients/new` returning 500 (matched on "Unique constraint") during rapid test submits. Root cause: `generateRxNumber()` and `generateMRN()` both do "read max → +1 → insert" — concurrent submits read the same max, both insert the same number, second one violates the unique index. Most submits succeeded; some collided. Manifested to the user as a generic "Server Components render error" because the server-action throw bubbled into the dashboard's RSC boundary. (added 2026-04-26)
+- Patched both `createPrescription()` (src/app/(dashboard)/prescriptions/actions.ts) and `createPatient()` (src/app/(dashboard)/patients/actions.ts) with a 5-attempt retry loop on `Prisma.PrismaClientKnownRequestError` code `P2002` against `rxNumber`/`mrn` respectively, with 25–75ms jittered backoff. Other constraint violations re-throw immediately. (added 2026-04-26)
+- Backlog item added: replace both generators with Postgres sequences (`CREATE SEQUENCE rx_number_seq, mrn_seq` seeded from current MAX, then use `nextval()`); remove the retry shim once sequences land. Atomic, no race window. (added 2026-04-26)
+
+**FAB Overlap Fix (Create button blocked by floating "+"):**
+- The global `FloatingActionButton` is `position: fixed; bottom: 24px; right: 24px` (56px circle) — it sat on top of the "Create Prescription" button. Fixed on `/prescriptions/new` only by adding `pb-24` to the page wrapper and `pr-20` to the action row. Same problem may exist on other form pages with bottom-right submit buttons (not yet swept). (added 2026-04-26)
