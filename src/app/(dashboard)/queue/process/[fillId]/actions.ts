@@ -38,6 +38,24 @@ export interface FillDetail {
     refillsRemaining: number;
     dateWritten: string | null;
     expirationDate: string | null;
+    // Phase 1 (RxDocumentView): the source-of-truth fields the doc viewer
+    // renders so a pharmacist can verify what the prescriber actually sent
+    // us against the structured fill data.
+    //   - source: "electronic" | "fax" | "paper" | "phone" | …
+    //   - metadata: holds the polymorphic erxSource / faxSource / paperSource
+    //     / phoneSource payloads stashed at intake-time (see ParsedNewRx in
+    //     src/lib/erx/parser.ts and the seed-test-fixtures script).
+    //   - directions / refillsAuthorized / dawCode / daysSupply /
+    //     quantityPrescribed mirror the as-prescribed values so we can show
+    //     them next to the fill values without joining metadata.
+    source: string | null;
+    metadata: Record<string, unknown>;
+    directions: string | null;
+    refillsAuthorized: number;
+    dawCode: string | null;
+    daysSupply: number | null;
+    quantityPrescribed: number | null;
+    prescriberNotes: string | null;
   };
   patient: {
     id: string;
@@ -235,6 +253,19 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
       refillsRemaining: rx.refillsRemaining,
       dateWritten: rx.dateWritten?.toISOString() || null,
       expirationDate: rx.expirationDate?.toISOString() || null,
+      // Phase 1 source viewer — surface the prescription-level fields used
+      // by RxDocumentView so the pharmacist can verify what was sent by
+      // the prescriber against the structured fill data.
+      source: rx.source ?? null,
+      metadata: (rx.metadata as Record<string, unknown>) || {},
+      directions: rx.directions ?? null,
+      refillsAuthorized: rx.refillsAuthorized ?? 0,
+      dawCode: rx.dawCode ?? null,
+      daysSupply: rx.daysSupply ?? null,
+      quantityPrescribed: rx.quantityPrescribed != null
+        ? Number(rx.quantityPrescribed)
+        : null,
+      prescriberNotes: rx.prescriberNotes ?? null,
     },
     patient: {
       id: patient.id,

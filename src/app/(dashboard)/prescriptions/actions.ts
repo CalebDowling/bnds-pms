@@ -25,6 +25,23 @@ export type PrescriptionFormData = {
   prescriberNotes?: string;
   internalNotes?: string;
   insuranceId?: string;
+  /**
+   * Polymorphic source-channel metadata persisted to
+   * Prescription.metadata. RxDocumentView reads the well-known
+   * sub-keys (faxSource / paperSource / phoneSource / erxSource) to
+   * render the original document. The form builds the right shape
+   * based on the selected source channel; createPrescription just
+   * passes it through verbatim.
+   */
+  sourceMetadata?: Record<string, unknown>;
+  /**
+   * If a source-document upload preceded createPrescription
+   * (i.e. paper-scan or fax PDF was uploaded via
+   * `uploadRxIntakeDocument`), the form passes its document id here
+   * so we can re-link the document row to the new Rx in the same
+   * server-action round-trip.
+   */
+  attachDocumentId?: string;
 };
 
 // ─── RX NUMBER GENERATOR ────────────────────
@@ -287,6 +304,9 @@ export async function createPrescription(data: PrescriptionFormData) {
           prescriberNotes: data.prescriberNotes?.trim() || null,
           internalNotes: data.internalNotes?.trim() || null,
           insuranceId: data.insuranceId || null,
+          // Source-channel metadata (faxSource / paperSource / phoneSource).
+          // RxDocumentView reads these to render the original Rx document.
+          metadata: (data.sourceMetadata ?? {}) as Prisma.InputJsonValue,
           fills: {
             create: {
               fillNumber: 0,
@@ -299,6 +319,23 @@ export async function createPrescription(data: PrescriptionFormData) {
         },
         select: { id: true, rxNumber: true },
       });
+
+      // If the form pre-uploaded a source document (paper scan, fax
+      // PDF, phone-call image), re-link the Document row to the new
+      // Rx so the audit trail is clean. Best-effort — never block
+      // Rx creation on a relink failure.
+      if (data.attachDocumentId) {
+        try {
+          const { linkDocumentToPrescription } = await import("@/lib/storage/prescriptionDocument");
+          await linkDocumentToPrescription(data.attachDocumentId, prescription.id);
+        } catch (linkErr) {
+          console.warn("[createPrescription] failed to link document to Rx", {
+            rxId: prescription.id,
+            documentId: data.attachDocumentId,
+            err: linkErr,
+          });
+        }
+      }
 
       revalidatePath("/prescriptions");
       revalidatePath("/queue");
@@ -655,4 +692,109 @@ export async function getPatientForRx(patientId: string) {
       },
     },
   });
+}
+
+// ─── INTAKE DOCUMENT UPLOAD ────────────────────────────────────────────
+//
+// Phase 3/4 — when a tech is keying in a paper or phoned-in Rx, they
+// upload the scan / photo via the new-Rx form. This server action
+// runs the bytes through `uploadPrescriptionDocument` and returns the
+// document id + signed URL so the form can render a preview while
+// the tech finishes typing the structured Rx. The `attachDocumentId`
+// field on the createPrescription payload re-links the upload to the
+// Rx once it's created (or to the IntakeQueueItem if no Rx yet).
+
+export type UploadRxIntakeDocumentResult =
+  | {
+      success: true;
+      documentId: string;
+      signedUrl: string;
+      fileName: string;
+      contentType: string;
+      sizeBytes: number;
+    }
+  | { success: false; error: string };
+
+const ALLOWED_INTAKE_CONTENT_TYPES = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/tiff",
+  "image/heic",
+];
+
+/**
+ * Upload a paper-Rx scan / fax PDF / phone-call photo so the new-Rx
+ * form (and any other intake screen) can attach it to a Prescription.
+ *
+ * Form callers pass a FormData with:
+ *   - file:   the binary blob (multipart upload)
+ *   - source: "paper" | "fax" | "phone" — drives the storage path prefix
+ *
+ * Returns a signed URL the form can drop into a preview <iframe>/<img>
+ * immediately. The Document row is created against
+ * entityType="prescription_intake" until createPrescription re-links
+ * it to the actual Rx via attachDocumentId.
+ */
+export async function uploadRxIntakeDocument(
+  formData: FormData,
+): Promise<UploadRxIntakeDocumentResult> {
+  try {
+    const file = formData.get("file");
+    const source = (formData.get("source") as string | null) || "paper";
+
+    if (!file || !(file instanceof File)) {
+      return { success: false, error: "No file provided" };
+    }
+    if (file.size === 0) {
+      return { success: false, error: "File is empty" };
+    }
+    if (
+      !ALLOWED_INTAKE_CONTENT_TYPES.includes(file.type) &&
+      // Some browsers omit the type for HEIC etc — fall through if the
+      // extension looks plausible.
+      !/\.(pdf|png|jpe?g|webp|tiff?|heic)$/i.test(file.name)
+    ) {
+      return {
+        success: false,
+        error: `Unsupported file type: ${file.type || file.name}`,
+      };
+    }
+    if (!["paper", "fax", "phone"].includes(source)) {
+      return { success: false, error: `Invalid source: ${source}` };
+    }
+
+    const user = await getCurrentUser();
+
+    const { uploadPrescriptionDocument } = await import("@/lib/storage/prescriptionDocument");
+
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = Buffer.from(arrayBuffer);
+
+    const result = await uploadPrescriptionDocument({
+      bytes,
+      fileName: file.name,
+      contentType: file.type || "application/octet-stream",
+      source: source as "paper" | "fax" | "phone",
+      description: `Rx intake — ${source} scan attached at /prescriptions/new`,
+      uploadedBy: user?.id ?? null,
+    });
+
+    return {
+      success: true,
+      documentId: result.documentId,
+      signedUrl: result.signedUrl,
+      fileName: file.name,
+      contentType: file.type || "application/octet-stream",
+      sizeBytes: bytes.length,
+    };
+  } catch (err) {
+    console.error("[uploadRxIntakeDocument] failed", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Upload failed",
+    };
+  }
 }

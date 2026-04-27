@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createPrescription, searchPatients } from "@/app/(dashboard)/prescriptions/actions";
+import { createPrescription, searchPatients, uploadRxIntakeDocument } from "@/app/(dashboard)/prescriptions/actions";
 import { searchPrescribers } from "@/app/(dashboard)/prescriptions/prescriber-actions";
 import { searchItems } from "@/app/(dashboard)/inventory/actions";
 import { searchFormulas } from "@/app/(dashboard)/compounding/actions";
@@ -70,6 +70,114 @@ export default function NewPrescriptionForm({
     refillsAuthorized: "0", dateWritten: new Date().toISOString().split("T")[0],
     expirationDate: "", prescriberNotes: "", internalNotes: "",
   });
+
+  // ── Phase 3/4: source-specific intake controls ───────────────────
+  // When source = paper or fax, the tech uploads a scan / fax PDF —
+  // we POST it to uploadRxIntakeDocument which stashes it in Storage,
+  // creates a Document row, and returns a signed URL the form
+  // previews until the user submits.
+  const [attachment, setAttachment] = useState<{
+    documentId: string;
+    signedUrl: string;
+    fileName: string;
+    contentType: string;
+  } | null>(null);
+  const [attachmentUploading, setAttachmentUploading] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [scannedByLabel, setScannedByLabel] = useState("Front Counter");
+  const [faxSenderName, setFaxSenderName] = useState("");
+  const [faxNumber, setFaxNumber] = useState("");
+  const [faxPageCount, setFaxPageCount] = useState("");
+  // Phone-Rx fields — the verbal Rx itself becomes the source document.
+  const [phoneCallerName, setPhoneCallerName] = useState("");
+  const [phoneCallbackNumber, setPhoneCallbackNumber] = useState("");
+  const [phoneVerified, setPhoneVerified] = useState(true);
+  const [phoneTranscript, setPhoneTranscript] = useState("");
+
+  // Reset attachment when the source channel changes — e.g. switching
+  // from paper to electronic shouldn't carry a stale PDF along.
+  useEffect(() => {
+    setAttachment(null);
+    setAttachmentError(null);
+  }, [form.source]);
+
+  async function handleAttachFile(file: File) {
+    setAttachmentError(null);
+    setAttachmentUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      // Map "written" → paper for the storage path; everything else
+      // passes through.
+      fd.set("source", form.source === "fax" ? "fax" : form.source === "phone" ? "phone" : "paper");
+      const result = await uploadRxIntakeDocument(fd);
+      if (!result.success) {
+        setAttachmentError(result.error || "Upload failed");
+        return;
+      }
+      setAttachment({
+        documentId: result.documentId,
+        signedUrl: result.signedUrl,
+        fileName: result.fileName,
+        contentType: result.contentType,
+      });
+    } catch (err) {
+      setAttachmentError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setAttachmentUploading(false);
+    }
+  }
+
+  /**
+   * Build the polymorphic source-metadata payload for the chosen
+   * source channel. RxDocumentView reads these well-known keys
+   * (faxSource / paperSource / phoneSource) to render the original
+   * Rx; the seed-test-fixtures script writes the same shapes.
+   */
+  function buildSourceMetadata(): Record<string, unknown> {
+    const now = new Date().toISOString();
+    if (form.source === "fax") {
+      return {
+        faxSource: {
+          receivedAt: now,
+          faxNumber: faxNumber || null,
+          senderName: faxSenderName || null,
+          pageCount: faxPageCount ? Number(faxPageCount) : null,
+          documentId: attachment?.documentId ?? null,
+          documentUrl: attachment?.signedUrl ?? null,
+        },
+      };
+    }
+    if (form.source === "phone") {
+      return {
+        phoneSource: {
+          calledAt: now,
+          callerName: phoneCallerName || null,
+          prescriberPhone: phoneCallbackNumber || null,
+          prescriberConfirmed: phoneVerified,
+          transcript: phoneTranscript || null,
+          transcribedByLabel: "Pharmacy Staff",
+          // Optional attachment (tech might photograph a written
+          // note, or attach a voicemail recording).
+          documentId: attachment?.documentId ?? null,
+          documentUrl: attachment?.signedUrl ?? null,
+        },
+      };
+    }
+    if (form.source === "written" || form.source === "paper") {
+      return {
+        paperSource: {
+          scannedAt: now,
+          scannedByLabel: scannedByLabel || null,
+          documentId: attachment?.documentId ?? null,
+          documentUrl: attachment?.signedUrl ?? null,
+        },
+      };
+    }
+    // electronic / eRx / transfer — no source-document blob from this
+    // form (those flow in via SureScripts, intake queue, transfer-in).
+    return {};
+  }
 
   useEffect(() => {
     if (patientQuery.length < 2) { setPatientResults([]); return; }
@@ -178,6 +286,10 @@ export default function NewPrescriptionForm({
         expirationDate: form.expirationDate || undefined,
         prescriberNotes: form.prescriberNotes,
         internalNotes: form.internalNotes,
+        // Phase 3/4 — polymorphic source metadata. RxDocumentView
+        // reads it on the Rx detail / fill-process pages.
+        sourceMetadata: buildSourceMetadata(),
+        attachDocumentId: attachment?.documentId,
       });
 
       clearTimeout(timeoutId);
@@ -355,8 +467,11 @@ export default function NewPrescriptionForm({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
               <select value={form.source} onChange={(e) => updateField("source", e.target.value)} className={inputClass}>
-                <option value="written">Written</option><option value="phone">Phone</option>
-                <option value="fax">Fax</option><option value="eRx">eRx / SureScripts</option>
+                <option value="written">Written / Paper</option>
+                <option value="paper">Paper Scan</option>
+                <option value="phone">Phone</option>
+                <option value="fax">Fax</option>
+                <option value="eRx">eRx / SureScripts</option>
                 <option value="transfer">Transfer In</option>
               </select>
             </div>
@@ -414,6 +529,218 @@ export default function NewPrescriptionForm({
             />
           </div>
         </div>
+
+        {/* ── Source document panel ────────────────────────────────────
+            Only shown when the source channel can produce a real
+            document. The fields here become Prescription.metadata.*
+            and RxDocumentView reads them to render the original Rx
+            on the detail / queue-process pages. */}
+        {(form.source === "written" || form.source === "paper" ||
+          form.source === "fax" || form.source === "phone") && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">
+              {form.source === "fax" ? "Fax Source"
+               : form.source === "phone" ? "Phone Call Details"
+               : "Paper Scan"}
+            </h2>
+            <p className="text-xs text-gray-500 mb-4">
+              {form.source === "fax"
+                ? "Attach the inbound fax PDF and capture sender details."
+                : form.source === "phone"
+                ? "Record the call details and the verbatim transcript of the phoned-in Rx."
+                : "Attach a photo or scan of the paper prescription so it's visible from the Rx detail page."}
+            </p>
+
+            {/* Paper / Fax — file attachment + per-channel metadata */}
+            {(form.source === "written" || form.source === "paper" || form.source === "fax") && (
+              <div className="space-y-4">
+                {/* File picker — accepts PDF or images. */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {form.source === "fax" ? "Fax PDF" : "Scan / Photo"}
+                  </label>
+                  {!attachment ? (
+                    <input
+                      type="file"
+                      accept="application/pdf,image/*"
+                      disabled={attachmentUploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleAttachFile(f);
+                      }}
+                      className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#40721D] file:text-white file:cursor-pointer hover:file:bg-[#2D5114] disabled:opacity-50"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="text-sm">
+                        <div className="font-medium text-gray-900">{attachment.fileName}</div>
+                        <div className="text-xs text-gray-500">
+                          {attachment.contentType}
+                          {" \u00B7 "}
+                          <a href={attachment.signedUrl} target="_blank" rel="noopener noreferrer" className="text-[#40721D] underline">
+                            Preview
+                          </a>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAttachment(null)}
+                        className="text-sm text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                  {attachmentUploading && (
+                    <p className="mt-1 text-xs text-gray-500">Uploading…</p>
+                  )}
+                  {attachmentError && (
+                    <p className="mt-1 text-xs text-red-600">{attachmentError}</p>
+                  )}
+                </div>
+
+                {/* Channel-specific extra fields. */}
+                {form.source === "fax" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sender</label>
+                      <input
+                        type="text"
+                        value={faxSenderName}
+                        onChange={(e) => setFaxSenderName(e.target.value)}
+                        placeholder="Dr. Smith office"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fax #</label>
+                      <input
+                        type="text"
+                        value={faxNumber}
+                        onChange={(e) => setFaxNumber(e.target.value)}
+                        placeholder="(337) 555-0000"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Pages</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={faxPageCount}
+                        onChange={(e) => setFaxPageCount(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Scanned by</label>
+                    <input
+                      type="text"
+                      value={scannedByLabel}
+                      onChange={(e) => setScannedByLabel(e.target.value)}
+                      placeholder="Front Counter"
+                      className={inputClass}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Phone — call details + transcript. The transcript IS
+                the source document, so the file picker is optional
+                (technicians may attach a photographed note). */}
+            {form.source === "phone" && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Caller</label>
+                    <input
+                      type="text"
+                      value={phoneCallerName}
+                      onChange={(e) => setPhoneCallerName(e.target.value)}
+                      placeholder="Dr. Smith office, RN Jane"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Callback #</label>
+                    <input
+                      type="tel"
+                      value={phoneCallbackNumber}
+                      onChange={(e) => setPhoneCallbackNumber(e.target.value)}
+                      placeholder="(337) 555-0000"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={phoneVerified}
+                    onChange={(e) => setPhoneVerified(e.target.checked)}
+                    className="w-4 h-4 text-[#40721D] border-gray-300 rounded focus:ring-[#40721D]"
+                  />
+                  Caller identity verified via callback to prescriber's office
+                </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Transcript <span className="text-gray-400 text-xs">(verbatim from caller)</span>
+                  </label>
+                  <textarea
+                    value={phoneTranscript}
+                    onChange={(e) => setPhoneTranscript(e.target.value)}
+                    rows={5}
+                    placeholder="Office called for [patient]. Rx: [drug] [strength] [qty] [sig]. Refills: N. Verified caller via callback."
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[#40721D]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Optional: attach a photo / voicemail
+                  </label>
+                  {!attachment ? (
+                    <input
+                      type="file"
+                      accept="application/pdf,image/*,audio/*"
+                      disabled={attachmentUploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleAttachFile(f);
+                      }}
+                      className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#40721D] file:text-white file:cursor-pointer hover:file:bg-[#2D5114] disabled:opacity-50"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="text-sm">
+                        <div className="font-medium text-gray-900">{attachment.fileName}</div>
+                        <div className="text-xs text-gray-500">
+                          <a href={attachment.signedUrl} target="_blank" rel="noopener noreferrer" className="text-[#40721D] underline">
+                            Preview
+                          </a>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAttachment(null)}
+                        className="text-sm text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                  {attachmentUploading && (
+                    <p className="mt-1 text-xs text-gray-500">Uploading…</p>
+                  )}
+                  {attachmentError && (
+                    <p className="mt-1 text-xs text-red-600">{attachmentError}</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Notes */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">

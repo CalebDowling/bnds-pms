@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import FillForm from "./FillForm";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 import { BreadcrumbLabel } from "@/components/ui/Breadcrumbs";
+import RxDocumentView from "@/components/rx/RxDocumentView";
 import type { PrescriptionFillWithRelations, StatusLog } from "@/types";
 import type { PatientWithRelations } from "@/types/patient";
 
@@ -162,6 +163,15 @@ async function PrescriptionDetailPageContent({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Info */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Original Rx source — collapsed by default. Lets the
+              pharmacist verify what the prescriber sent (eRx
+              payload, fax PDF, paper scan, or phone transcript)
+              against the structured fields rendered below. */}
+          <RxDocumentView
+            source={rx.source}
+            metadata={(rx.metadata as Record<string, unknown>) || {}}
+          />
+
           {/* Rx Details */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Prescription Details</h2>

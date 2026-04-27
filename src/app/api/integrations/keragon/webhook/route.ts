@@ -20,6 +20,7 @@ import { logger } from "@/lib/logger";
  *   - create_alert       → Create an in-app alert/notification
  *   - log_event          → Write to audit log (for traceability)
  *   - sync_drx           → Trigger a DRX sync for a specific record
+ *   - intake_fax         → Inbound fax PDF → IntakeQueueItem with attachment
  *   - noop / ping        → Health check / acknowledgment
  */
 export async function POST(request: NextRequest) {
@@ -233,6 +234,83 @@ export async function POST(request: NextRequest) {
         });
 
         return NextResponse.json({ success: true, action: "log_event" });
+      }
+
+      // ---------------------------------------------------------------
+      // Inbound fax → IntakeQueueItem with PDF attached
+      //
+      // Keragon's inbound-fax connector (eFax / Documo / SRFax / etc)
+      // posts the fax PDF here. We stash the bytes in Supabase
+      // Storage, create a Document row, and create an
+      // IntakeQueueItem(source="fax") so the tech sees it in the
+      // intake review queue. RxDocumentView renders the PDF when
+      // the resulting Prescription is later opened.
+      //
+      // Expected `data` (or root-flat) fields from the workflow:
+      //   - fileBase64         (preferred) base64 PDF body
+      //   - fileUrl            alternate: URL we fetch the PDF from
+      //   - fileName           original filename, optional
+      //   - contentType        defaults to "application/pdf"
+      //   - faxNumber          sender fax number
+      //   - senderName         caller-id name
+      //   - pageCount          page count
+      //   - notes              cover-sheet OCR / free-text triage notes
+      // We use the X-Event-Id header as the idempotency key — Keragon
+      // re-delivers on transient 5xx, and we don't want to create
+      // duplicate intake rows for the same fax.
+      // ---------------------------------------------------------------
+      case "intake_fax": {
+        const { processFaxIntake } = await import("@/lib/erx/fax-processor");
+        // Pull data from either nested `data` or flat root for parity
+        // with the other actions.
+        const fax = mergedData as {
+          fileBase64?: string;
+          fileUrl?: string;
+          fileName?: string;
+          contentType?: string;
+          faxNumber?: string;
+          senderName?: string;
+          pageCount?: number;
+          notes?: string;
+        };
+
+        const fileBase64 = fax.fileBase64 ?? (raw.fileBase64 as string | undefined);
+        const fileUrl = fax.fileUrl ?? (raw.fileUrl as string | undefined);
+        if (!fileBase64 && !fileUrl) {
+          return NextResponse.json(
+            { error: "Missing fileBase64 or fileUrl" },
+            { status: 400 }
+          );
+        }
+
+        // Idempotency key — Keragon's X-Event-Id, fall back to
+        // workflowRunId so re-deliveries of the same workflow run
+        // don't double-write either.
+        const eventId =
+          request.headers.get("x-event-id") ||
+          workflowRunId ||
+          null;
+
+        const result = await processFaxIntake({
+          fileBase64: fileBase64 ?? null,
+          fileUrl: fileUrl ?? null,
+          fileName: fax.fileName ?? (raw.fileName as string | undefined) ?? null,
+          contentType: fax.contentType ?? (raw.contentType as string | undefined) ?? null,
+          faxNumber: fax.faxNumber ?? (raw.faxNumber as string | undefined) ?? null,
+          senderName: fax.senderName ?? (raw.senderName as string | undefined) ?? null,
+          pageCount: fax.pageCount ?? (raw.pageCount as number | undefined) ?? null,
+          notes: fax.notes ?? (raw.notes as string | undefined) ?? null,
+          eventId,
+        });
+
+        return NextResponse.json({
+          success: true,
+          action: "intake_fax",
+          intakeId: result.intakeId,
+          documentId: result.documentId,
+          signedUrl: result.signedUrl,
+          alreadyProcessed: result.alreadyProcessed ?? false,
+        });
       }
 
       // ---------------------------------------------------------------

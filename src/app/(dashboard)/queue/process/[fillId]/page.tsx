@@ -47,6 +47,7 @@ import {
 import { FILL_STATUS_META } from "@/lib/workflow/fill-status";
 import { DUR_OVERRIDE_REASON_CODES, type DURAlert } from "@/lib/clinical/dur-engine";
 import { BreadcrumbLabel } from "@/components/ui/Breadcrumbs";
+import RxDocumentView from "@/components/rx/RxDocumentView";
 import {
   formatDate,
   formatDateTime,
@@ -765,6 +766,15 @@ export default function FillProcessPage() {
         <div className="grid grid-cols-3 gap-4" style={{ minHeight: "calc(100vh - 220px)" }}>
           {/* Left 2 columns: processing panels */}
           <div className="col-span-2 space-y-4">
+
+            {/* Original Rx source — collapsed by default. Lets the
+                pharmacist verify what the prescriber sent (eRx
+                payload, fax PDF, paper scan, or phone transcript)
+                against the structured fill data shown below. */}
+            <RxDocumentView
+              source={fill.prescription.source}
+              metadata={fill.prescription.metadata}
+            />
 
             {/* Patient & Drug Info */}
             <div className="bg-white rounded-lg border p-4" style={{ borderColor: "var(--border)" }}>
