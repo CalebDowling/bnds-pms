@@ -113,7 +113,7 @@ export default function SidebarNew() {
     <aside
       className="fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ease-in-out hidden md:flex"
       style={{
-        width: collapsed ? 64 : 256,
+        width: collapsed ? 64 : 232,
         // Paper-green sidebar background per BNDS PMS Redesign — sits between
         // the warm paper page background and the white content cards, so the
         // sidebar reads as part of the chrome without feeling heavy.

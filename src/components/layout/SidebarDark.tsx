@@ -108,7 +108,7 @@ export default function SidebarDark() {
     <aside
       className="fixed left-0 top-0 h-screen z-40 flex flex-col border-r transition-all duration-300 ease-in-out hidden md:flex"
       style={{
-        width: collapsed ? 64 : 256,
+        width: collapsed ? 64 : 232,
         backgroundColor: "var(--card-bg)",
         borderColor: "var(--border)",
       }}

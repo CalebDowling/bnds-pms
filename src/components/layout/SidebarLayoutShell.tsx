@@ -61,7 +61,7 @@ function SidebarContent({
         }
         @media (min-width: 768px) {
           .sidebar-main-area {
-            margin-left: ${collapsed ? 64 : 256}px;
+            margin-left: ${collapsed ? 64 : 232}px;
           }
         }
       `}</style>

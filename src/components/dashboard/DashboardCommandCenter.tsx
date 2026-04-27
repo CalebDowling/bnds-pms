@@ -2,32 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  Pill,
-  Users,
-  DollarSign,
-  Package,
-  AlertTriangle,
-  XCircle,
-  RefreshCw,
-  FlaskConical,
-  Cross,
-  ClipboardCheck,
-  Settings,
-  Inbox,
-  CheckCircle2,
-  Printer,
-  Clock,
-  ScanLine,
-  ChevronRight,
-  CreditCard,
-  BadgeDollarSign,
-  ThumbsDown,
-  Building2,
-  Cherry,
-  ListTodo,
-  ArrowDownUp,
-} from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { getReorderStatus } from "@/lib/inventory/reorder-check";
 import { getQueueCounts, getRecentActivity, type RecentActivityItem } from "@/app/(dashboard)/dashboard/actions";
 import type { DashboardData } from "@/components/dashboard/CardGrid";
@@ -38,112 +13,111 @@ interface WorkflowItemProps {
   count: number;
   href: string;
   statusColor: string;
-  icon: React.ReactNode;
+  hot?: boolean;
+  isLast?: boolean;
 }
 
-function WorkflowItem({ label, count, href, statusColor, icon }: WorkflowItemProps) {
+// Workflow Queue row per design-reference/dashboard.jsx — dot + label + count + chevron only.
+// No icon, no badge pill — design is type-led, with the dot carrying the module color.
+function WorkflowItem({ label, count, href, statusColor, hot, isLast }: WorkflowItemProps) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors no-underline group"
-      style={{ color: "#14201a" }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#f5f8f0"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
+      className="flex items-center gap-2.5 no-underline transition-colors"
+      style={{
+        padding: "9px 14px",
+        borderBottom: isLast ? "none" : "1px solid #e3ddd1",
+        backgroundColor: hot ? "rgba(201,138,20,0.06)" : "transparent",
+        color: "#14201a",
+      }}
+      onMouseEnter={(e) => {
+        if (!hot) (e.currentTarget as HTMLElement).style.backgroundColor = "#f5f8f0";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.backgroundColor = hot ? "rgba(201,138,20,0.06)" : "transparent";
+      }}
     >
-      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
-      <span style={{ color: "#7a8a78" }} className="flex-shrink-0">{icon}</span>
       <span
-        className="text-[14px] flex-1 truncate"
+        className="flex-shrink-0"
+        style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: statusColor }}
+      />
+      <span
+        className="flex-1 truncate"
         style={{
-          color: "#14201a",
-          fontFamily: "var(--font-inter), 'Inter Tight', Inter, system-ui, sans-serif",
-          fontWeight: 500,
-          letterSpacing: "-0.005em",
+          fontSize: 13,
+          color: count > 0 ? "#14201a" : "#3a4a42",
+          fontWeight: hot ? 500 : 400,
         }}
       >
         {label}
       </span>
       <span
-        className="text-[13px] font-semibold tabular-nums px-1.5 py-px rounded"
+        className="tabular-nums"
         style={{
-          backgroundColor: count > 0 ? "#e8f3e2" : "transparent",
-          color: count > 0 ? "#174530" : "#7a8a78",
+          fontSize: 13,
+          fontWeight: count > 0 ? 600 : 400,
+          color: hot ? "#c98a14" : count > 0 ? "#14201a" : "#a3aea7",
+          minWidth: 18,
+          textAlign: "right",
         }}
       >
         {count}
       </span>
-      <ChevronRight size={12} style={{ color: "#cfc7b6" }} />
+      <ChevronRight size={12} style={{ color: "#a3aea7" }} />
     </Link>
   );
 }
 
-interface ModuleCardMiniProps {
-  title: string;
-  stat: string | number;
-  icon: React.ReactNode;
-  accentColor: string;
+interface QuickTileProps {
+  label: string;
+  sub: string;
   href: string;
 }
 
-// Edge-accent-stripe Quick Access tile per BNDS PMS Redesign (Style D).
-// 3px left color bar tied to the module, monochrome ink icon, Inter Tight
-// 13px label, 11.5px sub-text in --ink-3. Hover lifts the stripe to fill
-// the tile and warms the background to the pale leaf surface.
-function ModuleCardMini({ title, stat, icon, accentColor, href }: ModuleCardMiniProps) {
+// Quick Access tile — Style A "minimal" type-led variant per design default.
+// Serif label (17px, weight 500), 12px sub-text in --ink-3, no icon, white surface,
+// hover lifts to forest border + paper background.
+function QuickTile({ label, sub, href }: QuickTileProps) {
   return (
     <Link
       href={href}
-      className="relative flex items-center gap-2.5 pl-3 pr-2.5 py-2.5 rounded-md transition-colors no-underline overflow-hidden"
+      className="flex flex-col gap-1 no-underline transition-colors"
       style={{
+        padding: "14px 16px",
+        background: "#ffffff",
         border: "1px solid #e3ddd1",
-        backgroundColor: "#ffffff",
-        boxShadow: "0 1px 0 rgba(20, 32, 26, 0.02)",
+        borderRadius: 8,
+        textAlign: "left",
+        alignItems: "flex-start",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.backgroundColor = "#f5f8f0";
-        (e.currentTarget as HTMLElement).style.borderColor = "#cfe0c0";
+        const el = e.currentTarget as HTMLElement;
+        el.style.borderColor = "#1f5a3a";
+        el.style.background = "#faf8f4";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.backgroundColor = "#ffffff";
-        (e.currentTarget as HTMLElement).style.borderColor = "#e3ddd1";
+        const el = e.currentTarget as HTMLElement;
+        el.style.borderColor = "#e3ddd1";
+        el.style.background = "#ffffff";
       }}
     >
-      {/* Edge accent stripe */}
       <span
-        aria-hidden
-        className="absolute left-0 top-0 bottom-0 w-[3px]"
-        style={{ backgroundColor: accentColor }}
-      />
-      <span
-        className="flex items-center justify-center flex-shrink-0"
-        style={{ color: "#14201a" }}
+        style={{
+          fontFamily: "var(--font-serif), 'Source Serif 4', Georgia, serif",
+          fontSize: 17,
+          fontWeight: 500,
+          color: "#14201a",
+          letterSpacing: "-0.01em",
+        }}
       >
-        {icon}
+        {label}
       </span>
-      <div className="flex flex-col min-w-0">
-        <span
-          className="leading-tight truncate"
-          style={{
-            fontFamily: "var(--font-inter), 'Inter Tight', Inter, system-ui, sans-serif",
-            fontSize: "13px",
-            fontWeight: 500,
-            color: "#14201a",
-            letterSpacing: "-0.005em",
-          }}
-        >
-          {title}
-        </span>
-        <span
-          className="leading-tight tabular-nums truncate"
-          style={{
-            fontSize: "11.5px",
-            fontWeight: 500,
-            color: "#5a6b58",
-          }}
-        >
-          {stat}
-        </span>
-      </div>
+      <span
+        className="tabular-nums"
+        style={{ fontSize: 12, color: "#6b7a72" }}
+      >
+        {sub}
+      </span>
     </Link>
   );
 }
@@ -158,32 +132,31 @@ interface ReorderItem {
   severity: "critical" | "low";
 }
 
-// Queue definition matching master QueueBar exactly
-const QUEUE_CONFIG: { status: string; label: string; icon: React.ReactNode; color: string }[] = [
-  { status: "intake", label: "Intake", icon: <Inbox size={15} />, color: "#3b82f6" },
-  { status: "sync", label: "Sync", icon: <ArrowDownUp size={15} />, color: "#06b6d4" },
-  { status: "reject", label: "Reject", icon: <XCircle size={15} />, color: "#ef4444" },
-  { status: "print", label: "Print", icon: <Printer size={15} />, color: "#a855f7" },
-  { status: "scan", label: "Scan", icon: <ScanLine size={15} />, color: "#6366f1" },
-  { status: "verify", label: "Verify", icon: <CheckCircle2 size={15} />, color: "#10b981" },
-  { status: "oos", label: "Out of Stock", icon: <AlertTriangle size={15} />, color: "#f97316" },
-  { status: "waiting_bin", label: "Waiting Bin", icon: <Clock size={15} />, color: "#f59e0b" },
-  { status: "renewals", label: "Renewals", icon: <RefreshCw size={15} />, color: "#14b8a6" },
-  { status: "todo", label: "Todo", icon: <ListTodo size={15} />, color: "#8b5cf6" },
-  { status: "price_check", label: "Price Check", icon: <BadgeDollarSign size={15} />, color: "#ec4899" },
-  { status: "prepay", label: "Prepay", icon: <CreditCard size={15} />, color: "#0ea5e9" },
-  { status: "ok_to_charge", label: "OK to Charge", icon: <DollarSign size={15} />, color: "#22c55e" },
-  { status: "decline", label: "Decline", icon: <ThumbsDown size={15} />, color: "#dc2626" },
-  { status: "ok_to_charge_clinic", label: "OK to Charge Clinic", icon: <Building2 size={15} />, color: "#16a34a" },
-  { status: "mochi", label: "Mochi", icon: <Cherry size={15} />, color: "#d946ef" },
+// Workflow queue per design-reference/dashboard.jsx WORKFLOW_QUEUE constant.
+// Heritage palette dots — leaf #5aa845, info #2b6c9b, danger #b8442e, forest #1f5a3a,
+// warn #c98a14, mochi #8b5cf6 — replacing the previous Tailwind rainbow.
+const QUEUE_CONFIG: { status: string; label: string; color: string }[] = [
+  { status: "intake", label: "Intake", color: "#5aa845" },
+  { status: "sync", label: "Sync", color: "#2b6c9b" },
+  { status: "reject", label: "Reject", color: "#b8442e" },
+  { status: "print", label: "Print", color: "#1f5a3a" },
+  { status: "scan", label: "Scan", color: "#5aa845" },
+  { status: "verify", label: "Verify", color: "#c98a14" },
+  { status: "oos", label: "Out of Stock", color: "#c98a14" },
+  { status: "waiting_bin", label: "Waiting Bin", color: "#c98a14" },
+  { status: "renewals", label: "Renewals", color: "#5aa845" },
+  { status: "todo", label: "Todo", color: "#2b6c9b" },
+  { status: "price_check", label: "Price Check", color: "#b8442e" },
+  { status: "prepay", label: "Prepay", color: "#5aa845" },
+  { status: "ok_to_charge", label: "OK to Charge", color: "#1f5a3a" },
+  { status: "decline", label: "Decline", color: "#b8442e" },
+  { status: "ok_to_charge_clinic", label: "OK to Charge Clinic", color: "#5aa845" },
+  { status: "mochi", label: "Mochi", color: "#8b5cf6" },
 ];
 
 export default function DashboardCommandCenter({ data }: { data: DashboardData }) {
   const [stockAlerts, setStockAlerts] = useState<{ critical: ReorderItem[]; low: ReorderItem[] }>({ critical: [], low: [] });
   const [queueCounts, setQueueCounts] = useState<Record<string, number>>({});
-  // Real recent-activity feed — pulled from FillEvent rows so the dashboard
-  // mirrors what's actually moving through the workflow. Previously this was
-  // hardcoded with 4 fake rows that never updated.
   const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
 
   useEffect(() => {
@@ -214,53 +187,82 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
 
   return (
     <div className="px-6 pb-6">
-      {/* Three Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Three-column dashboard grid per design-reference/dashboard.jsx:
+          300px workflow queue | 1fr quick access + phone | 320px activity + alerts */}
+      <div
+        className="grid gap-4"
+        style={{ gridTemplateColumns: "300px 1fr 320px", alignItems: "start" }}
+      >
         {/* Column 1: Workflow Queue */}
-        <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "#faf8f4", border: "1px solid #e3ddd1" }}>
-          <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid #ece7da" }}>
-            <span className="text-[11px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.12em" }}>
+        <div
+          className="rounded-lg overflow-hidden"
+          style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+        >
+          <div
+            className="flex items-center justify-between"
+            style={{ padding: "12px 14px", borderBottom: "1px solid #e3ddd1" }}
+          >
+            <span
+              className="text-[11px] font-semibold uppercase"
+              style={{ color: "#6b7a72", letterSpacing: "0.12em" }}
+            >
               Workflow Queue
             </span>
-            <Link href="/queue" className="text-[11px] font-medium hover:underline" style={{ color: "#1f5a3a" }}>
+            <Link
+              href="/queue"
+              className="hover:underline no-underline"
+              style={{ fontSize: 11.5, color: "#1f5a3a", fontWeight: 500 }}
+            >
               Open Queue
             </Link>
           </div>
-          <div className="py-1">
-            {QUEUE_CONFIG.map((q) => (
-              <WorkflowItem
-                key={q.status}
-                label={q.label}
-                count={queueCounts[q.status] ?? 0}
-                href={`/queue?status=${q.status}`}
-                statusColor={q.color}
-                icon={q.icon}
-              />
-            ))}
+          <div>
+            {QUEUE_CONFIG.map((q, i) => {
+              const count = queueCounts[q.status] ?? 0;
+              const hot = q.status === "waiting_bin" && count > 10;
+              return (
+                <WorkflowItem
+                  key={q.status}
+                  label={q.label}
+                  count={count}
+                  href={`/queue?status=${q.status}`}
+                  statusColor={q.color}
+                  hot={hot}
+                  isLast={i === QUEUE_CONFIG.length - 1}
+                />
+              );
+            })}
           </div>
         </div>
 
         {/* Column 2: Quick Access + Phone System */}
-        <div className="space-y-4">
-          {/* Quick Access — Edge accent stripe tiles (BNDS PMS Redesign Style D).
-              Brand colors aligned to forest+leaf palette so the modules read as
-              part of the design system, not bootstrap rainbow chips. */}
-          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "#faf8f4", border: "1px solid #e3ddd1" }}>
-            <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid #ece7da" }}>
-              <span className="text-[11px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.12em" }}>
+        <div className="flex flex-col gap-4">
+          {/* Quick Access — Style A "minimal" type-led tiles, 3 columns per design default */}
+          <div
+            className="rounded-lg overflow-hidden"
+            style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+          >
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid #e3ddd1" }}>
+              <span
+                className="text-[11px] font-semibold uppercase"
+                style={{ color: "#6b7a72", letterSpacing: "0.12em" }}
+              >
                 Quick Access
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 p-3">
-              <ModuleCardMini title="Patients" stat={`${data.patientsToday} today`} icon={<Users size={16} strokeWidth={1.75} />} accentColor="#1f5a3a" href="/patients" />
-              <ModuleCardMini title="Prescriptions" stat={`${data.rxToday} today`} icon={<Pill size={16} strokeWidth={1.75} />} accentColor="#5aa845" href="/prescriptions" />
-              <ModuleCardMini title="Inventory" stat={`${data.activeItems} items`} icon={<Package size={16} strokeWidth={1.75} />} accentColor="#7a8a78" href="/inventory" />
-              <ModuleCardMini title="Prescribers" stat={`${data.doctorsOnFile} on file`} icon={<Cross size={16} strokeWidth={1.75} />} accentColor="#d4a02a" href="/prescriptions/prescribers" />
-              <ModuleCardMini title="Compounding" stat={`${data.pendingBatches} pending`} icon={<FlaskConical size={16} strokeWidth={1.75} />} accentColor="#9c4a25" href="/compounding" />
-              <ModuleCardMini title="Reorder" stat={`${data.lowStockItems} low`} icon={<AlertTriangle size={16} strokeWidth={1.75} />} accentColor="#c54b3b" href="/inventory/reorder" />
-              <ModuleCardMini title="POS" stat={`${data.salesToday} today`} icon={<DollarSign size={16} strokeWidth={1.75} />} accentColor="#174530" href="/pos" />
-              <ModuleCardMini title="Claims" stat={`${data.rejectedClaims} rejected`} icon={<ClipboardCheck size={16} strokeWidth={1.75} />} accentColor="#3a6a8c" href="/billing/claims" />
-              <ModuleCardMini title="Settings" stat="Admin" icon={<Settings size={16} strokeWidth={1.75} />} accentColor="#0f2e1f" href="/settings" />
+            <div
+              className="grid"
+              style={{ padding: 14, gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}
+            >
+              <QuickTile label="Patient" sub={`${data.patientsToday} today`} href="/patients" />
+              <QuickTile label="Rx" sub={`${data.rxToday} today`} href="/prescriptions" />
+              <QuickTile label="Item" sub={`${data.activeItems.toLocaleString()} items`} href="/inventory" />
+              <QuickTile label="Prescriber" sub={`${data.doctorsOnFile.toLocaleString()} on file`} href="/prescriptions/prescribers" />
+              <QuickTile label="Compound" sub={`${data.pendingBatches} pend`} href="/compounding" />
+              <QuickTile label="Inventory" sub={`${data.lowStockItems} low`} href="/inventory/reorder" />
+              <QuickTile label="Sales" sub={`${data.salesToday} today`} href="/pos" />
+              <QuickTile label="Claims" sub={`${data.rejectedClaims} rej`} href="/billing/claims" />
+              <QuickTile label="System" sub="Admin" href="/settings" />
             </div>
           </div>
 
@@ -269,17 +271,26 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
         </div>
 
         {/* Column 3: Activity & Alerts */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {/* Recent Activity — live FillEvent feed (refreshes every 30s) */}
-          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "#faf8f4", border: "1px solid #e3ddd1" }}>
-            <div className="px-3 pt-3 pb-2" style={{ borderBottom: "1px solid #ece7da" }}>
-              <span className="text-[11px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.12em" }}>
+          <div
+            className="rounded-lg overflow-hidden"
+            style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+          >
+            <div style={{ padding: "12px 14px", borderBottom: "1px solid #e3ddd1" }}>
+              <span
+                className="text-[11px] font-semibold uppercase"
+                style={{ color: "#6b7a72", letterSpacing: "0.12em" }}
+              >
                 Recent Activity
               </span>
             </div>
             <div>
               {recentActivity.length === 0 ? (
-                <div className="px-3 py-4 text-center text-[11px] italic" style={{ color: "#7a8a78" }}>
+                <div
+                  className="text-center italic"
+                  style={{ padding: "16px 14px", fontSize: 11, color: "#6b7a72" }}
+                >
                   No recent activity yet
                 </div>
               ) : (
@@ -287,33 +298,47 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
                   <Link
                     key={item.fillId}
                     href={`/queue/process/${item.fillId}`}
-                    className="block px-3 py-2 no-underline transition-colors"
-                    style={{ borderTop: i > 0 ? "1px solid #ece7da" : undefined }}
+                    className="block no-underline transition-colors"
+                    style={{
+                      padding: "10px 14px",
+                      borderBottom: i < recentActivity.length - 1 ? "1px solid #e3ddd1" : undefined,
+                    }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#f5f8f0"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold tabular-nums" style={{ color: "#1f5a3a" }}>
-                        Rx# {item.rxNum}
+                    <div className="flex justify-between items-baseline">
+                      <span
+                        className="tabular-nums"
+                        style={{
+                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                          fontSize: 11,
+                          color: "#6b7a72",
+                        }}
+                      >
+                        Ref# {item.rxNum}
                       </span>
-                      <span className="text-[10px]" style={{ color: "#7a8a78" }}>
+                      <span style={{ fontSize: 11, color: "#6b7a72" }}>
                         {item.minutesAgo < 60 ? `${item.minutesAgo}m` : `${Math.floor(item.minutesAgo / 60)}h`}
                       </span>
                     </div>
-                    <div className="text-[12px] font-medium" style={{ color: "#14201a" }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "#14201a", marginTop: 2 }}>
                       {item.patient}
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-[11px] truncate" style={{ color: "#3a4a3c" }}>
+                    <div
+                      className="flex justify-between items-center"
+                      style={{ marginTop: 1, fontSize: 11, color: "#6b7a72" }}
+                    >
+                      <span className="truncate">
                         {item.eventLabel}
                         {item.performer && item.performer !== "—" && (
-                          <span className="ml-1" style={{ color: "#7a8a78" }}>
-                            · {item.performer}
-                          </span>
+                          <span> · {item.performer}</span>
                         )}
-                      </div>
+                      </span>
                       {item.copay && (
-                        <span className="text-[11px] tabular-nums flex-shrink-0" style={{ color: "#7a8a78" }}>
+                        <span
+                          className="tabular-nums flex-shrink-0"
+                          style={{ color: "#1f5a3a", fontWeight: 500 }}
+                        >
                           {item.copay}
                         </span>
                       )}
@@ -325,12 +350,25 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
           </div>
 
           {/* Stock Alerts */}
-          <div className="rounded-lg overflow-hidden" style={{ backgroundColor: "#faf8f4", border: "1px solid #e3ddd1" }}>
-            <div className="px-3 pt-3 pb-2 flex items-center justify-between" style={{ borderBottom: "1px solid #ece7da" }}>
-              <span className="text-[11px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.12em" }}>
+          <div
+            className="rounded-lg overflow-hidden"
+            style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+          >
+            <div
+              className="flex items-center justify-between"
+              style={{ padding: "12px 14px", borderBottom: "1px solid #e3ddd1" }}
+            >
+              <span
+                className="text-[11px] font-semibold uppercase"
+                style={{ color: "#6b7a72", letterSpacing: "0.12em" }}
+              >
                 Stock Alerts
               </span>
-              <Link href="/inventory" className="text-[11px] font-medium hover:underline" style={{ color: "#1f5a3a" }}>
+              <Link
+                href="/inventory"
+                className="hover:underline no-underline"
+                style={{ fontSize: 11.5, color: "#1f5a3a", fontWeight: 500 }}
+              >
                 View All
               </Link>
             </div>
@@ -340,28 +378,39 @@ export default function DashboardCommandCenter({ data }: { data: DashboardData }
                   <Link
                     key={item.itemId}
                     href={`/inventory/${item.itemId}`}
-                    className="block px-3 py-2 no-underline transition-colors"
+                    className="block no-underline transition-colors"
                     style={{
-                      borderTop: i > 0 ? "1px solid #ece7da" : undefined,
-                      borderLeft: `3px solid ${item.severity === "critical" ? "#c54b3b" : "#d4a02a"}`,
+                      padding: "10px 14px",
+                      borderBottom: i < allAlerts.length - 1 ? "1px solid #e3ddd1" : undefined,
+                      borderLeft: item.severity === "critical" ? "2px solid #b8442e" : "2px solid transparent",
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#f5f8f0"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = ""; }}
                   >
                     <div
-                      className="text-[12px] font-semibold truncate"
-                      style={{ color: item.severity === "critical" ? "#c54b3b" : "#9c6a14" }}
+                      className="truncate"
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: item.severity === "critical" ? "#b8442e" : "#14201a",
+                      }}
                     >
                       {item.itemName}
                     </div>
-                    <div className="text-[11px] tabular-nums" style={{ color: "#7a8a78" }}>
+                    <div
+                      className="tabular-nums"
+                      style={{ fontSize: 11, color: "#6b7a72", marginTop: 1 }}
+                    >
                       {item.currentStock} in stock
                     </div>
                   </Link>
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center text-[11px]" style={{ color: "#7a8a78" }}>
+              <div
+                className="text-center"
+                style={{ padding: 16, fontSize: 11, color: "#6b7a72" }}
+              >
                 All stock levels healthy
               </div>
             )}
