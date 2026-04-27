@@ -34,7 +34,7 @@ export default function PatientTabs({ patient }: { patient: PatientWithRelations
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? "border-[#40721D] text-[#40721D]"
+                  ? "border-[#1f5a3a] text-[#1f5a3a]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
@@ -59,6 +59,64 @@ export default function PatientTabs({ patient }: { patient: PatientWithRelations
   );
 }
 
+// Heritage status pill — single mapping shared between the Overview and
+// Prescriptions tabs so the patient profile reads with the same status
+// language as the rest of the system. Maps Rx workflow states to the
+// heritage tokens (ok/danger/info) instead of Tailwind rainbow.
+function RxStatusPill({ status }: { status: string }) {
+  const ok = status === "ready" || status === "dispensed" || status === "delivered";
+  const cancelled = status === "cancelled" || status === "expired";
+  const config = ok
+    ? { bg: "rgba(31,90,58,0.10)", color: "#1f5a3a" }
+    : cancelled
+    ? { bg: "rgba(184,68,46,0.10)", color: "#b8442e" }
+    : { bg: "rgba(43,108,155,0.12)", color: "#2c5e7a" };
+  return (
+    <span
+      className="inline-flex items-center"
+      style={{
+        fontSize: 11,
+        fontWeight: 600,
+        padding: "2px 8px",
+        borderRadius: 999,
+        backgroundColor: config.bg,
+        color: config.color,
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+
+// Heritage allergy severity pill — life_threatening / severe → danger,
+// moderate → warn, mild → ink-3 neutral. Removes the Tailwind orange
+// rainbow that previously sat beside heritage cards on the same page.
+function AllergySeverityPill({ severity }: { severity: string }) {
+  const config =
+    severity === "life_threatening"
+      ? { bg: "rgba(184,68,46,0.18)", color: "#9a2c1f", weight: 700 }
+      : severity === "severe"
+      ? { bg: "rgba(184,68,46,0.10)", color: "#b8442e", weight: 600 }
+      : severity === "moderate"
+      ? { bg: "rgba(201,138,20,0.14)", color: "#8a5a17", weight: 600 }
+      : { bg: "rgba(122,138,120,0.14)", color: "#5a6b58", weight: 500 };
+  return (
+    <span
+      className="inline-flex items-center"
+      style={{
+        fontSize: 11,
+        fontWeight: config.weight,
+        padding: "2px 8px",
+        borderRadius: 999,
+        backgroundColor: config.bg,
+        color: config.color,
+      }}
+    >
+      {severity.replace("_", " ")}
+    </span>
+  );
+}
+
 function OverviewTab({ patient }: { patient: PatientWithRelations }) {
   const rxCount = patient.prescriptions?.length || 0;
   const activeRx = patient.prescriptions?.filter((rx: PatientPrescription) => !["cancelled", "dispensed", "delivered"].includes(rx.status)).length || 0;
@@ -76,11 +134,11 @@ function OverviewTab({ patient }: { patient: PatientWithRelations }) {
         </div>
         <div className="bg-gray-50 rounded-lg p-3">
           <p className="text-xs font-semibold text-gray-400 uppercase">Active Rx</p>
-          <p className={`text-xl font-bold ${activeRx > 0 ? "text-blue-600" : "text-gray-900"}`}>{activeRx}</p>
+          <p className="text-xl font-bold" style={{ color: activeRx > 0 ? "#2c5e7a" : "#14201a" }}>{activeRx}</p>
         </div>
         <div className="bg-gray-50 rounded-lg p-3">
           <p className="text-xs font-semibold text-gray-400 uppercase">Allergies</p>
-          <p className={`text-xl font-bold ${nkda ? "text-green-600" : "text-red-600"}`}>
+          <p className="text-xl font-bold" style={{ color: nkda ? "#1f5a3a" : "#b8442e" }}>
             {nkda ? "NKDA" : allergyCount}
           </p>
         </div>
@@ -118,13 +176,7 @@ function OverviewTab({ patient }: { patient: PatientWithRelations }) {
                       {rx.prescriber ? ` — ${formatPrescriberName({ firstName: rx.prescriber.firstName, lastName: rx.prescriber.lastName })}` : ""}
                     </p>
                   </div>
-                  <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                    rx.status === "ready" || rx.status === "dispensed" ? "bg-green-50 text-green-700"
-                      : rx.status === "cancelled" ? "bg-red-50 text-red-700"
-                      : "bg-blue-50 text-blue-700"
-                  }`}>
-                    {rx.status}
-                  </span>
+                  <RxStatusPill status={rx.status} />
                 </div>
               ))}
             </div>
@@ -169,13 +221,7 @@ function PrescriptionsTab({ patient }: { patient: PatientWithRelations }) {
                   {rx.refillsRemaining}/{rx.refillsAuthorized}
                 </td>
                 <td className="py-2.5">
-                  <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                    rx.status === "ready" || rx.status === "dispensed" ? "bg-green-50 text-green-700"
-                      : rx.status === "cancelled" ? "bg-red-50 text-red-700"
-                      : "bg-blue-50 text-blue-700"
-                  }`}>
-                    {rx.status}
-                  </span>
+                  <RxStatusPill status={rx.status} />
                 </td>
               </tr>
             ))}
@@ -217,19 +263,19 @@ function AllergiesTab({ patient }: { patient: PatientWithRelations }) {
     router.refresh();
   }
 
-  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D]";
+  const inputClass = "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1f5a3a]";
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-700">Allergies</h3>
         {!showAdd && (
-          <button onClick={() => setShowAdd(true)} className="text-sm text-[#40721D] font-medium hover:underline">+ Add Allergy</button>
+          <button onClick={() => setShowAdd(true)} className="text-sm text-[#1f5a3a] font-medium hover:underline">+ Add Allergy</button>
         )}
       </div>
 
       {showAdd && (
-        <form onSubmit={handleAdd} className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <form onSubmit={handleAdd} className="rounded-lg p-4 mb-4" style={{ backgroundColor: "#f3efe7", border: "1px solid #d8d1c2" }}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Allergen *</label>
@@ -259,7 +305,7 @@ function AllergiesTab({ patient }: { patient: PatientWithRelations }) {
           </div>
           <div className="flex justify-end gap-2 mt-3">
             <button type="button" onClick={() => setShowAdd(false)} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
-            <button type="submit" disabled={saving} className="px-4 py-1.5 bg-[#40721D] text-white text-sm font-medium rounded-lg hover:bg-[#2D5114] disabled:opacity-50">
+            <button type="submit" disabled={saving} className="px-4 py-1.5 bg-[#1f5a3a] text-white text-sm font-medium rounded-lg hover:bg-[#174530] disabled:opacity-50">
               {saving ? "Saving..." : "Add Allergy"}
             </button>
           </div>
@@ -283,25 +329,18 @@ function AllergiesTab({ patient }: { patient: PatientWithRelations }) {
                 <td className="py-2.5 text-sm font-medium text-gray-900">{a.allergen}</td>
                 <td className="py-2.5 text-sm text-gray-600">{a.reaction || "—"}</td>
                 <td className="py-2.5">
-                  <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                    a.severity === "life_threatening" ? "bg-red-100 text-red-800"
-                      : a.severity === "severe" ? "bg-red-50 text-red-700"
-                      : a.severity === "moderate" ? "bg-orange-50 text-orange-700"
-                      : "bg-yellow-50 text-yellow-700"
-                  }`}>
-                    {a.severity.replace("_", " ")}
-                  </span>
+                  <AllergySeverityPill severity={a.severity} />
                 </td>
                 <td className="py-2.5 text-sm text-gray-400 capitalize">{a.source?.replace("_", " ") || "—"}</td>
                 <td className="py-2.5">
-                  <button onClick={() => handleDelete(a.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                  <button onClick={() => handleDelete(a.id)} className="text-xs hover:underline" style={{ color: "#b8442e" }}>Remove</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
-        <p className="text-sm text-green-600 font-medium mb-4">No Known Drug Allergies (NKDA)</p>
+        <p className="text-sm font-medium mb-4" style={{ color: "#1f5a3a" }}>No Known Drug Allergies (NKDA)</p>
       )}
       {inactive.length > 0 && (
         <details className="text-sm">
@@ -331,7 +370,19 @@ function InsuranceTab({ patient }: { patient: PatientWithRelations }) {
             <div key={ins.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-gray-900 capitalize">{ins.priority}</span>
-                <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 rounded-full">Active</span>
+                <span
+                  className="inline-flex items-center"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    backgroundColor: "rgba(31,90,58,0.10)",
+                    color: "#1f5a3a",
+                  }}
+                >
+                  Active
+                </span>
               </div>
               <dl className="grid grid-cols-2 gap-2">
                 <Row label="Member ID" value={ins.memberId} />
@@ -377,7 +428,7 @@ function ContactsTab({ patient }: { patient: PatientWithRelations }) {
                   </p>
                 </div>
                 {p.isPrimary && (
-                  <span className="text-xs font-medium text-[#40721D]">Primary</span>
+                  <span className="text-xs font-medium text-[#1f5a3a]">Primary</span>
                 )}
               </div>
             ))}
@@ -394,7 +445,7 @@ function ContactsTab({ patient }: { patient: PatientWithRelations }) {
               <div key={a.id} className="py-2 border-b border-gray-100 last:border-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-medium text-gray-500 capitalize">{a.addressType}</span>
-                  {a.isDefault && <span className="text-xs font-medium text-[#40721D]">Default</span>}
+                  {a.isDefault && <span className="text-xs font-medium text-[#1f5a3a]">Default</span>}
                 </div>
                 <p className="text-sm text-gray-900">{a.line1}</p>
                 {a.line2 && <p className="text-sm text-gray-900">{a.line2}</p>}
