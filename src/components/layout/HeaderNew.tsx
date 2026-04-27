@@ -209,59 +209,65 @@ export default function HeaderNew() {
     }
   };
 
+  // Heritage palette per design tokens: warn #c98a14, danger #b8442e, ok #2f8f56,
+  // info/neutral #6b7a72. Replaces the bootstrap-rainbow oranges/reds the codebase
+  // previously used for notification chips.
   const notifColor = (type: string) => {
     switch (type) {
       case "low_stock":
-        return "#FFA500";
+        return "#c98a14"; // warn (amber)
       case "expiring_lot":
-        return "#FF4444";
+        return "#b8442e"; // danger (burgundy)
       case "refill_due":
-        return "#4CAF50";
+        return "#2f8f56"; // ok (forest-leaf)
       case "claim_rejected":
-        return "#FF6B6B";
+        return "#b8442e"; // danger (burgundy)
       default:
-        return "#666";
+        return "#6b7a72"; // ink-3 (neutral)
     }
   };
 
   return (
     <header
-      className="sticky top-0 z-30 h-14 flex items-center justify-between gap-4 px-4 transition-all duration-300 ease-in-out"
+      className="sticky top-0 z-30 h-14 flex items-center justify-between gap-4 px-6 transition-all duration-300 ease-in-out"
       style={{
-        backgroundColor: "#faf8f4",
+        // Topbar reads on the white surface per design app-shell .topbar { background: var(--surface) }
+        // — search chip is the paper-tinted area inside the white bar.
+        backgroundColor: "#ffffff",
         borderBottom: "1px solid #e3ddd1",
       }}
     >
-      {/* ── Left: Search ── per BNDS PMS Redesign topbar ── */}
+      {/* ── Left: Search ── design .topbar .search uses --paper #faf8f4 bg with line border */}
       <div className="flex-1 max-w-[480px] hidden md:block">
         <div
           className="inline-flex items-center gap-2 w-full rounded-md"
           style={{
-            backgroundColor: "#ffffff",
+            backgroundColor: "#faf8f4",
             border: "1px solid #e3ddd1",
-            padding: "6px 10px",
+            padding: "7px 12px",
           }}
         >
-          <Search size={14} style={{ color: "#7a8a78" }} strokeWidth={2} />
+          <Search size={14} style={{ color: "#6b7a72" }} strokeWidth={2} />
           <input
             placeholder="Search patients, Rx #, NDC, drug name…"
             className="flex-1 border-none bg-transparent outline-none"
             style={{
               fontSize: 13,
-              color: "#0f2e1f",
+              color: "#14201a",
               fontFamily:
                 "var(--font-inter), 'Inter Tight', Inter, system-ui, sans-serif",
             }}
           />
           <kbd
-            className="hidden lg:inline-flex items-center justify-center rounded"
+            className="hidden lg:inline-flex items-center justify-center"
             style={{
-              fontSize: 10,
-              fontWeight: 600,
+              fontSize: 11,
+              fontWeight: 500,
               padding: "1px 5px",
-              backgroundColor: "#ece4d3",
-              color: "#7a8a78",
-              border: "1px solid #d9d2c2",
+              borderRadius: 4,
+              backgroundColor: "#f3efe7",
+              color: "#3a4a42",
+              border: "1px solid #d8d1c2",
               fontFamily: "var(--font-mono), 'JetBrains Mono', monospace",
             }}
           >
@@ -272,14 +278,32 @@ export default function HeaderNew() {
 
       {/* ── Right: Actions ── */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* New Rx — solid forest button per BNDS PMS Redesign (no gradient) */}
+        {/* New Rx — design app-shell uses .btn .btn-secondary .btn-sm: white surface,
+            ink text, line-2 border, 6px 10px padding, 12.5px font. Topbar treats the
+            New Rx as secondary so the visual hierarchy stays quiet. */}
         {canAccess("prescriptions", "write") && (
           <Link
             href="/prescriptions/new"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white no-underline transition-colors shadow-sm hover:shadow"
-            style={{ backgroundColor: "#1f5a3a" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#174530"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#1f5a3a"; }}
+            className="hidden sm:inline-flex items-center gap-1.5 no-underline transition-colors"
+            style={{
+              backgroundColor: "#ffffff",
+              color: "#14201a",
+              border: "1px solid #d8d1c2",
+              borderRadius: 6,
+              padding: "6px 10px",
+              fontSize: 12.5,
+              fontWeight: 500,
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.backgroundColor = "#f3efe7";
+              el.style.borderColor = "#a3aea7";
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.backgroundColor = "#ffffff";
+              el.style.borderColor = "#d8d1c2";
+            }}
           >
             <Plus size={14} strokeWidth={2} />
             <span className="hidden lg:inline">New Rx</span>
@@ -293,14 +317,29 @@ export default function HeaderNew() {
               setShowNotifications(!showNotifications);
               if (!showNotifications) fetchNotifications();
             }}
-            className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+            className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f5a3a]"
+            style={{ color: "#3a4a42" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#f3efe7"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
             aria-label="Notifications"
+            title={unreadCount > 0 ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}` : "Notifications"}
           >
             <Bell size={16} />
+            {/* Design app-shell shows just a 7px danger dot at top-right when unread —
+                no numeric badge. Hover-title still surfaces the count for screen readers
+                and tooltips. */}
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
+              <span
+                className="absolute"
+                style={{
+                  top: 4,
+                  right: 4,
+                  width: 7,
+                  height: 7,
+                  borderRadius: 999,
+                  backgroundColor: "#b8442e",
+                }}
+              />
             )}
           </button>
 
