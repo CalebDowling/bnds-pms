@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Avatar, DesignPage, I, Toolbar } from "@/components/design";
+import { DesignPage, I, Toolbar } from "@/components/design";
 
 // ── Mock patients (mirrors design-reference/screens/lists.jsx PatientsList) ──
 interface PatientRow {
@@ -80,7 +80,6 @@ export default function PatientsListPage() {
         <table className="tbl">
           <thead>
             <tr>
-              <th style={{ width: 36 }}></th>
               <th>Patient</th>
               <th>DOB</th>
               <th>Phone</th>
@@ -101,9 +100,6 @@ export default function PatientsListPage() {
                 className={sel === p.id ? "selected" : ""}
                 style={{ cursor: "pointer" }}
               >
-                <td>
-                  <Avatar name={p.name} size={30} />
-                </td>
                 <td>
                   <div style={{ fontWeight: 500 }}>{p.name}</div>
                   <div className="t-xs bnds-mono">{p.id}</div>
