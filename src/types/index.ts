@@ -255,6 +255,11 @@ export type SearchResult = {
 // SEARCH RESULT TYPES
 // ═══════════════════════════════════════════════
 
+// Patient search result — includes a denormalized primary phone so the
+// /prescriptions/new picker can disambiguate same-named patients without a
+// second round-trip. The shape mirrors what `searchPatients` and
+// `getPatientForRx` return; consumers that don't need phoneNumbers can
+// simply ignore the field.
 export type PatientSearchResult = Prisma.PatientGetPayload<{
   select: {
     id: true;
@@ -262,6 +267,13 @@ export type PatientSearchResult = Prisma.PatientGetPayload<{
     lastName: true;
     mrn: true;
     dateOfBirth: true;
+    phoneNumbers: {
+      select: {
+        number: true;
+        isPrimary: true;
+        phoneType: true;
+      };
+    };
   };
 }>;
 

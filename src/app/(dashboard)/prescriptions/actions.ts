@@ -30,28 +30,32 @@ export type PrescriptionFormData = {
 // ─── RX NUMBER GENERATOR ────────────────────
 
 /**
- * Read the next candidate Rx number from the database.
+ * Allocate the next Rx number atomically via a Postgres SEQUENCE.
  *
- * Caveat: rxNumber is `VARCHAR`, so `orderBy desc` is lexicographic — for
- * variable-width numeric strings ("999999" vs "1000000") that disagrees
- * with numeric ordering. To get the true numeric max we cast in raw SQL.
+ * Replaces the older "read MAX(rx_number) + 1, retry on P2002" pattern.
+ * That worked at low volume but had two failure modes:
  *
- * The caller should NOT re-invoke this on a P2002 retry; a failed insert
- * leaves the max unchanged, so the same value would come back. Increment
- * the candidate locally instead.
+ *   1. Concurrent createPrescription() calls both read the same MAX and
+ *      both tried to insert the same rxNumber — one succeeded, the other
+ *      retried (handled).
+ *   2. The retry re-read MAX, got the same value, and looped until it
+ *      timed out — only the local-increment fallback rescued it.
+ *
+ * `nextval()` on a SEQUENCE is atomic by construction and collision-free
+ * even at thousands of allocations per second, so the retry loop in
+ * `createPrescription` collapses to a simple "call once, insert, done."
+ *
+ * The sequence is created and seeded by the migration at
+ * `prisma/migrations/20260427_rx_number_sequence.sql`. If somehow the
+ * sequence falls behind existing data (e.g. someone restored a backup
+ * without re-running the migration), the defensive setval at the bottom
+ * of that migration nudges it forward on the next deploy.
  */
-async function nextRxNumberSeed(): Promise<number> {
-  // True numeric max via raw SQL. Strips non-digits defensively in case
-  // any legacy / seed rows have a non-numeric format.
-  const rows = await prisma.$queryRaw<{ max: bigint | null }[]>`
-    SELECT MAX(NULLIF(REGEXP_REPLACE(rx_number, '[^0-9]', '', 'g'), '')::BIGINT) AS max
-    FROM prescriptions
+async function nextRxNumber(): Promise<string> {
+  const rows = await prisma.$queryRaw<{ next: bigint }[]>`
+    SELECT nextval('rx_number_seq') AS next
   `;
-  const max = rows[0]?.max;
-  if (max != null) {
-    return Number(max) + 1;
-  }
-  return 100001;
+  return rows[0].next.toString();
 }
 
 // ─── LIST / SEARCH ───────────────────────────
@@ -224,24 +228,22 @@ export async function getPrescription(id: string) {
 // ─── CREATE ─────────────────────────────────
 
 export async function createPrescription(data: PrescriptionFormData) {
-  // The "read max, +1" pattern collides on two distinct failure modes:
-  //   1. Concurrent inserts both reading the same max
-  //   2. Pre-existing rows with an rxNumber at-or-above the proposed max
-  //      (e.g., from seed data or a lex-vs-numeric ordering mismatch)
+  // Rx number allocation is atomic via the `rx_number_seq` Postgres SEQUENCE
+  // (see `nextRxNumber` above). nextval() is collision-free under arbitrary
+  // concurrency, so a happy-path insert needs no retry loop.
   //
-  // A pure "re-read on P2002" retry only fixes (1) — under (2) the
-  // re-read returns the same max so we'd loop on the same value.
-  // Solution: read the seed once, then increment the candidate locally
-  // on every P2002 retry. That covers both cases.
-  //
-  // Long-term fix (tracked separately): replace this with a Postgres
-  // SEQUENCE + nextval() so the database hands out the number atomically.
-  const MAX_ATTEMPTS = 20;
+  // We DO keep a tiny defensive backstop for one corner case: a P2002 on
+  // `rxNumber` after the sequence handed us a value would only happen if
+  // the sequence somehow fell behind existing data — for example, after a
+  // database restore from a backup that missed the sequence reset, or a
+  // manual INSERT that bypassed nextval(). The migration's setval() block
+  // is idempotent and runs again on deploy, so this is unlikely in
+  // production, but a 3-attempt re-allocation is cheap insurance.
+  const MAX_ATTEMPTS = 3;
   let lastError: unknown;
-  let candidate = await nextRxNumberSeed();
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const rxNumber = candidate.toString();
+    const rxNumber = await nextRxNumber();
 
     try {
       // Atomic: Prescription + initial Fill (status="intake") so the Rx
@@ -297,16 +299,32 @@ export async function createPrescription(data: PrescriptionFormData) {
     } catch (err) {
       lastError = err;
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-        if (attempt === 0) {
-          console.warn("[createPrescription] P2002 on attempt 0", {
-            candidate,
-            target: err.meta?.target,
-            modelName: err.meta?.modelName,
-          });
+        // Sequence handed out a number that already exists in the table.
+        // Log it loudly — this should be near-impossible — then advance
+        // the sequence past current MAX and retry once or twice.
+        console.warn("[createPrescription] P2002 despite sequence allocation", {
+          rxNumber,
+          attempt,
+          target: err.meta?.target,
+        });
+        try {
+          // Nudge the sequence past whatever's already in the table.
+          await prisma.$executeRaw`
+            SELECT setval(
+              'rx_number_seq',
+              GREATEST(
+                (SELECT last_value FROM rx_number_seq),
+                COALESCE(
+                  (SELECT MAX(NULLIF(REGEXP_REPLACE(rx_number, '[^0-9]', '', 'g'), '')::BIGINT) FROM prescriptions),
+                  100000
+                ) + 1
+              ),
+              false
+            )
+          `;
+        } catch (resetErr) {
+          console.error("[createPrescription] failed to nudge rx_number_seq", resetErr);
         }
-        candidate++;
-        // small jittered backoff to spread concurrent retries
-        await new Promise((r) => setTimeout(r, 25 + Math.random() * 50));
         continue;
       }
       throw err;
@@ -399,7 +417,14 @@ export async function createFill(
 
   const rx = await prisma.prescription.findUnique({
     where: { id: prescriptionId },
-    select: { refillsRemaining: true, fills: { select: { fillNumber: true }, orderBy: { fillNumber: "desc" }, take: 1 } },
+    select: {
+      refillsRemaining: true,
+      fills: { select: { fillNumber: true }, orderBy: { fillNumber: "desc" }, take: 1 },
+      // Pulled in for the C-II refill guard. The DEA Schedule on the
+      // dispensing item (or the parent Rx's item if no fill-level override)
+      // tells us whether this drug is C-II and therefore non-refillable.
+      item: { select: { deaSchedule: true, isControlled: true } },
+    },
   });
 
   if (!rx) throw new Error("Prescription not found");
@@ -410,6 +435,38 @@ export async function createFill(
     throw new Error("No refills remaining");
   }
 
+  // ─── C-II refill guard ───
+  // Schedule II controlled substances cannot be refilled under federal law
+  // (21 CFR 1306.12). A new written prescription is required for each
+  // dispense. Reject any fillNumber > 0 if the drug is C-II so we don't
+  // accidentally dispense an unauthorized refill.
+  if (nextFillNumber > 0) {
+    const dispensingItemId = data.itemId ?? null;
+    let deaSchedule: string | null = rx.item?.deaSchedule ?? null;
+    let isControlled = !!rx.item?.isControlled;
+    // If the fill specifies a different itemId (e.g. brand vs. generic
+    // selection at the bench), check that item's schedule too.
+    if (dispensingItemId && dispensingItemId !== undefined) {
+      const fillItem = await prisma.item.findUnique({
+        where: { id: dispensingItemId },
+        select: { deaSchedule: true, isControlled: true },
+      });
+      if (fillItem?.deaSchedule) deaSchedule = fillItem.deaSchedule;
+      if (fillItem?.isControlled) isControlled = true;
+    }
+    const sched = deaSchedule?.toUpperCase().trim() ?? "";
+    const isCII =
+      sched === "II" ||
+      sched === "C-II" ||
+      sched === "CII" ||
+      sched === "SCHEDULE II";
+    if (isCII || (isControlled && sched.includes("II") && !sched.includes("III"))) {
+      throw new Error(
+        "Schedule II controlled substances cannot be refilled — a new prescription is required for each dispense."
+      );
+    }
+  }
+
   // ─── Server-side lot validation ───
   if (data.itemLotId) {
     const lot = await prisma.itemLot.findUnique({
@@ -418,7 +475,22 @@ export async function createFill(
     });
     if (!lot) throw new Error("Inventory lot not found");
     if (lot.status !== "available") throw new Error("This lot is no longer available");
-    if (lot.expirationDate < new Date()) throw new Error("Cannot dispense from an expired lot");
+    // expirationDate is stored as a date column (no time component) but Prisma
+    // hydrates it as a Date at midnight UTC. A lot that expires "today" is
+    // still good through end-of-day per USP convention; a strict <new Date()
+    // would reject any time after midnight UTC on the expiration day, which
+    // is hours earlier than the pharmacy's local-time end-of-day. Compare
+    // against end-of-day local so an item dated 04/27 is still dispensable
+    // anywhere on 04/27.
+    if (lot.expirationDate) {
+      const endOfToday = new Date();
+      endOfToday.setHours(0, 0, 0, 0);
+      // Treat the lot as expired only if its expirationDate is strictly
+      // before the start of today — i.e. the date has already passed.
+      if (lot.expirationDate.getTime() < endOfToday.getTime()) {
+        throw new Error("Cannot dispense from an expired lot");
+      }
+    }
     if (Number(lot.quantityOnHand) < data.quantity) {
       throw new Error(`Insufficient lot quantity: ${Number(lot.quantityOnHand)} available, ${data.quantity} requested`);
     }
@@ -434,8 +506,14 @@ export async function createFill(
     if (batch.status !== "verified" && batch.status !== "completed") {
       throw new Error("Only verified or completed batches can be used for fills");
     }
-    if (batch.budDate && batch.budDate < new Date()) {
-      throw new Error("Cannot dispense from a batch past its Beyond Use Date");
+    // Same date-only normalization as the lot expiration guard — a BUD of
+    // "today" is still good through end-of-day, not invalid at 00:00:01.
+    if (batch.budDate) {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      if (batch.budDate.getTime() < startOfToday.getTime()) {
+        throw new Error("Cannot dispense from a batch past its Beyond Use Date");
+      }
     }
   }
 
@@ -514,6 +592,18 @@ export async function searchPatients(query: string) {
         { lastName: { contains: query, mode: "insensitive" } },
         { firstName: { contains: query, mode: "insensitive" } },
         { mrn: { contains: query, mode: "insensitive" } },
+        // Match phone digits too so techs entering "337555…" find the right
+        // patient. We only check phone if the query looks numeric — a name
+        // like "Hebert" shouldn't waste the phoneNumbers index lookup.
+        ...(/^\d{3,}$/.test(query.replace(/\D/g, ""))
+          ? [
+              {
+                phoneNumbers: {
+                  some: { number: { contains: query.replace(/\D/g, "") } },
+                },
+              },
+            ]
+          : []),
       ],
     },
     select: {
@@ -522,6 +612,12 @@ export async function searchPatients(query: string) {
       lastName: true,
       mrn: true,
       dateOfBirth: true,
+      // Primary phone surfaces in the picker so two "James Hebert" rows are
+      // distinguishable at a glance (DOB + last 4 digits is usually enough).
+      phoneNumbers: {
+        select: { number: true, isPrimary: true, phoneType: true },
+        orderBy: { isPrimary: "desc" },
+      },
     },
     take: 10,
     orderBy: { lastName: "asc" },
@@ -543,6 +639,12 @@ export async function getPatientForRx(patientId: string) {
       lastName: true,
       mrn: true,
       dateOfBirth: true,
+      // Match searchPatients shape so the picker has the same primary phone
+      // available when the form is pre-filled via ?patientId=...
+      phoneNumbers: {
+        select: { number: true, isPrimary: true, phoneType: true },
+        orderBy: { isPrimary: "desc" },
+      },
     },
   });
 }

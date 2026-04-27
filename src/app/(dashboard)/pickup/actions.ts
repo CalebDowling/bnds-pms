@@ -283,43 +283,56 @@ export async function getPickupHistory(
 
   const offset = (page - 1) * PAGE_SIZE;
 
-  // Build where clause
+  // The canonical pickup-completion flow at /queue/process/[fillId] writes
+  // metadata.pickupChecklist and sets status="sold". The legacy /pickup/[fillId]
+  // route used metadata.pickupRecord with status="dispensed" — that route is
+  // now redirected to the canonical one, but historical rows still exist.
+  // Match either shape so reports across the cutover remain consistent.
   let where: any = {
-    status: "dispensed",
-    metadata: {
-      path: ["pickupRecord"],
-      not: null,
-    },
+    OR: [
+      {
+        status: "sold",
+        metadata: { path: ["pickupChecklist"], not: null },
+      },
+      {
+        status: "dispensed",
+        metadata: { path: ["pickupRecord"], not: null },
+      },
+    ],
   };
 
   if (search) {
     where = {
-      ...where,
-      OR: [
+      AND: [
+        where,
         {
-          prescription: {
-            rxNumber: {
-              ilike: `%${search}%`,
-            },
-          },
-        },
-        {
-          prescription: {
-            patient: {
-              firstName: {
-                ilike: `%${search}%`,
+          OR: [
+            {
+              prescription: {
+                rxNumber: {
+                  ilike: `%${search}%`,
+                },
               },
             },
-          },
-        },
-        {
-          prescription: {
-            patient: {
-              lastName: {
-                ilike: `%${search}%`,
+            {
+              prescription: {
+                patient: {
+                  firstName: {
+                    ilike: `%${search}%`,
+                  },
+                },
               },
             },
-          },
+            {
+              prescription: {
+                patient: {
+                  lastName: {
+                    ilike: `%${search}%`,
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     };

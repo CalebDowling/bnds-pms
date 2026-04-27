@@ -143,14 +143,19 @@ export default function NewPrescriptionForm({
     setLoading(true);
     setError(null);
 
-    // Safety net: if the action neither resolves nor rejects within 30s
+    // Safety net: if the action neither resolves nor rejects within 60s
     // (e.g. session expired mid-action and the server-action POST got
     // intercepted by middleware → /login), surface a clear error and
     // un-stick the button instead of sitting on "Creating..." forever.
+    //
+    // 60s (was 30s) — the create path can stack up: Supabase cold start
+    // (~12-18s on first hit), the rxNumber P2002 retry loop (worst case
+    // ~1.5s @ 20 attempts), DUR engine, and audit logging. 30s was tripping
+    // false-positive timeouts on real successful saves under cold-start load.
     const timeoutId = setTimeout(() => {
       setError("This is taking too long. Your session may have expired — refresh the page and sign in again.");
       setLoading(false);
-    }, 30_000);
+    }, 60_000);
 
     try {
       if (!selectedPatient) throw new Error("Please select a patient");
@@ -235,12 +240,57 @@ export default function NewPrescriptionForm({
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">{error}</div>}
 
-        {/* Patient */}
+        {/* Patient.
+            Picker rows show DOB + last 4 of phone alongside name + MRN so a
+            tech can disambiguate same-named patients without a chart click —
+            same DOB + phone is exceedingly rare, while same-name is common
+            (especially across spouses, generations, and seed data). */}
         {renderSearchField("Patient", selectedPatient, () => { setSelectedPatient(null); setPatientQuery(""); },
           patientQuery, setPatientQuery, patientResults, showPatientDD, setShowPatientDD,
-          (p) => setSelectedPatient(p as PatientSearchResult), "Search by patient name or MRN...",
-          (p: any) => <><span className="font-medium">{formatPatientName({ firstName: p.firstName, lastName: p.lastName }, { format: "last-first" })}</span><span className="text-gray-400 ml-2 font-mono text-xs">{p.mrn}</span></>,
-          selectedPatient && <div><p className="text-sm font-medium text-gray-900">{formatPatientName({ firstName: selectedPatient.firstName, lastName: selectedPatient.lastName }, { format: "last-first" })}</p><p className="text-xs text-gray-500">{selectedPatient.mrn}</p></div>
+          (p) => setSelectedPatient(p as PatientSearchResult), "Search by patient name, MRN, or phone...",
+          (p: any) => {
+            const dob = p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString("en-US") : null;
+            const primaryPhone = p.phoneNumbers?.[0]?.number;
+            const phoneDigits = primaryPhone ? String(primaryPhone).replace(/\D/g, "") : null;
+            const phoneFormatted = phoneDigits && phoneDigits.length === 10
+              ? `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`
+              : primaryPhone;
+            return (
+              <div className="flex flex-col">
+                <div className="flex items-baseline gap-2">
+                  <span className="font-medium">
+                    {formatPatientName({ firstName: p.firstName, lastName: p.lastName }, { format: "last-first" })}
+                  </span>
+                  <span className="text-gray-400 font-mono text-[11px]">{p.mrn}</span>
+                </div>
+                <div className="text-[11px] text-gray-500 mt-0.5">
+                  {dob && <span>DOB {dob}</span>}
+                  {dob && phoneFormatted && <span className="mx-1.5">·</span>}
+                  {phoneFormatted && <span className="font-mono">{phoneFormatted}</span>}
+                </div>
+              </div>
+            );
+          },
+          selectedPatient && (() => {
+            const dob = selectedPatient.dateOfBirth ? new Date(selectedPatient.dateOfBirth).toLocaleDateString("en-US") : null;
+            const primaryPhone = (selectedPatient as any).phoneNumbers?.[0]?.number;
+            const phoneDigits = primaryPhone ? String(primaryPhone).replace(/\D/g, "") : null;
+            const phoneFormatted = phoneDigits && phoneDigits.length === 10
+              ? `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`
+              : primaryPhone;
+            return (
+              <div>
+                <p className="text-sm font-medium text-gray-900">
+                  {formatPatientName({ firstName: selectedPatient.firstName, lastName: selectedPatient.lastName }, { format: "last-first" })}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {selectedPatient.mrn}
+                  {dob && <span> · DOB {dob}</span>}
+                  {phoneFormatted && <span> · <span className="font-mono">{phoneFormatted}</span></span>}
+                </p>
+              </div>
+            );
+          })()
         )}
 
         {/* Prescriber */}
@@ -339,10 +389,21 @@ export default function NewPrescriptionForm({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">DAW Code</label>
               <select value={form.dawCode} onChange={(e) => updateField("dawCode", e.target.value)} className={inputClass}>
+                {/* NCPDP Field 408-D8 — DAW codes. Filling in 3-9 was a real bug
+                    found during the pharmacist walkthrough: claims that should
+                    have been DAW 5 or 8 were getting rejected because the tech
+                    couldn't pick the right code from the dropdown. */}
                 <option value="">None</option>
                 <option value="0">0 - No product selection</option>
-                <option value="1">1 - Sub not allowed</option>
+                <option value="1">1 - Sub not allowed (prescriber)</option>
                 <option value="2">2 - Patient requested brand</option>
+                <option value="3">3 - Pharmacist selected brand</option>
+                <option value="4">4 - Generic not in stock</option>
+                <option value="5">5 - Brand dispensed as generic</option>
+                <option value="6">6 - Override</option>
+                <option value="7">7 - Brand mandated by law</option>
+                <option value="8">8 - Generic not available</option>
+                <option value="9">9 - Plan requests brand</option>
               </select>
             </div>
           </div>

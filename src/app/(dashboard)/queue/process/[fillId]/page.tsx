@@ -174,9 +174,12 @@ export default function FillProcessPage() {
   // before the patient arrives.
   const [pickup, setPickup] = useState({
     counselOffered: false,
-    // Patients accept counseling more often than they decline, so default to
-    // accepted. The cashier unchecks only when the patient declines.
-    counselAccepted: true,
+    // Default to FALSE (was true) — pharmacist review caught the liability
+    // issue: if the cashier never opens the pickup panel and uses the
+    // override path, the audit log would say "patient accepted counseling"
+    // without anyone confirming. Default false forces the cashier to make
+    // an explicit attestation.
+    counselAccepted: false,
     signatureCaptured: false,
     paymentReceived: false,
     // R6-#20: Government-issued ID check. Required for controlled substances

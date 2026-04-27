@@ -1,162 +1,71 @@
-"use client";
+/**
+ * /prescriptions — All prescriptions (real data).
+ *
+ * Replaces the redesigned mock-data list with a server-rendered page that
+ * pulls every Rx via getPrescriptions() and routes each row to
+ * /prescriptions/[id]. Server-side pagination is supported via searchParams
+ * (?page=2). The active queue (intake → waiting_bin) lives at /queue;
+ * this page is the master record for filled / dispensed / expired Rxs.
+ */
+import { getPrescriptions, getPrescriptionCounts } from "./actions";
+import PrescriptionsClient, { type PrescriptionRow } from "./PrescriptionsClient";
 
-import * as React from "react";
-import { DesignPage, I, StatusPill, Toolbar } from "@/components/design";
+export const dynamic = "force-dynamic";
 
-// ── Mock prescriptions (mirrors design-reference/screens/lists.jsx PrescriptionsList) ──
-type RxStatus = "active" | "completed" | "transferred" | "expired";
-
-interface RxRow {
-  id: string;
-  drug: string;
-  qty: number;
-  days: number;
-  refills: string;
-  patient: string;
-  prescriber: string;
-  filled: string;
-  status: RxStatus;
+interface PageProps {
+  searchParams?: Promise<{ tab?: string; page?: string; search?: string }>;
 }
 
-const RXS: RxRow[] = [
-  { id: "RX-77412", drug: "Atorvastatin 20mg", qty: 30, days: 30, refills: "3 of 5", patient: "James Hebert", prescriber: "Dr. Landry", filled: "04/26/26", status: "active" },
-  { id: "RX-77389", drug: "Lisinopril 10mg", qty: 90, days: 90, refills: "4 of 5", patient: "Marie Comeaux", prescriber: "Dr. Landry", filled: "04/22/26", status: "active" },
-  { id: "RX-77356", drug: "Metformin HCl 500mg", qty: 60, days: 30, refills: "2 of 11", patient: "Pierre Boudreaux", prescriber: "Dr. Hebert", filled: "04/19/26", status: "active" },
-  { id: "RX-77301", drug: "Amoxicillin 500mg", qty: 21, days: 7, refills: "None", patient: "Camille Fontenot", prescriber: "Dr. Landry", filled: "04/14/26", status: "completed" },
-  { id: "RX-77287", drug: "Oxycodone 5mg · C-II", qty: 30, days: 15, refills: "None", patient: "Beau Thibodeaux", prescriber: "Dr. Mouton", filled: "04/12/26", status: "active" },
-  { id: "RX-77244", drug: "Levothyroxine 50mcg", qty: 90, days: 90, refills: "5 of 5", patient: "Annette LeBlanc", prescriber: "Dr. Hebert", filled: "04/08/26", status: "active" },
-  { id: "RX-77198", drug: "Ozempic 0.5mg pen", qty: 1, days: 28, refills: "0 of 3", patient: "Yvette Robichaux", prescriber: "Dr. Landry", filled: "04/04/26", status: "transferred" },
-  { id: "RX-77150", drug: "Sertraline 50mg", qty: 30, days: 30, refills: "1 of 5", patient: "Marcus Guidry", prescriber: "Dr. Mouton", filled: "03/30/26", status: "active" },
-  { id: "RX-77103", drug: "Albuterol HFA inhaler", qty: 1, days: 30, refills: "2 of 5", patient: "Theo Doucet", prescriber: "Dr. Hebert", filled: "03/24/26", status: "expired" },
-];
+export default async function PrescriptionsListPage({ searchParams }: PageProps) {
+  const sp = (await searchParams) ?? {};
+  const tab = (sp.tab as any) || "active";
+  const page = Number(sp.page ?? 1);
+  const search = sp.search ?? "";
 
-const STATUS_TONE: Record<RxStatus, "ok" | "mute" | "info" | "warn"> = {
-  active: "ok",
-  completed: "mute",
-  transferred: "info",
-  expired: "warn",
-};
-const STATUS_LABEL: Record<RxStatus, string> = {
-  active: "Active",
-  completed: "Completed",
-  transferred: "Transferred",
-  expired: "Expired",
-};
+  const [{ prescriptions, total, pages }, counts] = await Promise.all([
+    getPrescriptions({ filter: tab, page, search, limit: 25 }),
+    getPrescriptionCounts(),
+  ]);
 
-const TABS = [
-  { id: "active", label: "Active", count: 1024 },
-  { id: "completed", label: "Completed", count: 412 },
-  { id: "transferred", label: "Transferred" },
-  { id: "expired", label: "Expired", count: 88 },
-  { id: "all", label: "All" },
-];
+  // Map the Prisma result into a flat shape so the client component doesn't
+  // need to know about the relational structure.
+  const rows: PrescriptionRow[] = (prescriptions as any[]).map((p) => {
+    const filled = p.fills?.find?.((f: any) => f.status === "sold")?.fillNumber ?? 0;
+    const drugName =
+      p.item?.name ?? p.formula?.name ?? "Unknown drug";
+    const strength = p.item?.strength ?? "";
+    const fullDrug = strength ? `${drugName} ${strength}` : drugName;
 
-export default function PrescriptionsListPage() {
-  const [tab, setTab] = React.useState("active");
-  const [search, setSearch] = React.useState("");
-  const [sel, setSel] = React.useState<string | null>(null);
+    return {
+      id: p.id as string,
+      rxNumber: p.rxNumber as string,
+      drug: fullDrug,
+      patient: p.patient
+        ? `${p.patient.firstName ?? ""} ${p.patient.lastName ?? ""}`.trim()
+        : "Unknown",
+      patientId: p.patient?.id ?? null,
+      prescriber: p.prescriber
+        ? `Dr. ${p.prescriber.lastName}${p.prescriber.suffix ? `, ${p.prescriber.suffix}` : ""}`
+        : "—",
+      quantity: Number(p.quantityPrescribed ?? 0),
+      daysSupply: p.daysSupply ?? null,
+      refillsAuthorized: p.refillsAuthorized ?? 0,
+      refillsRemaining: p.refillsRemaining ?? 0,
+      filled,
+      lastFilled: p.dateFilled ? new Date(p.dateFilled).toISOString().slice(0, 10) : null,
+      status: p.status as string,
+    };
+  });
 
   return (
-    <DesignPage
-      sublabel="Pharmacy"
-      title="Prescriptions"
-      subtitle="All filled prescriptions · for the active fill queue, see the Workflow Queue"
-      actions={
-        <>
-          <button className="btn btn-secondary btn-sm">
-            <I.Download className="ic-sm" /> Export
-          </button>
-          <button className="btn btn-secondary btn-sm">Open Workflow Queue →</button>
-          <button className="btn btn-primary btn-sm">
-            <I.Plus /> New Rx
-          </button>
-        </>
-      }
-    >
-      <Toolbar
-        tabs={TABS}
-        active={tab}
-        onChange={setTab}
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search Rx#, drug, patient, prescriber…"
-        filters={[
-          { label: "Drug class", value: "Any" },
-          { label: "Prescriber", value: "Any" },
-          { label: "Date", value: "Last 30 days" },
-        ]}
-      />
-
-      <div className="card" style={{ overflow: "hidden" }}>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Rx #</th>
-              <th>Drug</th>
-              <th>Patient</th>
-              <th>Prescriber</th>
-              <th className="t-num" style={{ textAlign: "right" }}>
-                Qty
-              </th>
-              <th className="t-num" style={{ textAlign: "right" }}>
-                Days
-              </th>
-              <th>Refills</th>
-              <th>Filled</th>
-              <th>Status</th>
-              <th style={{ width: 36 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {RXS.map((r) => (
-              <tr
-                key={r.id}
-                onClick={() => setSel(r.id)}
-                className={sel === r.id ? "selected" : ""}
-                style={{ cursor: "pointer" }}
-              >
-                <td className="bnds-mono" style={{ fontSize: 12, fontWeight: 500, color: "var(--bnds-forest)" }}>
-                  {r.id}
-                </td>
-                <td style={{ fontWeight: 500 }}>{r.drug}</td>
-                <td>{r.patient}</td>
-                <td className="t-xs">{r.prescriber}</td>
-                <td className="t-num" style={{ textAlign: "right" }}>
-                  {r.qty}
-                </td>
-                <td className="t-num" style={{ textAlign: "right" }}>
-                  {r.days}
-                </td>
-                <td className="t-xs">{r.refills}</td>
-                <td className="t-xs">{r.filled}</td>
-                <td>
-                  <StatusPill tone={STATUS_TONE[r.status]} label={STATUS_LABEL[r.status]} />
-                </td>
-                <td>
-                  <I.ChevR style={{ color: "var(--ink-4)" }} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div
-          style={{
-            padding: "10px 14px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            borderTop: "1px solid var(--line)",
-            fontSize: 12,
-            color: "var(--ink-3)",
-          }}
-        >
-          <div>Showing {RXS.length} of 1,524</div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button className="btn btn-ghost btn-sm">Prev</button>
-            <button className="btn btn-secondary btn-sm">Next</button>
-          </div>
-        </div>
-      </div>
-    </DesignPage>
+    <PrescriptionsClient
+      rows={rows}
+      counts={counts}
+      activeTab={tab}
+      currentPage={page}
+      totalPages={pages}
+      total={total}
+      search={search}
+    />
   );
 }

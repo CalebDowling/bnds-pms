@@ -885,6 +885,86 @@ export async function overrideDurAlertOnFill(
 
 // ─── Verify Barcode Scan ──────────────────────────────────────────
 
+/**
+ * Expand a 10-digit NDC into the three possible 11-digit "billing" forms.
+ *
+ * The 10-digit NDC printed on FDA-registered drug labeling can come in three
+ * segment layouts (per FDA NDC directory conventions):
+ *
+ *   4-4-2  →  pad zero in segment 1: 0XXXX-XXXX-XX
+ *   5-3-2  →  pad zero in segment 2: XXXXX-0XXX-XX
+ *   5-4-1  →  pad zero in segment 3: XXXXX-XXXX-0X
+ *
+ * Once digits are stripped of hyphens, the three formats are
+ * indistinguishable, so we emit all three candidate 11-digit forms and let
+ * the comparison match any of them. The 11-digit "5-4-2" format is the
+ * canonical billing NDC stored in our DB and submitted on NCPDP claims.
+ */
+function expand10DigitNdc(core: string, into: Set<string>): void {
+  if (core.length !== 10) return;
+  into.add("0" + core); // 4-4-2  → 5-4-2
+  into.add(core.slice(0, 5) + "0" + core.slice(5)); // 5-3-2 → 5-4-2
+  into.add(core.slice(0, 9) + "0" + core.slice(9)); // 5-4-1 → 5-4-2
+}
+
+/**
+ * Returns every reasonable 11-digit canonical NDC that the given raw barcode
+ * input could represent. Two NDCs match if their candidate sets intersect.
+ *
+ * Handles the three barcode formats we see at the bench:
+ *   - 10-digit NDC (often hyphenated, sometimes plain digits)
+ *   - 11-digit NDC (canonical billing form, already stored in the item table)
+ *   - 12-digit UPC-A (retail OTC bottles: 1 system digit + 10-digit NDC + check)
+ *   - 14-digit GTIN (GS1-DataBar / GS1-128 from unit-of-use packaging)
+ *
+ * Anything that doesn't match a known length falls through to "compare the
+ * raw digits as-is" so the caller still gets a deterministic answer instead
+ * of a silent false-negative.
+ */
+function ndcCandidates(raw: string): Set<string> {
+  const digits = raw.replace(/[^0-9]/g, "");
+  const out = new Set<string>();
+  if (!digits) return out;
+
+  switch (digits.length) {
+    case 11:
+      // Canonical billing NDC — accept directly. Also expand the trailing
+      // 10 digits because some legacy systems store an NDC with a stray
+      // leading zero that doesn't correspond to any of the 3 segment
+      // layouts; the expansion catches "01234567890" vs "12345067890".
+      out.add(digits);
+      expand10DigitNdc(digits.slice(1), out);
+      break;
+    case 10:
+      expand10DigitNdc(digits, out);
+      break;
+    case 12:
+      // UPC-A: 1 system digit (typically "3" for US prescription drugs,
+      // "0" for many OTC) + 10-digit NDC + 1 check digit.
+      expand10DigitNdc(digits.slice(1, 11), out);
+      break;
+    case 13:
+      // EAN-13 wrapping a UPC-A: leading "0" + 12-digit UPC-A.
+      expand10DigitNdc(digits.slice(2, 12), out);
+      break;
+    case 14:
+      // GTIN-14: 1 packaging-indicator + 13-digit EAN body. For US drugs
+      // this is typically "0" + "0" + UPC-A. Strip the indicator and the
+      // EAN leading zero, then the UPC system digit is at slice(3) and
+      // the 10-digit NDC is at slice(3, 13).
+      expand10DigitNdc(digits.slice(3, 13), out);
+      break;
+    default:
+      // Unknown wrapper — best-effort: try the digits literally and try
+      // expanding from any trailing 10 digits in case it's UPC-A nested
+      // inside an unrecognized GS1 envelope.
+      out.add(digits);
+      if (digits.length > 10) expand10DigitNdc(digits.slice(-11, -1), out);
+  }
+
+  return out;
+}
+
 export async function verifyScan(
   fillId: string,
   scannedNdc: string
@@ -901,19 +981,32 @@ export async function verifyScan(
     return { match: false, expected: null, scanned: scannedNdc, message: "Fill not found" };
   }
 
-  // Expected NDC from the fill's item or the prescription's item
+  // Expected NDC from the fill's item or the prescription's item.
   const expectedNdc = fill.ndc || fill.item?.ndc || fill.prescription?.item?.ndc || null;
 
   if (!expectedNdc) {
-    return { match: false, expected: null, scanned: scannedNdc, message: "No NDC on file for this fill — manual verification required" };
+    return {
+      match: false,
+      expected: null,
+      scanned: scannedNdc,
+      message: "No NDC on file for this fill — manual verification required",
+    };
   }
 
-  // Normalize NDCs: strip dashes and leading zeros for comparison
-  const normalize = (ndc: string) => ndc.replace(/[-\s]/g, "").replace(/^0+/, "");
-  const normalizedExpected = normalize(expectedNdc);
-  const normalizedScanned = normalize(scannedNdc);
+  // Compare candidate-set intersection so a UPC-A scan ("3001234567891")
+  // still matches the 11-digit NDC stored in the DB ("00123456789"), and
+  // a 10-digit hyphenated NDC ("1234-5678-90") matches the same row
+  // regardless of which 3-segment layout the original used.
+  const expectedSet = ndcCandidates(expectedNdc);
+  const scannedSet = ndcCandidates(scannedNdc);
 
-  const match = normalizedExpected === normalizedScanned;
+  let match = false;
+  for (const candidate of scannedSet) {
+    if (expectedSet.has(candidate)) {
+      match = true;
+      break;
+    }
+  }
 
   return {
     match,
