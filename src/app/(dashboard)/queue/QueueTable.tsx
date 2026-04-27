@@ -31,15 +31,15 @@ const COL_COUNT = COLUMNS.length + 1; // +1 for checkbox column
 // Scan/Edit/Verify/Assign buttons that fired `alert()` have been removed
 // pending real bulk server actions in a future round.
 const BULK_ACTIONS = [
-  { key: "print", label: "Print", icon: Printer, bg: "#40721D", hover: "#2D5114" },
-  { key: "notify", label: "Notify", icon: MessageSquare, bg: "#8b5cf6", hover: "#7c3aed" },
+  { key: "print", label: "Print", icon: Printer, bg: "#1f5a3a", hover: "#174530" },
+  { key: "notify", label: "Notify", icon: MessageSquare, bg: "#5aa845", hover: "#4a8e38" },
 ] as const;
 
 
 // ─── Sort arrow icon ────────────────────────────
 function SortIcon({ dir }: { dir: SortDir }) {
   if (!dir) return <span className="text-gray-300 ml-1">&#8597;</span>;
-  return <span className="text-[#40721D] ml-1">{dir === "asc" ? "▲" : "▼"}</span>;
+  return <span className="text-[#1f5a3a] ml-1">{dir === "asc" ? "▲" : "▼"}</span>;
 }
 
 // ─── Filter dropdown ────────────────────────────
@@ -78,7 +78,7 @@ function FilterDropdown({
         onClick={(e) => { e.stopPropagation(); onToggle(); }}
         className={`ml-1 inline-flex items-center justify-center w-4 h-4 rounded text-[10px] leading-none ${
           hasFilter
-            ? "bg-[#40721D] text-white"
+            ? "bg-[#1f5a3a] text-white"
             : "text-gray-400 hover:text-gray-600"
         }`}
         title="Filter"
@@ -90,7 +90,7 @@ function FilterDropdown({
           {hasFilter && (
             <button
               onClick={(e) => { e.stopPropagation(); onClear(); }}
-              className="w-full text-left px-3 py-1.5 text-xs text-[#40721D] font-medium hover:bg-gray-50 border-b border-gray-100"
+              className="w-full text-left px-3 py-1.5 text-xs text-[#1f5a3a] font-medium hover:bg-gray-50 border-b border-gray-100"
             >
               Clear filter
             </button>
@@ -106,7 +106,7 @@ function FilterDropdown({
                   type="checkbox"
                   checked={selected.has(v)}
                   onChange={() => onSelect(v)}
-                  className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-3.5 h-3.5"
+                  className="rounded border-gray-300 text-[#1f5a3a] focus:ring-[#1f5a3a] w-3.5 h-3.5"
                 />
                 <span className="truncate">{v || "(empty)"}</span>
               </label>
@@ -320,13 +320,13 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
     <div className="relative">
       {/* Active filter bar */}
       {hasActiveFilters && (
-        <div className="px-4 py-2 bg-[#40721D]/5 border-b border-gray-200 flex items-center justify-between">
-          <span className="text-xs text-[#40721D] font-medium">
+        <div className="px-4 py-2 bg-[#1f5a3a]/5 border-b border-gray-200 flex items-center justify-between">
+          <span className="text-xs text-[#1f5a3a] font-medium">
             Showing {processed.length} of {fills.length} fills
           </span>
           <button
             onClick={clearAllFilters}
-            className="text-xs text-[#40721D] hover:text-[#2d5114] font-medium underline"
+            className="text-xs text-[#1f5a3a] hover:text-[#174530] font-medium underline"
           >
             Clear all filters
           </button>
@@ -343,7 +343,7 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleSelectAll}
-                  className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-4 h-4 cursor-pointer"
+                  className="rounded border-gray-300 text-[#1f5a3a] focus:ring-[#1f5a3a] w-4 h-4 cursor-pointer"
                   title={allSelected ? "Deselect all" : "Select all"}
                 />
               </th>
@@ -389,10 +389,10 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                       onClick={() => router.push(`/queue/process/${fill.fillId}`)}
                       className={`border-b border-gray-200 transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-[#40721D]/[0.12] hover:bg-[#40721D]/[0.18]"
+                          ? "bg-[#1f5a3a]/[0.12] hover:bg-[#1f5a3a]/[0.18]"
                           : rowIdx % 2 === 0
-                          ? "bg-white hover:bg-[#40721D]/[0.08] hover:shadow-[inset_3px_0_0_#40721D]"
-                          : "bg-gray-50/60 hover:bg-[#40721D]/[0.08] hover:shadow-[inset_3px_0_0_#40721D]"
+                          ? "bg-white hover:bg-[#1f5a3a]/[0.08] hover:shadow-[inset_3px_0_0_#1f5a3a]"
+                          : "bg-gray-50/60 hover:bg-[#1f5a3a]/[0.08] hover:shadow-[inset_3px_0_0_#1f5a3a]"
                       }`}
                     >
                       {/* Row checkbox */}
@@ -401,14 +401,14 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(fill.fillId)}
-                          className="rounded border-gray-300 text-[#40721D] focus:ring-[#40721D] w-4 h-4 cursor-pointer"
+                          className="rounded border-gray-300 text-[#1f5a3a] focus:ring-[#1f5a3a] w-4 h-4 cursor-pointer"
                         />
                       </td>
                       {/* RX — monospace, bold, green accent, clickable */}
                       <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                         <Link
                           href={`/queue/process/${fill.fillId}`}
-                          className="text-sm font-mono font-bold text-[#40721D] hover:underline"
+                          className="text-sm font-mono font-bold text-[#1f5a3a] hover:underline"
                         >
                           {fill.rxId}
                         </Link>
@@ -439,23 +439,55 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                       <td className="px-3 py-2.5 border-l border-gray-200">
                         <div className="flex flex-wrap gap-1">
                           {fill.tags.length > 0 ? fill.tags.map((tag, i) => (
-                            <span key={i} className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                            <span
+                              key={i}
+                              className="inline-flex items-center"
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: "1px 6px",
+                                borderRadius: 4,
+                                letterSpacing: "0.04em",
+                                backgroundColor: "rgba(201,138,20,0.14)",
+                                color: "#8a5a17",
+                              }}
+                            >
                               {tag}
                             </span>
-                          )) : <span className="text-gray-300 text-xs">—</span>}
+                          )) : <span style={{ color: "#a3aea7", fontSize: 12 }}>—</span>}
                         </div>
                       </td>
                       {/* Method — green pill */}
                       <td className="px-3 py-2.5 border-l border-gray-100">
                         {fill.method ? (
-                          <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full bg-green-50 text-green-700 border border-green-200">
+                          <span
+                            className="inline-flex items-center"
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                              backgroundColor: "rgba(31,90,58,0.10)",
+                              color: "#1f5a3a",
+                            }}
+                          >
                             {fill.method}
                           </span>
-                        ) : <span className="text-gray-300 text-xs">—</span>}
+                        ) : <span style={{ color: "#a3aea7", fontSize: 12 }}>—</span>}
                       </td>
-                      {/* Status — colored pill */}
+                      {/* Status — heritage pill (info / lake palette) */}
                       <td className="px-3 py-2.5 border-l border-gray-200">
-                        <span className="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        <span
+                          className="inline-flex items-center"
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            backgroundColor: "rgba(43,108,155,0.12)",
+                            color: "#2c5e7a",
+                          }}
+                        >
                           {fill.status}
                         </span>
                       </td>
@@ -490,7 +522,7 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
           {someSelected && (
             <span className="ml-auto text-xs text-gray-500">
               {selectedRows.size} selected
-              <button onClick={deselectAll} className="ml-2 text-[#40721D] hover:underline">clear</button>
+              <button onClick={deselectAll} className="ml-2 text-[#1f5a3a] hover:underline">clear</button>
             </span>
           )}
         </div>
