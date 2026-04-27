@@ -1151,6 +1151,21 @@ export async function submitAdjudicationForFill(
 
   if (!fill) return { success: false, error: "Fill not found" };
 
+  // Validate the chosen insurance id is a real UUID before letting it fall
+  // through to Prisma. The page's <option value> uses the row's id which is
+  // always a UUID, but a malformed manual call (or a race where the dropdown
+  // hasn't hydrated) used to surface as a raw schema-shaped Prisma exception
+  // on the page — leaking the PatientInsuranceWhereUniqueInput shape. Catch
+  // that here with a friendly message instead.
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (options?.insuranceId !== undefined && !UUID_REGEX.test(options.insuranceId)) {
+    return {
+      success: false,
+      error:
+        "Insurance plan id is malformed. Reload the page and pick a plan from the dropdown.",
+    };
+  }
+
   const insurance =
     options?.insuranceId
       ? fill.prescription.patient.insurance.find(
@@ -1163,6 +1178,18 @@ export async function submitAdjudicationForFill(
       success: false,
       error:
         "No active insurance on file. Add an insurance card before submitting a claim, or send to Prepay.",
+    };
+  }
+
+  // Belt-and-braces: confirm the resolved row also has a UUID-shaped id
+  // before we hand it to Prisma. Should never trip — `i.id` comes off a
+  // findUnique row — but this is the last line of defense before the raw
+  // Prisma exception block we used to leak.
+  if (!insurance.id || !UUID_REGEX.test(insurance.id)) {
+    return {
+      success: false,
+      error:
+        "Selected insurance row is missing a valid id. Refresh the page and try again.",
     };
   }
 
@@ -1190,7 +1217,21 @@ export async function submitAdjudicationForFill(
       copayAmount: response.copayAmount,
     };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Adjudication failed";
-    return { success: false, error: msg };
+    // Sanitize Prisma error envelopes before they reach the page. Raw
+    // PrismaClientValidationError messages include the full schema shape
+    // (PatientInsuranceWhereUniqueInput { id, …, NOT, AND, OR }) — minor
+    // info-disclosure plus an awful UX. Strip the schema dump and log the
+    // raw error server-side for debugging.
+    const raw = e instanceof Error ? e.message : "Adjudication failed";
+    console.error("[submitAdjudicationForFill] adjudication error:", e);
+    const isPrismaShape =
+      raw.includes("Invalid `prisma.") ||
+      raw.includes("PrismaClient") ||
+      raw.includes("WhereUniqueInput") ||
+      raw.includes("Argument `where`");
+    const sanitized = isPrismaShape
+      ? "Adjudication failed due to an internal data error. Please reload the page; if the problem persists, contact support."
+      : raw;
+    return { success: false, error: sanitized };
   }
 }

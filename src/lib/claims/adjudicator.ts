@@ -87,12 +87,30 @@ const NCPDP_REJECTION_CODES: Record<string, string> = {
 // MAIN ADJUDICATION FUNCTIONS
 // ═══════════════════════════════════════════════
 
+// UUID shape check — kept local to the adjudicator so this file has no
+// new util-import surface. Mirrors the regex used by /api/v1/* routes.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * Build an NCPDP D.0 format claim object from fill and insurance data
+ * Build an NCPDP D.0 format claim object from fill and insurance data.
+ *
+ * `insuranceId` is required — the caller (submitClaim) decides which of the
+ * patient's active insurances to bill. We deliberately do NOT fall back to
+ * `prescription.insuranceId` here: that column is frequently null on legacy
+ * intake rows, and silently swallowing a missing id used to surface as a raw
+ * Prisma `findUnique({ where: { id: undefined } })` exception leaking the
+ * full PatientInsuranceWhereUniqueInput schema to the page.
  */
 export async function buildNCPDPClaim(
-  fillId: string
+  fillId: string,
+  insuranceId: string
 ): Promise<{ claim: NCPDPClaim; fill: any; insurance: any; plan: any; prescription: any; patient: any }> {
+  if (!insuranceId || !UUID_REGEX.test(insuranceId)) {
+    throw new Error(
+      "Insurance plan was not selected. Pick a plan from the dropdown and try again."
+    );
+  }
+
   const fill = await prisma.prescriptionFill.findUnique({
     where: { id: fillId },
     include: {
@@ -111,13 +129,19 @@ export async function buildNCPDPClaim(
   if (!fill.prescription) throw new Error("Prescription not found for fill");
 
   const insurance = await prisma.patientInsurance.findUnique({
-    where: { id: fill.prescription.insuranceId || undefined },
+    where: { id: insuranceId },
   });
 
   if (!insurance) throw new Error("Insurance not found");
 
+  if (!insurance.thirdPartyPlanId || !UUID_REGEX.test(insurance.thirdPartyPlanId)) {
+    throw new Error(
+      "Selected insurance has no third-party plan attached. Edit the patient's insurance card and select a plan."
+    );
+  }
+
   const plan = await prisma.thirdPartyPlan.findUnique({
-    where: { id: insurance.thirdPartyPlanId || undefined },
+    where: { id: insurance.thirdPartyPlanId },
   });
 
   if (!plan) throw new Error("Insurance plan not found");
@@ -165,8 +189,11 @@ export async function submitClaim(submission: ClaimSubmission, userId?: string):
   try {
     const { fillId, insuranceId } = submission;
 
-    // Build NCPDP claim
-    const { claim, fill, insurance, plan, prescription, patient } = await buildNCPDPClaim(fillId);
+    // Build NCPDP claim — pass the chosen insurance id through so the body
+    // is built against the same plan the caller is recording on the Claim
+    // row (was previously re-reading prescription.insuranceId, which led to
+    // a raw Prisma exception when that column was null on the Rx).
+    const { claim, fill, insurance, plan, prescription, patient } = await buildNCPDPClaim(fillId, insuranceId);
 
     // Submit to switch vendor or use mock
     let response: ClaimResponse;
