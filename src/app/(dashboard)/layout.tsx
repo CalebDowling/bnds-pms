@@ -6,6 +6,7 @@ import RealtimeProvider from "@/components/providers/RealtimeProvider";
 import { PermissionsProvider } from "@/components/providers/PermissionsProvider";
 import { KeyboardShortcutsProvider } from "@/components/providers/KeyboardShortcutsProvider";
 import SessionTimeoutProvider from "@/components/providers/SessionTimeoutProvider";
+import DeploymentSkewGuard from "@/components/providers/DeploymentSkewGuard";
 import ToastContainer from "@/components/ui/ToastContainer";
 import ToastProvider from "@/components/providers/ToastProvider";
 // import ShadowModeBanner from "@/components/dashboard/ShadowModeBanner"; // Hidden while DRX sync is off (2026-04-17)
@@ -58,6 +59,7 @@ export default async function DashboardLayout({
     <PermissionsProvider permissions={userPermissions}>
       <ToastProvider>
         <KeyboardShortcutsProvider>
+          <DeploymentSkewGuard />
           <SessionTimeoutProvider timeoutMinutes={120} warningMinutes={5}>
             <div className="min-h-screen bg-[var(--page-bg)]">
               {/* <ShadowModeBanner /> — hidden while DRX sync is off (2026-04-17) */}
