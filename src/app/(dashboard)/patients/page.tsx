@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus, AlertTriangle } from "lucide-react";
-import { getPatients, findDuplicatePatients } from "./actions";
+import { getPatients, findDuplicatePatients, getPatientCounts, type PatientFilter } from "./actions";
 import { formatDate, formatPhone, calculateAge, getInitials } from "@/lib/utils";
 import { formatPatientName } from "@/lib/utils/formatters";
 import SearchBar from "@/components/ui/SearchBar";
@@ -11,36 +11,56 @@ import PageShell from "@/components/layout/PageShell";
 import FilterBar from "@/components/layout/FilterBar";
 import { Suspense } from "react";
 
+// BNDS PMS Redesign — Patients tabs match the Claude Design:
+//   All N · Recent N · Flagged N · Birthdays this week N
+// Filled forest pill for the active tab, paper-outlined pills with neutral
+// count chips for the rest. Tabs sit above the FilterBar on a separate row.
+const TABS: ReadonlyArray<{ value: PatientFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "recent", label: "Recent" },
+  { value: "flagged", label: "Flagged" },
+  { value: "birthdays", label: "Birthdays this week" },
+];
+
+function isPatientFilter(value: string | undefined): value is PatientFilter {
+  return value === "all" || value === "recent" || value === "flagged" || value === "birthdays";
+}
+
 export default async function PatientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string; status?: string }>;
+  searchParams: Promise<{ search?: string; page?: string; filter?: string; status?: string }>;
 }) {
   const params = await searchParams;
   const search = params.search || "";
   const page = parseInt(params.page || "1", 10);
-  const status = params.status || "active";
+  const filter: PatientFilter = isPatientFilter(params.filter) ? params.filter : "all";
+  // Legacy `?status=` URLs (from older bookmarks / exports) still resolve.
+  const legacyStatus = params.status;
 
-  const { patients, total, pages } = await getPatients({ search, status, page });
+  const [{ patients, total, pages }, counts, duplicateClusters] = await Promise.all([
+    getPatients({ search, filter, status: legacyStatus, page }),
+    getPatientCounts(),
+    // Surface duplicate-patient clusters so an admin can review and merge.
+    // Detection is non-destructive — we only flag, never auto-merge, since
+    // each row may carry distinct prescription / claim history.
+    // Round 9 found "Broussard-Walker, Greta x2" and "Chesson Walker x2".
+    findDuplicatePatients(),
+  ]);
 
-  // Surface duplicate-patient clusters so an admin can review and merge.
-  // Detection is non-destructive — we only flag, never auto-merge, since
-  // each row may carry distinct prescription / claim history.
-  // Round 9 found "Broussard-Walker, Greta x2" and "Chesson Walker x2".
-  const duplicateClusters = await findDuplicatePatients();
-
+  const subtitleCount = counts.all.toLocaleString();
   const content = (
     <PageShell
       eyebrow="People"
       title="Patients"
-      subtitle={`${total.toLocaleString()} patient${total === 1 ? "" : "s"} on file`}
+      subtitle={`${subtitleCount} active patient${counts.all === 1 ? "" : "s"} on file`}
       actions={
         <>
           <ExportButton
             endpoint="/api/export/patients"
             filename={`patients_${new Date().toISOString().split("T")[0]}`}
             sheetName="Patients"
-            params={{ status, search }}
+            params={{ filter, search }}
           />
           <Link
             href="/patients/new"
@@ -58,39 +78,59 @@ export default async function PatientsPage({
         </>
       }
       toolbar={
-        <FilterBar
-          search={
-            <Suspense fallback={null}>
-              <SearchBar
-                placeholder="Search by name, MRN, phone, or email..."
-                basePath="/patients"
-              />
-            </Suspense>
-          }
-          filters={
-            <>
-              {["active", "inactive", "all"].map((s) => {
-                const active = status === s;
-                return (
-                  <Link
-                    key={s}
-                    href={`/patients?status=${s}${search ? `&search=${search}` : ""}`}
-                    className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
+        <div className="space-y-3">
+          {/* Tabs row — heritage forest active, paper-outlined inactive, count chips */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {TABS.map((tab) => {
+              const isActive = filter === tab.value;
+              const count = counts[tab.value];
+              const search_qs = search ? `&search=${encodeURIComponent(search)}` : "";
+              return (
+                <Link
+                  key={tab.value}
+                  href={`/patients?filter=${tab.value}${search_qs}`}
+                  className="inline-flex items-center gap-2 rounded-md no-underline transition-colors"
+                  style={{
+                    backgroundColor: isActive ? "#1f5a3a" : "#ffffff",
+                    color: isActive ? "#ffffff" : "#3a4a3c",
+                    border: isActive ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
+                    padding: "6px 12px",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  <span>{tab.label}</span>
+                  <span
                     style={{
-                      backgroundColor: active ? "#1f5a3a" : "#ffffff",
-                      color: active ? "#ffffff" : "#3a4a3c",
-                      border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
-                      padding: "5px 11px",
-                      fontSize: 12,
+                      backgroundColor: isActive ? "rgba(255,255,255,0.18)" : "#f4ede0",
+                      color: isActive ? "#ffffff" : "#5a6b58",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "1px 7px",
+                      borderRadius: 999,
+                      minWidth: 20,
+                      textAlign: "center",
                     }}
                   >
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </Link>
-                );
-              })}
-            </>
-          }
-        />
+                    {count.toLocaleString()}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+          {/* Search bar */}
+          <FilterBar
+            search={
+              <Suspense fallback={null}>
+                <SearchBar
+                  placeholder="Search by name, MRN, phone, or email..."
+                  basePath="/patients"
+                />
+              </Suspense>
+            }
+          />
+        </div>
       }
     >
       {duplicateClusters.length > 0 && (

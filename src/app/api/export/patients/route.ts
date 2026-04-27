@@ -7,7 +7,8 @@ import { formatPatientForExport } from "@/lib/export";
 /**
  * GET /api/export/patients
  * Export patients data as JSON
- * Query params: status, search
+ * Query params: filter (all|recent|flagged|birthdays), search
+ *               status (legacy: active|inactive|all)
  */
 export async function GET(req: NextRequest) {
   try {
@@ -15,14 +16,59 @@ export async function GET(req: NextRequest) {
     await requirePermission("patients", "read");
 
     const searchParams = req.nextUrl.searchParams;
-    const status = searchParams.get("status") || "all";
+    const filter = searchParams.get("filter") || "all";
+    const legacyStatus = searchParams.get("status");
     const search = searchParams.get("search") || "";
 
     // Build where clause
-    const where: Prisma.PatientWhereInput = {};
+    let where: Prisma.PatientWhereInput;
 
-    if (status && status !== "all") {
-      where.status = status;
+    if (legacyStatus) {
+      // Legacy behavior — bookmarks / saved exports that still pass status.
+      where = {};
+      if (legacyStatus !== "all") where.status = legacyStatus;
+    } else {
+      // New filter tabs always operate on the active patient set.
+      where = { status: "active" };
+
+      if (filter === "recent") {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        where.createdAt = { gte: thirtyDaysAgo };
+      } else if (filter === "flagged") {
+        where.allergies = { some: { status: "active" } };
+      } else if (filter === "birthdays") {
+        // Match the dashboard tab logic: DOB month/day in current week.
+        const now = new Date();
+        const day = now.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        const start = new Date(now);
+        start.setDate(now.getDate() + diffToMonday);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        const fmt = (d: Date) =>
+          `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const startMD = fmt(start);
+        const endMD = fmt(end);
+        const wraps = startMD > endMD;
+
+        const rows = wraps
+          ? await prisma.$queryRaw<Array<{ id: string }>>`
+              SELECT id::text AS id FROM patients
+              WHERE status = 'active'
+                AND (
+                  to_char(date_of_birth, 'MM-DD') >= ${startMD}
+                  OR to_char(date_of_birth, 'MM-DD') <= ${endMD}
+                )
+            `
+          : await prisma.$queryRaw<Array<{ id: string }>>`
+              SELECT id::text AS id FROM patients
+              WHERE status = 'active'
+                AND to_char(date_of_birth, 'MM-DD') BETWEEN ${startMD} AND ${endMD}
+            `;
+        where.id = { in: rows.length > 0 ? rows.map((r) => r.id) : ["__no_match__"] };
+      }
     }
 
     if (search) {

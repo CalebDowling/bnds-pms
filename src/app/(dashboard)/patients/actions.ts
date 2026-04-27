@@ -9,23 +9,97 @@ import type { PatientFormData, PhoneFormData, AddressFormData, AllergyFormData, 
 
 // ─── LIST / SEARCH ───────────────────────────
 
+export type PatientFilter = "all" | "recent" | "flagged" | "birthdays";
+
+// Helper: compute the start/end month-day strings for the current week
+// (Mon-Sun). Used by the "Birthdays this week" filter.
+function getCurrentWeekMonthDayRange(): { startMD: string; endMD: string; wraps: boolean } {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const start = new Date(now);
+  start.setDate(now.getDate() + diffToMonday);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  const fmt = (d: Date) =>
+    `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const startMD = fmt(start);
+  const endMD = fmt(end);
+  // Week spans Dec→Jan (e.g. Mon Dec 30 → Sun Jan 5)
+  const wraps = startMD > endMD;
+  return { startMD, endMD, wraps };
+}
+
+// Returns patient IDs whose date_of_birth (month/day, ignoring year)
+// falls inside the current week. Uses raw SQL since Prisma's filter
+// API can't extract month/day from a Date column.
+async function getBirthdayThisWeekIds(): Promise<string[]> {
+  const { startMD, endMD, wraps } = getCurrentWeekMonthDayRange();
+  const rows = wraps
+    ? await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id::text AS id FROM patients
+        WHERE status = 'active'
+          AND (
+            to_char(date_of_birth, 'MM-DD') >= ${startMD}
+            OR to_char(date_of_birth, 'MM-DD') <= ${endMD}
+          )
+      `
+    : await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id::text AS id FROM patients
+        WHERE status = 'active'
+          AND to_char(date_of_birth, 'MM-DD') BETWEEN ${startMD} AND ${endMD}
+      `;
+  return rows.map((r) => r.id);
+}
+
+// Build the Prisma where clause for the active filter set, excluding the
+// search term (which gets layered on top by getPatients / count helpers).
+async function buildFilterWhere(filter: PatientFilter): Promise<Prisma.PatientWhereInput> {
+  const where: Prisma.PatientWhereInput = { status: "active" };
+
+  if (filter === "recent") {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    where.createdAt = { gte: thirtyDaysAgo };
+  } else if (filter === "flagged") {
+    // Flagged = has at least one active allergy. Easy to extend later
+    // (custom statuses, alert flags) without breaking the URL contract.
+    where.allergies = { some: { status: "active" } };
+  } else if (filter === "birthdays") {
+    const ids = await getBirthdayThisWeekIds();
+    where.id = { in: ids.length > 0 ? ids : ["__no_match__"] };
+  }
+  // filter === "all" → just status: "active"
+
+  return where;
+}
+
 export async function getPatients({
   search = "",
-  status = "active",
+  filter = "all",
+  status,
   page = 1,
   limit = 25,
 }: {
   search?: string;
+  filter?: PatientFilter;
+  /** @deprecated use `filter` instead. Kept so old links keep working. */
   status?: string;
   page?: number;
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
 
-  const where: Prisma.PatientWhereInput = {};
-
-  if (status && status !== "all") {
-    where.status = status;
+  // If a legacy `status` param is passed, honor it and skip the new filter
+  // tabs (so /patients?status=inactive still works for admin views).
+  let where: Prisma.PatientWhereInput;
+  if (status) {
+    where = {};
+    if (status !== "all") where.status = status;
+  } else {
+    where = await buildFilterWhere(filter);
   }
 
   if (search) {
@@ -68,6 +142,57 @@ export async function getPatients({
     total,
     pages: Math.ceil(total / limit),
     page,
+  };
+}
+
+// ─── TAB COUNTS ─────────────────────────────
+//
+// Used by the Patients page tabs. Each tab shows a count badge — these
+// queries run in parallel so the page render isn't bottlenecked on the
+// slowest one. Birthdays uses a raw SQL query (see getBirthdayThisWeekIds).
+
+export async function getPatientCounts(): Promise<{
+  all: number;
+  recent: number;
+  flagged: number;
+  birthdays: number;
+}> {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const { startMD, endMD, wraps } = getCurrentWeekMonthDayRange();
+
+  const [allCount, recentCount, flaggedCount, birthdayRows] = await Promise.all([
+    prisma.patient.count({ where: { status: "active" } }),
+    prisma.patient.count({
+      where: { status: "active", createdAt: { gte: thirtyDaysAgo } },
+    }),
+    prisma.patient.count({
+      where: {
+        status: "active",
+        allergies: { some: { status: "active" } },
+      },
+    }),
+    wraps
+      ? prisma.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(*)::bigint AS count FROM patients
+          WHERE status = 'active'
+            AND (
+              to_char(date_of_birth, 'MM-DD') >= ${startMD}
+              OR to_char(date_of_birth, 'MM-DD') <= ${endMD}
+            )
+        `
+      : prisma.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(*)::bigint AS count FROM patients
+          WHERE status = 'active'
+            AND to_char(date_of_birth, 'MM-DD') BETWEEN ${startMD} AND ${endMD}
+        `,
+  ]);
+
+  return {
+    all: allCount,
+    recent: recentCount,
+    flagged: flaggedCount,
+    birthdays: Number(birthdayRows[0]?.count ?? 0),
   };
 }
 
