@@ -16,7 +16,6 @@
  * handles tab filtering and right-rail selection client-side.
  */
 import { prisma } from "@/lib/prisma";
-import { ACTIVE_FILL_STATUSES } from "@/lib/workflow/fill-status";
 import QueueClient, { type QueueRow, type QueueBucket } from "./QueueClient";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +29,15 @@ const BUCKET_MAP: Record<QueueBucket, string[]> = {
   insurance: ["intake", "adjudicating", "rejected", "rph_rejected"],
   ready: ["waiting_bin"],
 };
+
+// Flat list of every status the queue page actually surfaces. We filter at the
+// DB level using THIS list rather than ACTIVE_FILL_STATUSES — the broader
+// "active" set includes legacy DRX `pending` rows (~25k) and exception
+// statuses like `hold` that don't belong to any bucket. With a `take: 200`
+// limit those alphabetically-earlier statuses would crowd out the real
+// workflow rows we care about, leaving the queue empty even when print/scan/
+// verify/waiting_bin fills exist (the 04/27 walkthrough hit exactly this).
+const QUEUE_STATUSES = Object.values(BUCKET_MAP).flat();
 
 function bucketForStatus(status: string): QueueBucket | null {
   for (const [bucket, list] of Object.entries(BUCKET_MAP)) {
@@ -47,7 +55,7 @@ export default async function QueuePage() {
   let dbFills: Awaited<ReturnType<typeof prisma.prescriptionFill.findMany>> = [];
   try {
     dbFills = await prisma.prescriptionFill.findMany({
-      where: { status: { in: ACTIVE_FILL_STATUSES } },
+      where: { status: { in: QUEUE_STATUSES } },
       include: {
         prescription: {
           select: {
