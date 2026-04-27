@@ -9,6 +9,9 @@ import {
 } from "lucide-react";
 import PageShell from "@/components/layout/PageShell";
 
+// BNDS PMS Redesign — Settings A two-pane (sidebar + content)
+// Heritage palette: forest active, paper sidebar, hairline borders
+
 // ─── Section definitions ──────────────────────────────────────────
 
 const SECTIONS = [
@@ -30,11 +33,21 @@ const SECTIONS = [
 
 // ─── Inline section content ───────────────────────────────────────
 
+function SectionHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <>
+      <h2 className="font-serif" style={{ fontSize: 22, color: "#0f2e1f", fontWeight: 600, marginBottom: 4 }}>
+        {title}
+      </h2>
+      <p className="text-xs mb-5" style={{ color: "#7a8a78" }}>{subtitle}</p>
+    </>
+  );
+}
+
 function PharmacyInfoSection() {
   return (
     <div>
-      <h2 className="mb-1">Pharmacy Information</h2>
-      <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Store details and contact information</p>
+      <SectionHeader title="Pharmacy Information" subtitle="Store details and contact information" />
       <dl className="space-y-0">
         {[
           { label: "Name", value: "Boudreaux's Compounding Pharmacy" },
@@ -46,9 +59,18 @@ function PharmacyInfoSection() {
           { label: "Fax", value: "(337) 000-0001" },
           { label: "Address", value: "404 E Prien Lake Rd, Lake Charles, LA 70601" },
         ].map((item) => (
-          <div key={item.label} className="flex items-center justify-between py-3" style={{ borderBottom: "1px solid var(--border)" }}>
-            <dt className="text-sm" style={{ color: "var(--text-muted)" }}>{item.label}</dt>
-            <dd className={`text-sm font-medium ${item.mono ? "font-mono" : ""}`} style={{ color: "var(--text-primary)" }}>{item.value}</dd>
+          <div key={item.label} className="flex items-center justify-between py-3" style={{ borderBottom: "1px solid #ede6d6" }}>
+            <dt className="text-sm" style={{ color: "#7a8a78" }}>{item.label}</dt>
+            <dd
+              className="text-sm font-medium"
+              style={{
+                color: "#0f2e1f",
+                fontFamily: item.mono ? "ui-monospace, SFMono-Regular, Menlo, monospace" : undefined,
+                fontSize: item.mono ? 12 : undefined,
+              }}
+            >
+              {item.value}
+            </dd>
           </div>
         ))}
       </dl>
@@ -59,8 +81,7 @@ function PharmacyInfoSection() {
 function SystemConfigSection() {
   return (
     <div>
-      <h2 className="mb-1">System Configuration</h2>
-      <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>Numbering formats, defaults, and system settings</p>
+      <SectionHeader title="System Configuration" subtitle="Numbering formats, defaults, and system settings" />
       <div className="space-y-0">
         {[
           { label: "MRN Format", desc: "Patient MRN prefix and numbering", value: "BNDS-XXXXXXX" },
@@ -69,12 +90,14 @@ function SystemConfigSection() {
           { label: "Default BUD Days", desc: "Non-sterile compounds", value: "180 days" },
           { label: "Time Zone", desc: "System time zone", value: "America/Chicago (CST)" },
         ].map((item) => (
-          <div key={item.label} className="flex items-center justify-between py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+          <div key={item.label} className="flex items-center justify-between py-3" style={{ borderBottom: "1px solid #ede6d6" }}>
             <div>
-              <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{item.label}</p>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{item.desc}</p>
+              <p className="text-sm font-medium" style={{ color: "#0f2e1f" }}>{item.label}</p>
+              <p className="text-xs" style={{ color: "#7a8a78" }}>{item.desc}</p>
             </div>
-            <span className="text-sm font-mono" style={{ color: "var(--text-secondary)" }}>{item.value}</span>
+            <span className="text-sm" style={{ color: "#3a4a3c", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+              {item.value}
+            </span>
           </div>
         ))}
       </div>
@@ -82,57 +105,56 @@ function SystemConfigSection() {
   );
 }
 
-function LinkedSection({ title, description, href }: { title: string; description: string; href: string }) {
-  return (
-    <div>
-      <h2 className="mb-1">{title}</h2>
-      <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>{description}</p>
-      <Link
-        href={href}
-        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white no-underline transition-colors"
-        style={{ backgroundColor: "var(--color-primary, #40721D)" }}
-      >
-        Open {title} <ChevronRight size={16} />
-      </Link>
-    </div>
-  );
-}
-
 function UsersSection() {
   const roles = [
-    { role: "Pharmacist (RPh)", desc: "Full system access, verification, clinical decisions", color: "#7c3aed", bg: "#ede9fe" },
-    { role: "Pharmacy Tech", desc: "Fill prescriptions, compound, manage inventory", color: "#2563eb", bg: "#dbeafe" },
-    { role: "Shipping Clerk", desc: "Pack and ship orders, manage deliveries", color: "#0891b2", bg: "#cffafe" },
-    { role: "Billing Specialist", desc: "Claims processing, payments, insurance", color: "#16a34a", bg: "#dcfce7" },
-    { role: "Cashier", desc: "POS transactions, patient pickup", color: "#ea580c", bg: "#fff7ed" },
-    { role: "Admin", desc: "System configuration, user management", color: "#dc2626", bg: "#fef2f2" },
+    { role: "Pharmacist (RPh)", desc: "Full system access, verification, clinical decisions", color: "#5a4a78", bg: "rgba(120,80,160,0.12)" },
+    { role: "Pharmacy Tech", desc: "Fill prescriptions, compound, manage inventory", color: "#2c5e7a", bg: "rgba(56,109,140,0.12)" },
+    { role: "Shipping Clerk", desc: "Pack and ship orders, manage deliveries", color: "#2c5e7a", bg: "rgba(56,109,140,0.18)" },
+    { role: "Billing Specialist", desc: "Claims processing, payments, insurance", color: "#1f5a3a", bg: "rgba(31,90,58,0.14)" },
+    { role: "Cashier", desc: "POS transactions, patient pickup", color: "#8a5a17", bg: "rgba(212,138,40,0.14)" },
+    { role: "Admin", desc: "System configuration, user management", color: "#9a2c1f", bg: "rgba(184,58,47,0.10)" },
   ];
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2>Users & Roles</h2>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Manage staff accounts, roles, and permissions</p>
+          <h2 className="font-serif" style={{ fontSize: 22, color: "#0f2e1f", fontWeight: 600 }}>
+            Users & Roles
+          </h2>
+          <p className="text-xs" style={{ color: "#7a8a78" }}>Manage staff accounts, roles, and permissions</p>
         </div>
         <Link
           href="/users"
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white no-underline"
-          style={{ backgroundColor: "var(--color-primary, #40721D)" }}
+          className="inline-flex items-center gap-1 rounded-md font-semibold no-underline transition-colors"
+          style={{
+            backgroundColor: "#1f5a3a",
+            color: "#ffffff",
+            border: "1px solid #1f5a3a",
+            padding: "5px 11px",
+            fontSize: 12,
+          }}
         >
           Manage Users <ChevronRight size={14} />
         </Link>
       </div>
       <div className="space-y-0">
         {roles.map((r) => (
-          <div key={r.role} className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+          <div key={r.role} className="flex items-center gap-3 py-3" style={{ borderBottom: "1px solid #ede6d6" }}>
             <span
-              className="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full"
-              style={{ backgroundColor: r.bg, color: r.color }}
+              className="inline-flex items-center"
+              style={{
+                backgroundColor: r.bg,
+                color: r.color,
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "2px 10px",
+                borderRadius: 999,
+              }}
             >
               {r.role}
             </span>
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>{r.desc}</span>
+            <span className="text-xs" style={{ color: "#5a6b58" }}>{r.desc}</span>
           </div>
         ))}
       </div>
@@ -171,18 +193,19 @@ export default function SettingsPage() {
 
   return (
     <PageShell
+      eyebrow="Administration"
       title="Settings"
       subtitle="Pharmacy configuration, users, and system settings"
     >
       {/* Sidebar + Content */}
       <div
-        className="flex gap-0 rounded-xl overflow-hidden"
-        style={{ border: "1px solid var(--border)", minHeight: "calc(100vh - 240px)" }}
+        className="flex gap-0 rounded-lg overflow-hidden"
+        style={{ border: "1px solid #e3ddd1", minHeight: "calc(100vh - 240px)", backgroundColor: "#ffffff" }}
       >
         {/* Sidebar */}
         <nav
           className="w-56 flex-shrink-0 p-2"
-          style={{ backgroundColor: "var(--card-bg)", borderRight: "1px solid var(--border)" }}
+          style={{ backgroundColor: "#faf8f4", borderRight: "1px solid #e3ddd1" }}
         >
           {SECTIONS.map((s) => {
             const Icon = s.icon;
@@ -191,14 +214,16 @@ export default function SettingsPage() {
               <button
                 key={s.id}
                 onClick={() => handleSectionClick(s)}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm transition-all mb-0.5"
+                className="w-full flex items-center gap-2.5 rounded-md text-left transition-all mb-0.5"
                 style={{
-                  backgroundColor: isActive ? "var(--color-primary)" : "transparent",
-                  color: isActive ? "#fff" : "var(--text-secondary)",
+                  backgroundColor: isActive ? "#1f5a3a" : "transparent",
+                  color: isActive ? "#ffffff" : "#3a4a3c",
                   fontWeight: isActive ? 600 : 500,
+                  padding: "8px 11px",
+                  fontSize: 13,
                 }}
               >
-                <Icon size={16} style={{ opacity: isActive ? 1 : 0.7 }} />
+                <Icon size={15} style={{ opacity: isActive ? 1 : 0.75 }} />
                 {s.label}
               </button>
             );
@@ -206,7 +231,7 @@ export default function SettingsPage() {
         </nav>
 
         {/* Content */}
-        <div className="flex-1 p-6" style={{ backgroundColor: "var(--page-bg)" }}>
+        <div className="flex-1 p-6" style={{ backgroundColor: "#ffffff" }}>
           {renderContent()}
         </div>
       </div>

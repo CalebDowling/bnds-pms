@@ -1,8 +1,13 @@
 "use client";
 
+import { Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 
+/**
+ * SearchBar — debounced search input matching the BNDS PMS Redesign topbar
+ * pattern: leading magnifier, ⌘K affordance, paper-warm border.
+ */
 export default function SearchBar({
   placeholder = "Search...",
   basePath,
@@ -47,15 +52,32 @@ export default function SearchBar({
     }, 300);
 
     return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   return (
-    <input
-      type="text"
-      value={query}
-      onChange={(e) => setQuery(e.target.value)}
-      placeholder={placeholder}
-      className="w-full max-w-sm px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#40721D] focus:border-transparent"
-    />
+    <div
+      className="inline-flex items-center gap-2 rounded-md w-full sm:min-w-[280px]"
+      style={{
+        backgroundColor: "#ffffff",
+        border: "1px solid #d9d2c2",
+        padding: "6px 10px",
+      }}
+    >
+      <Search size={14} style={{ color: "#7a8a78" }} strokeWidth={2} />
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={placeholder}
+        className="flex-1 border-none bg-transparent outline-none"
+        style={{
+          fontSize: 13,
+          color: "#0f2e1f",
+          fontFamily:
+            "var(--font-inter), 'Inter Tight', Inter, system-ui, sans-serif",
+        }}
+      />
+    </div>
   );
 }

@@ -15,22 +15,24 @@ import PageShell from "@/components/layout/PageShell";
 import FilterBar from "@/components/layout/FilterBar";
 import { Suspense } from "react";
 
+// BNDS PMS Redesign — heritage status palette
+// ok = forest, leaf = leaf-green, warn = amber, danger = burgundy, info = lake
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  intake: { label: "Intake", bg: "#f3f4f6", color: "#374151" },
-  pending_review: { label: "Pending Review", bg: "#fefce8", color: "#a16207" },
-  in_progress: { label: "In Progress", bg: "#eff6ff", color: "#1d4ed8" },
-  compounding: { label: "Compounding", bg: "#faf5ff", color: "#7e22ce" },
-  pending_fill: { label: "Pending Fill", bg: "#eef2ff", color: "#4338ca" },
-  ready_to_fill: { label: "Ready to Fill", bg: "#eef2ff", color: "#4338ca" },
-  filling: { label: "Filling", bg: "#eff6ff", color: "#1d4ed8" },
-  ready_for_verification: { label: "Needs Verification", bg: "#fff7ed", color: "#c2410c" },
-  verified: { label: "Verified", bg: "#ecfeff", color: "#0e7490" },
-  ready: { label: "Ready", bg: "var(--green-100)", color: "var(--green-700)" },
-  on_hold: { label: "On Hold", bg: "#fef2f2", color: "#b91c1c" },
-  dispensed: { label: "Dispensed", bg: "var(--green-100)", color: "var(--green-700)" },
-  shipped: { label: "Shipped", bg: "#ecfeff", color: "#0e7490" },
-  delivered: { label: "Delivered", bg: "var(--green-100)", color: "var(--green-700)" },
-  cancelled: { label: "Cancelled", bg: "rgba(0,0,0,0.05)", color: "#6b7280" },
+  intake: { label: "Intake", bg: "rgba(122,138,120,0.14)", color: "#5a6b58" },
+  pending_review: { label: "Pending Review", bg: "rgba(212,138,40,0.14)", color: "#8a5a17" },
+  in_progress: { label: "In Progress", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
+  compounding: { label: "Compounding", bg: "rgba(122,138,120,0.14)", color: "#5a6b58" },
+  pending_fill: { label: "Pending Fill", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
+  ready_to_fill: { label: "Ready to Fill", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
+  filling: { label: "Filling", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
+  ready_for_verification: { label: "Needs Verification", bg: "rgba(212,138,40,0.14)", color: "#8a5a17" },
+  verified: { label: "Verified", bg: "rgba(90,168,69,0.14)", color: "#2d6a1f" },
+  ready: { label: "Ready", bg: "rgba(90,168,69,0.14)", color: "#2d6a1f" },
+  on_hold: { label: "On Hold", bg: "rgba(184,58,47,0.10)", color: "#9a2c1f" },
+  dispensed: { label: "Dispensed", bg: "rgba(31,90,58,0.12)", color: "#1f5a3a" },
+  shipped: { label: "Shipped", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
+  delivered: { label: "Delivered", bg: "rgba(31,90,58,0.12)", color: "#1f5a3a" },
+  cancelled: { label: "Cancelled", bg: "rgba(122,138,120,0.14)", color: "#5a6b58" },
 };
 
 const STATUS_FILTERS = [
@@ -60,6 +62,7 @@ async function PrescriptionsContent({
 
   return (
     <PageShell
+      eyebrow="Pharmacy"
       title="Prescriptions"
       subtitle={`${total.toLocaleString()} prescription${total === 1 ? "" : "s"}`}
       actions={
@@ -72,10 +75,16 @@ async function PrescriptionsContent({
           />
           <Link
             href="/prescriptions/new"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white no-underline transition-colors"
-            style={{ backgroundColor: "var(--color-primary)" }}
+            className="inline-flex items-center gap-1.5 rounded-md font-semibold no-underline transition-colors"
+            style={{
+              backgroundColor: "#1f5a3a",
+              color: "#ffffff",
+              border: "1px solid #1f5a3a",
+              padding: "7px 13px",
+              fontSize: 13,
+            }}
           >
-            <Plus size={14} /> New Prescription
+            <Plus size={14} strokeWidth={2} /> New Rx
           </Link>
         </>
       }
@@ -91,39 +100,44 @@ async function PrescriptionsContent({
           }
           filters={
             <>
-              {STATUS_FILTERS.map((f) => (
-                <Link
-                  key={f.value}
-                  href={`/prescriptions?status=${f.value}${search ? `&search=${search}` : ""}`}
-                  className="px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
-                  style={{
-                    backgroundColor: status === f.value ? "var(--color-primary)" : "transparent",
-                    color: status === f.value ? "#fff" : "var(--text-secondary)",
-                    borderColor: status === f.value ? "var(--color-primary)" : "var(--border)",
-                  }}
-                >
-                  {f.label}
-                </Link>
-              ))}
+              {STATUS_FILTERS.map((f) => {
+                const active = status === f.value;
+                return (
+                  <Link
+                    key={f.value}
+                    href={`/prescriptions?status=${f.value}${search ? `&search=${search}` : ""}`}
+                    className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
+                    style={{
+                      backgroundColor: active ? "#1f5a3a" : "#ffffff",
+                      color: active ? "#ffffff" : "#3a4a3c",
+                      border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
+                      padding: "5px 11px",
+                      fontSize: 12,
+                    }}
+                  >
+                    {f.label}
+                  </Link>
+                );
+              })}
             </>
           }
         />
       }
     >
       <div
-        className="rounded-xl overflow-hidden"
-        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+        className="rounded-lg overflow-hidden"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
       >
         {prescriptions.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-lg mb-2" style={{ color: "var(--text-muted)" }}>
+            <p className="text-lg mb-2" style={{ color: "#7a8a78" }}>
               {search ? "No prescriptions match your search" : "No prescriptions yet"}
             </p>
             {!search && (
               <Link
                 href="/prescriptions/new"
                 className="text-sm font-semibold hover:underline"
-                style={{ color: "var(--color-primary)" }}
+                style={{ color: "#1f5a3a" }}
               >
                 Create the first prescription
               </Link>
@@ -131,55 +145,89 @@ async function PrescriptionsContent({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" style={{ fontSize: 13 }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--green-50)" }}>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Rx #</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Patient</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Medication</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Prescriber</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Created</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</th>
+                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
+                  <th
+                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
+                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
+                  >Rx #</th>
+                  <th
+                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
+                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
+                  >Patient</th>
+                  <th
+                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
+                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
+                  >Medication</th>
+                  <th
+                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
+                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
+                  >Prescriber</th>
+                  <th
+                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
+                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
+                  >Created</th>
+                  <th
+                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
+                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
+                  >Status</th>
                 </tr>
               </thead>
               <tbody>
                 {prescriptions.map((rx, idx) => {
-                  const statusConfig = STATUS_CONFIG[rx.status] || { label: rx.status, bg: "rgba(0,0,0,0.05)", color: "#6b7280" };
+                  const statusConfig = STATUS_CONFIG[rx.status] || { label: rx.status, bg: "rgba(122,138,120,0.14)", color: "#5a6b58" };
                   return (
                     <tr
                       key={rx.id}
                       className="transition-colors"
-                      style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
+                      style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}
                     >
                       <td className="px-4 py-3">
                         <Link
                           href={`/prescriptions/${rx.id}`}
-                          className="text-sm font-mono font-semibold hover:underline"
-                          style={{ color: "var(--color-primary)" }}
+                          className="hover:underline"
+                          style={{
+                            color: "#1f5a3a",
+                            fontWeight: 600,
+                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                            fontSize: 13,
+                          }}
                         >
                           {rx.rxNumber}
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{formatPatientName({ firstName: rx.patient.firstName, lastName: rx.patient.lastName })}</p>
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{rx.patient.mrn}</p>
+                        <p style={{ color: "#0f2e1f", fontWeight: 500, fontSize: 13 }}>
+                          {formatPatientName({ firstName: rx.patient.firstName, lastName: rx.patient.lastName })}
+                        </p>
+                        <p style={{ color: "#7a8a78", fontSize: 12 }}>{rx.patient.mrn}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{rx.item?.name ? formatDrugName(rx.item.name) : (rx.formula?.name ? formatDrugName(rx.formula.name) : "—")}</p>
-                        {rx.item?.strength && <p className="text-xs" style={{ color: "var(--text-muted)" }}>{rx.item.strength}</p>}
+                        <p style={{ color: "#3a4a3c", fontSize: 13 }}>
+                          {rx.item?.name ? formatDrugName(rx.item.name) : (rx.formula?.name ? formatDrugName(rx.formula.name) : "—")}
+                        </p>
+                        {rx.item?.strength && <p style={{ color: "#7a8a78", fontSize: 12 }}>{rx.item.strength}</p>}
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                        <p style={{ color: "#3a4a3c", fontSize: 13 }}>
                           {formatPrescriberName({ firstName: rx.prescriber.firstName, lastName: rx.prescriber.lastName })}{rx.prescriber.suffix ? `, ${rx.prescriber.suffix}` : ""}
                         </p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{formatDate(rx.createdAt)}</span>
+                        <span style={{ color: "#3a4a3c", fontSize: 13 }}>{formatDate(rx.createdAt)}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full"
-                          style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}
+                          className="inline-flex items-center"
+                          style={{
+                            backgroundColor: statusConfig.bg,
+                            color: statusConfig.color,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                          }}
                         >
                           {statusConfig.label}
                         </span>

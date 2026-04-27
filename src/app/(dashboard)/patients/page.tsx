@@ -31,6 +31,7 @@ export default async function PatientsPage({
 
   const content = (
     <PageShell
+      eyebrow="People"
       title="Patients"
       subtitle={`${total.toLocaleString()} patient${total === 1 ? "" : "s"} on file`}
       actions={
@@ -43,10 +44,16 @@ export default async function PatientsPage({
           />
           <Link
             href="/patients/new"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white no-underline transition-colors"
-            style={{ backgroundColor: "var(--color-primary)" }}
+            className="inline-flex items-center gap-1.5 rounded-md font-semibold no-underline transition-colors"
+            style={{
+              backgroundColor: "#1f5a3a",
+              color: "#ffffff",
+              border: "1px solid #1f5a3a",
+              padding: "7px 13px",
+              fontSize: 13,
+            }}
           >
-            <Plus size={14} /> Add Patient
+            <Plus size={14} strokeWidth={2} /> Add Patient
           </Link>
         </>
       }
@@ -62,20 +69,25 @@ export default async function PatientsPage({
           }
           filters={
             <>
-              {["active", "inactive", "all"].map((s) => (
-                <Link
-                  key={s}
-                  href={`/patients?status=${s}${search ? `&search=${search}` : ""}`}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-full border no-underline transition-colors"
-                  style={{
-                    backgroundColor: status === s ? "var(--color-primary)" : "transparent",
-                    color: status === s ? "#fff" : "var(--text-secondary)",
-                    borderColor: status === s ? "var(--color-primary)" : "var(--border)",
-                  }}
-                >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </Link>
-              ))}
+              {["active", "inactive", "all"].map((s) => {
+                const active = status === s;
+                return (
+                  <Link
+                    key={s}
+                    href={`/patients?status=${s}${search ? `&search=${search}` : ""}`}
+                    className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
+                    style={{
+                      backgroundColor: active ? "#1f5a3a" : "#ffffff",
+                      color: active ? "#ffffff" : "#3a4a3c",
+                      border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
+                      padding: "5px 11px",
+                      fontSize: 12,
+                    }}
+                  >
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </Link>
+                );
+              })}
             </>
           }
         />
@@ -121,19 +133,19 @@ export default async function PatientsPage({
       )}
 
       <div
-        className="rounded-xl overflow-hidden"
-        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+        className="rounded-lg overflow-hidden"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
       >
         {patients.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-lg mb-2" style={{ color: "var(--text-muted)" }}>
+            <p className="text-lg mb-2" style={{ color: "#7a8a78" }}>
               {search ? "No patients match your search" : "No patients yet"}
             </p>
             {!search && (
               <Link
                 href="/patients/new"
                 className="text-sm font-semibold hover:underline"
-                style={{ color: "var(--color-primary)" }}
+                style={{ color: "#1f5a3a" }}
               >
                 Add your first patient
               </Link>
@@ -141,16 +153,16 @@ export default async function PatientsPage({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" style={{ fontSize: 13 }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--green-50)" }}>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Patient</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>MRN</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>DOB / Age</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Phone</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Allergies</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Insurance</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</th>
+                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Patient</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>MRN</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>DOB / Age</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Phone</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Allergies</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Insurance</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -163,78 +175,105 @@ export default async function PatientsPage({
                     <tr
                       key={patient.id}
                       className="transition-colors"
-                      style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
-                      onMouseEnter={undefined}
+                      style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}
                     >
                       <td className="px-4 py-3">
                         <Link href={`/patients/${patient.id}`} className="flex items-center gap-3 no-underline">
                           <div
-                            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                            style={{ backgroundColor: "var(--color-primary)" }}
+                            className="flex items-center justify-center flex-shrink-0"
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: 999,
+                              backgroundColor: "#1f5a3a",
+                              color: "#ffffff",
+                              fontFamily: "var(--font-serif), 'Source Serif 4', Georgia, serif",
+                              fontSize: 13,
+                              fontWeight: 500,
+                            }}
                           >
-                            <span className="text-xs font-bold text-white">
-                              {getInitials(patient.firstName, patient.lastName)}
-                            </span>
+                            {getInitials(patient.firstName, patient.lastName)}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                            <p style={{ color: "#0f2e1f", fontWeight: 500, fontSize: 13 }}>
                               {formatPatientName({ firstName: patient.firstName, lastName: patient.lastName }, { format: "last-first" })}{patient.suffix ? ` ${patient.suffix}` : ""}
                             </p>
                             {patient.email && (
-                              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{patient.email}</p>
+                              <p style={{ color: "#7a8a78", fontSize: 12 }}>{patient.email}</p>
                             )}
                           </div>
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-mono" style={{ color: "var(--text-secondary)" }}>{patient.mrn}</span>
+                        <span style={{ color: "#3a4a3c", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{patient.mrn}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{formatDate(patient.dateOfBirth)}</p>
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{calculateAge(patient.dateOfBirth)} yrs</p>
+                        <p style={{ color: "#3a4a3c", fontSize: 13 }}>{formatDate(patient.dateOfBirth)}</p>
+                        <p style={{ color: "#7a8a78", fontSize: 12 }}>{calculateAge(patient.dateOfBirth)} yrs</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                        <span style={{ color: "#3a4a3c", fontSize: 13 }}>
                           {primaryPhone ? formatPhone(primaryPhone.number) : "—"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         {allergyCount > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-red-50 text-red-700 rounded-full">
+                          <span
+                            className="inline-flex items-center"
+                            style={{
+                              backgroundColor: "rgba(184,58,47,0.10)",
+                              color: "#9a2c1f",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                            }}
+                          >
                             {allergyCount} allerg{allergyCount === 1 ? "y" : "ies"}
                           </span>
                         ) : (
-                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>NKDA</span>
+                          <span style={{ color: "#7a8a78", fontSize: 12 }}>NKDA</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {activeInsurance.length > 0 ? (
                           <span
-                            className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full"
-                            style={{ backgroundColor: "var(--green-100)", color: "var(--green-700)" }}
+                            className="inline-flex items-center"
+                            style={{
+                              backgroundColor: "rgba(90,168,69,0.14)",
+                              color: "#2d6a1f",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                            }}
                           >
                             {activeInsurance.length} plan{activeInsurance.length === 1 ? "" : "s"}
                           </span>
                         ) : (
-                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Cash</span>
+                          <span style={{ color: "#7a8a78", fontSize: 12 }}>Cash</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full"
+                          className="inline-flex items-center capitalize"
                           style={{
                             backgroundColor:
                               patient.status === "active"
-                                ? "var(--green-100)"
+                                ? "rgba(90,168,69,0.14)"
                                 : patient.status === "inactive"
-                                ? "rgba(0,0,0,0.05)"
-                                : "#fef2f2",
+                                ? "rgba(122,138,120,0.14)"
+                                : "rgba(184,58,47,0.10)",
                             color:
                               patient.status === "active"
-                                ? "var(--green-700)"
+                                ? "#2d6a1f"
                                 : patient.status === "inactive"
-                                ? "var(--text-muted)"
-                                : "#dc2626",
+                                ? "#5a6b58"
+                                : "#9a2c1f",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: 999,
                           }}
                         >
                           {patient.status}

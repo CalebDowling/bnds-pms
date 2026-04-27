@@ -232,8 +232,43 @@ export default function HeaderNew() {
         borderBottom: "1px solid #e3ddd1",
       }}
     >
-      {/* ── Left: spacer ── */}
-      <div className="flex-1" />
+      {/* ── Left: Search ── per BNDS PMS Redesign topbar ── */}
+      <div className="flex-1 max-w-[480px] hidden md:block">
+        <div
+          className="inline-flex items-center gap-2 w-full rounded-md"
+          style={{
+            backgroundColor: "#ffffff",
+            border: "1px solid #e3ddd1",
+            padding: "6px 10px",
+          }}
+        >
+          <Search size={14} style={{ color: "#7a8a78" }} strokeWidth={2} />
+          <input
+            placeholder="Search patients, Rx #, NDC, drug name…"
+            className="flex-1 border-none bg-transparent outline-none"
+            style={{
+              fontSize: 13,
+              color: "#0f2e1f",
+              fontFamily:
+                "var(--font-inter), 'Inter Tight', Inter, system-ui, sans-serif",
+            }}
+          />
+          <kbd
+            className="hidden lg:inline-flex items-center justify-center rounded"
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "1px 5px",
+              backgroundColor: "#ece4d3",
+              color: "#7a8a78",
+              border: "1px solid #d9d2c2",
+              fontFamily: "var(--font-mono), 'JetBrains Mono', monospace",
+            }}
+          >
+            ⌘K
+          </kbd>
+        </div>
+      </div>
 
       {/* ── Right: Actions ── */}
       <div className="flex items-center gap-2 flex-shrink-0">

@@ -20,6 +20,7 @@ async function PickupQueueContent({
 
   return (
     <PageShell
+      eyebrow="Operations"
       title="Patient Pickup"
       subtitle={`${total.toLocaleString()} prescription${total === 1 ? "" : "s"} ready for pickup`}
       toolbar={
@@ -37,88 +38,96 @@ async function PickupQueueContent({
     >
       {/* Table */}
       <div
-        className="rounded-xl overflow-hidden"
-        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+        className="rounded-lg overflow-hidden"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
       >
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
+        <table className="w-full" style={{ fontSize: 13 }}>
+          <thead style={{ backgroundColor: "#f4ede0", borderBottom: "1px solid #e3ddd1" }}>
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                Patient
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                Rx #
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                Drug
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                Qty
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">
-                Action
-              </th>
+              <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Patient</th>
+              <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Rx #</th>
+              <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Drug</th>
+              <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Qty</th>
+              <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
+              <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody>
             {fills.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-6 py-8 text-center">
-                  <p className="text-gray-500">
+                  <p style={{ color: "#7a8a78" }}>
                     No prescriptions ready for pickup
                   </p>
                 </td>
               </tr>
             ) : (
-              fills.map((fill) => (
+              fills.map((fill, idx) => (
                 <tr
                   key={fill.id}
-                  className="hover:bg-gray-50 transition-colors"
+                  className="transition-colors"
+                  style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}
                 >
-                  <td className="px-6 py-4 text-sm">
-                    <div className="font-medium text-gray-900">
+                  <td className="px-6 py-3">
+                    <div style={{ color: "#0f2e1f", fontWeight: 500 }}>
                       {formatPatientName({
                         firstName: fill.prescription.patient.firstName,
                         lastName: fill.prescription.patient.lastName,
                       })}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div style={{ color: "#7a8a78", fontSize: 12 }}>
                       MRN: {fill.prescription.patient.mrn}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-mono text-gray-900">
+                  <td className="px-6 py-3" style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", color: "#1f5a3a", fontWeight: 600 }}>
                     {fill.prescription.rxNumber}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-3" style={{ color: "#3a4a3c" }}>
                     {fill.prescription.item?.name ? formatDrugName(fill.prescription.item.name) : "N/A"}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
+                  <td className="px-6 py-3" style={{ color: "#3a4a3c" }}>
                     {fill.quantity.toString()}
                   </td>
-                  <td className="px-6 py-4 text-sm">
+                  <td className="px-6 py-3">
                     <span
-                      className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                        fill.status === "ready"
-                          ? "bg-green-100 text-green-700"
-                          : fill.status === "verified"
-                            ? "bg-teal-100 text-teal-700"
-                            : "bg-blue-100 text-blue-700"
-                      }`}
+                      className="inline-flex items-center"
+                      style={{
+                        backgroundColor:
+                          fill.status === "ready"
+                            ? "rgba(90,168,69,0.14)"
+                            : fill.status === "verified"
+                            ? "rgba(56,109,140,0.12)"
+                            : "rgba(31,90,58,0.12)",
+                        color:
+                          fill.status === "ready"
+                            ? "#2d6a1f"
+                            : fill.status === "verified"
+                            ? "#2c5e7a"
+                            : "#1f5a3a",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                      }}
                     >
                       {fill.status === "ready"
                         ? "Ready"
                         : fill.status === "verified"
-                          ? "Verified"
-                          : "Completed"}
+                        ? "Verified"
+                        : "Completed"}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm">
+                  <td className="px-6 py-3">
                     <Link
                       href={`/pickup/${fill.id}`}
-                      className="px-3 py-1 bg-[#40721D] text-white text-xs rounded-lg hover:bg-[#2D5114] transition-colors"
+                      className="inline-flex items-center rounded-md font-semibold no-underline transition-colors"
+                      style={{
+                        backgroundColor: "#1f5a3a",
+                        color: "#ffffff",
+                        border: "1px solid #1f5a3a",
+                        padding: "5px 11px",
+                        fontSize: 12,
+                      }}
                     >
                       Process
                     </Link>

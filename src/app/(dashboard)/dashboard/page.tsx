@@ -5,8 +5,11 @@
 // group, so this page inherits force-dynamic correctly.
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import type { DashboardData } from "@/components/dashboard/CardGrid";
 import DashboardCommandCenter from "@/components/dashboard/DashboardCommandCenter";
+import { PageHeader } from "@/components/ui/bnds";
 
 import { getDashboardData } from "./actions";
 
@@ -53,21 +56,34 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Breadcrumb */}
-      <div className="px-6 py-2.5">
-        <div className="text-xs text-[var(--text-muted)] flex items-center gap-1.5">
-          <a
-            href="/dashboard"
-            className="text-[var(--green-700)] no-underline font-medium hover:underline"
+      {/* BNDS PMS Redesign — page header pattern (eyebrow + serif h1 + subtitle) */}
+      <PageHeader
+        eyebrow="Today"
+        title="Pharmacy command center"
+        subtitle={`${data.rxToday} new Rx · ${data.patientsToday} patients · ${data.lowStockItems} low stock`}
+        actions={
+          <Link
+            href="/prescriptions/new"
+            className="inline-flex items-center gap-1.5 rounded-md font-semibold no-underline transition-colors"
+            style={{
+              backgroundColor: "#1f5a3a",
+              color: "#ffffff",
+              border: "1px solid #1f5a3a",
+              padding: "7px 13px",
+              fontSize: 13,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = "#174530";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = "#1f5a3a";
+            }}
           >
-            Home
-          </a>
-          <span className="text-[#c5d5c9]">&rsaquo;</span>
-          <span className="text-[var(--text-secondary)] font-semibold">
-            Dashboard
-          </span>
-        </div>
-      </div>
+            <Plus size={14} strokeWidth={2} />
+            New Rx
+          </Link>
+        }
+      />
 
       <DashboardCommandCenter data={data} />
     </div>

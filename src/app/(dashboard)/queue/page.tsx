@@ -56,27 +56,31 @@ async function QueuePills({ activeStatus }: { activeStatus: string }) {
       <Link
         key={key}
         href={`/queue?status=${key}`}
-        className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
+        className="inline-flex items-center gap-1.5 font-medium rounded-md no-underline transition-colors"
         style={{
-          backgroundColor: isActive ? "var(--color-primary)" : "transparent",
-          color: isActive ? "#fff" : "var(--text-secondary)",
-          borderColor: isActive ? "var(--color-primary)" : "var(--border)",
+          backgroundColor: isActive ? "#1f5a3a" : "#ffffff",
+          color: isActive ? "#ffffff" : "#3a4a3c",
+          border: isActive ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
+          padding: "5px 11px",
+          fontSize: 12,
         }}
       >
         {qLabel}
         <span
-          className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[11px] font-bold tabular-nums px-1"
+          className="inline-flex items-center justify-center tabular-nums"
           style={{
+            minWidth: 18,
+            height: 18,
+            borderRadius: 999,
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "0 5px",
             backgroundColor: isActive
               ? "rgba(255,255,255,0.22)"
               : count > 0
-              ? "var(--green-100)"
-              : "var(--green-50)",
-            color: isActive
-              ? "#fff"
-              : count > 0
-              ? "var(--green-700)"
-              : "var(--text-muted)",
+              ? "rgba(90,168,69,0.18)"
+              : "rgba(122,138,120,0.14)",
+            color: isActive ? "#ffffff" : count > 0 ? "#2d6a1f" : "#7a8a78",
           }}
         >
           {count}
@@ -106,15 +110,27 @@ function QueuePillsFallback() {
       {PRIMARY_QUEUE_KEYS.map((key) => (
         <span
           key={key}
-          className="px-3 py-1 text-xs rounded-full border"
-          style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+          className="rounded-md"
+          style={{
+            backgroundColor: "#ffffff",
+            border: "1px solid #d9d2c2",
+            color: "#7a8a78",
+            padding: "5px 11px",
+            fontSize: 12,
+          }}
         >
           {QUEUE_LABELS[key] ?? key}
         </span>
       ))}
       <span
-        className="px-3 py-1 text-xs rounded-full border"
-        style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+        className="rounded-md"
+        style={{
+          backgroundColor: "#ffffff",
+          border: "1px solid #d9d2c2",
+          color: "#7a8a78",
+          padding: "5px 11px",
+          fontSize: 12,
+        }}
       >
         More
       </span>
@@ -139,14 +155,14 @@ async function QueueContent({
   return (
     <QueuePollingWrapper>
       <div
-        className="rounded-xl overflow-hidden"
-        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+        className="rounded-lg overflow-hidden"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
       >
         {/* Live count */}
-        <div className="px-4 py-2" style={{ borderBottom: "1px solid var(--border-light)" }}>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+        <div className="px-4 py-2" style={{ borderBottom: "1px solid #ede6d6" }}>
+          <p style={{ color: "#7a8a78", fontSize: 12 }}>
             {total} fill{total !== 1 ? "s" : ""} in {label}
-            <span className="ml-2" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
+            <span className="ml-2" style={{ color: "#a3a89c" }}>
               (status: {drxStatus})
             </span>
           </p>
@@ -154,10 +170,10 @@ async function QueueContent({
 
         {fills.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-lg mb-2" style={{ color: "var(--text-muted)" }}>
+            <p className="text-lg mb-2" style={{ color: "#7a8a78" }}>
               No fills in {label} queue
             </p>
-            <p className="text-sm" style={{ color: "var(--text-muted)", opacity: 0.75 }}>
+            <p style={{ color: "#a3a89c", fontSize: 13 }}>
               {total === 0
                 ? "No fills are currently in this stage."
                 : `${total} fills total — navigate pages to view more.`}
@@ -190,19 +206,22 @@ export default async function QueuePage({
 
   return (
     <PageShell
+      eyebrow="Workflow"
       title={`${label} Queue`}
       subtitle="Prescriptions waiting in this workflow stage"
       actions={
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg no-underline transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-md font-medium no-underline transition-colors"
           style={{
-            border: "1px solid var(--border)",
-            color: "var(--text-secondary)",
-            backgroundColor: "var(--card-bg)",
+            border: "1px solid #d9d2c2",
+            color: "#3a4a3c",
+            backgroundColor: "#ffffff",
+            padding: "7px 13px",
+            fontSize: 13,
           }}
         >
-          <ArrowLeft size={14} /> Dashboard
+          <ArrowLeft size={14} strokeWidth={2} /> Dashboard
         </Link>
       }
       toolbar={

@@ -11,14 +11,15 @@ import StatsRow from "@/components/layout/StatsRow";
 import { Suspense } from "react";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 
-const CLAIM_STATUS: Record<string, { label: string; color: string }> = {
-  pending: { label: "Pending", color: "bg-yellow-50 text-yellow-700" },
-  submitted: { label: "Submitted", color: "bg-blue-50 text-blue-700" },
-  accepted: { label: "Accepted", color: "bg-green-50 text-green-700" },
-  paid: { label: "Paid", color: "bg-green-100 text-green-800" },
-  partial: { label: "Partial Pay", color: "bg-orange-50 text-orange-700" },
-  rejected: { label: "Rejected", color: "bg-red-50 text-red-700" },
-  reversed: { label: "Reversed", color: "bg-gray-100 text-gray-600" },
+// BNDS PMS Redesign — heritage status palette
+const CLAIM_STATUS: Record<string, { label: string; bg: string; color: string }> = {
+  pending: { label: "Pending", bg: "rgba(212,138,40,0.14)", color: "#8a5a17" },
+  submitted: { label: "Submitted", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
+  accepted: { label: "Accepted", bg: "rgba(90,168,69,0.14)", color: "#2d6a1f" },
+  paid: { label: "Paid", bg: "rgba(31,90,58,0.14)", color: "#1f5a3a" },
+  partial: { label: "Partial Pay", bg: "rgba(212,138,40,0.18)", color: "#8a5a17" },
+  rejected: { label: "Rejected", bg: "rgba(184,58,47,0.10)", color: "#9a2c1f" },
+  reversed: { label: "Reversed", bg: "rgba(122,138,120,0.14)", color: "#5a6b58" },
 };
 
 const CLAIM_FILTERS = ["all", "pending", "submitted", "paid", "rejected"];
@@ -38,6 +39,7 @@ async function BillingPageContent({
 
   return (
     <PageShell
+      eyebrow="Finance"
       title="Billing"
       subtitle="Claims, payments, and revenue"
       stats={
@@ -47,25 +49,25 @@ async function BillingPageContent({
               label: "Pending Claims",
               value: stats.pendingClaims,
               icon: <Clock size={12} />,
-              accent: stats.pendingClaims > 0 ? "#eab308" : undefined,
+              accent: stats.pendingClaims > 0 ? "#d48a28" : undefined,
             },
             {
               label: "Rejected Claims",
               value: stats.rejectedClaims,
               icon: <XCircle size={12} />,
-              accent: stats.rejectedClaims > 0 ? "#dc2626" : undefined,
+              accent: stats.rejectedClaims > 0 ? "#9a2c1f" : undefined,
             },
             {
               label: "Outstanding",
               value: `$${stats.totalOutstanding.toFixed(2)}`,
               icon: <DollarSign size={12} />,
-              accent: stats.totalOutstanding > 0 ? "#ea580c" : undefined,
+              accent: stats.totalOutstanding > 0 ? "#d48a28" : undefined,
             },
             {
               label: "Payments (Month)",
               value: `$${stats.paymentsThisMonthAmount.toFixed(2)}`,
               icon: <TrendingUp size={12} />,
-              accent: "var(--color-primary)",
+              accent: "#1f5a3a",
               sub: `${stats.paymentsThisMonth} transactions`,
             },
           ]}
@@ -75,20 +77,25 @@ async function BillingPageContent({
         <FilterBar
           filters={
             <>
-              {[{ id: "claims", label: "Claims" }, { id: "payments", label: "Payments" }].map((t) => (
-                <Link
-                  key={t.id}
-                  href={`/billing?tab=${t.id}`}
-                  className="px-4 py-1.5 text-xs font-semibold rounded-full border no-underline transition-colors"
-                  style={{
-                    backgroundColor: tab === t.id ? "var(--color-primary)" : "transparent",
-                    color: tab === t.id ? "#fff" : "var(--text-secondary)",
-                    borderColor: tab === t.id ? "var(--color-primary)" : "var(--border)",
-                  }}
-                >
-                  {t.label}
-                </Link>
-              ))}
+              {[{ id: "claims", label: "Claims" }, { id: "payments", label: "Payments" }].map((t) => {
+                const active = tab === t.id;
+                return (
+                  <Link
+                    key={t.id}
+                    href={`/billing?tab=${t.id}`}
+                    className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
+                    style={{
+                      backgroundColor: active ? "#1f5a3a" : "#ffffff",
+                      color: active ? "#ffffff" : "#3a4a3c",
+                      border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
+                      padding: "5px 13px",
+                      fontSize: 12,
+                    }}
+                  >
+                    {t.label}
+                  </Link>
+                );
+              })}
             </>
           }
         />
@@ -108,72 +115,114 @@ async function ClaimsTab({ search, page, status }: { search: string; page: numbe
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-        <div className="flex items-center gap-4 mb-3">
+      <div
+        className="rounded-lg p-4 mb-4"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+      >
+        <div className="mb-3">
           <Suspense fallback={null}>
             <SearchBar placeholder="Search by claim number..." basePath="/billing?tab=claims" />
           </Suspense>
         </div>
         <div className="flex flex-wrap gap-2">
-          {CLAIM_FILTERS.map((s) => (
-            <Link key={s} href={`/billing?tab=claims&status=${s}${search ? `&search=${search}` : ""}`}
-              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                status === s ? "bg-[#40721D] text-white border-[#40721D]" : "border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}>
-              {s === "all" ? "All" : s.replace(/\b\w/g, (c) => c.toUpperCase())}
-            </Link>
-          ))}
+          {CLAIM_FILTERS.map((s) => {
+            const active = status === s;
+            return (
+              <Link
+                key={s}
+                href={`/billing?tab=claims&status=${s}${search ? `&search=${search}` : ""}`}
+                className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
+                style={{
+                  backgroundColor: active ? "#1f5a3a" : "#ffffff",
+                  color: active ? "#ffffff" : "#3a4a3c",
+                  border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
+                  padding: "5px 11px",
+                  fontSize: 12,
+                }}
+              >
+                {s === "all" ? "All" : s.replace(/\b\w/g, (c) => c.toUpperCase())}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200">
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+      >
         {claims.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-gray-400 text-lg">No claims found</p>
+            <p className="text-lg" style={{ color: "#7a8a78" }}>No claims found</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" style={{ fontSize: 13 }}>
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Claim #</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Patient</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Drug</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Plan</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Billed</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Paid</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Copay</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Claim #</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Patient</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Drug</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Plan</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Billed</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Paid</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Copay</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Date</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {claims.map((c) => {
-                  const si = CLAIM_STATUS[c.status] || { label: c.status, color: "bg-gray-100 text-gray-700" };
+              <tbody>
+                {claims.map((c, idx) => {
+                  const si = CLAIM_STATUS[c.status] || { label: c.status, bg: "rgba(122,138,120,0.14)", color: "#5a6b58" };
                   const fill = c.fills?.[0];
                   const rawDrugName = fill?.prescription?.item?.name || fill?.prescription?.formula?.name || "—";
                   const drugName = rawDrugName === "—" ? rawDrugName : formatDrugName(rawDrugName);
                   const rxNumber = fill?.prescription?.rxNumber;
                   return (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => {}}>
+                    <tr key={c.id} style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}>
                       <td className="px-4 py-3">
-                        <Link href={`/billing/${c.id}`} className="text-sm font-mono text-[#40721D] hover:underline">{c.claimNumber || c.id.slice(0, 8)}</Link>
+                        <Link
+                          href={`/billing/${c.id}`}
+                          className="hover:underline"
+                          style={{
+                            color: "#1f5a3a",
+                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {c.claimNumber || c.id.slice(0, 8)}
+                        </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-gray-900">{formatPatientName({ firstName: c.insurance.patient.firstName, lastName: c.insurance.patient.lastName }, { format: "last-first" })}</p>
-                        <p className="text-xs text-gray-400 font-mono">{c.insurance.patient.mrn}</p>
+                        <p style={{ color: "#0f2e1f", fontWeight: 500 }}>
+                          {formatPatientName({ firstName: c.insurance.patient.firstName, lastName: c.insurance.patient.lastName }, { format: "last-first" })}
+                        </p>
+                        <p style={{ color: "#7a8a78", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{c.insurance.patient.mrn}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-gray-900">{drugName}</p>
-                        {rxNumber && <p className="text-xs text-gray-400">Rx# {rxNumber}</p>}
+                        <p style={{ color: "#0f2e1f" }}>{drugName}</p>
+                        {rxNumber && <p style={{ color: "#7a8a78", fontSize: 12 }}>Rx# {rxNumber}</p>}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{c.insurance.thirdPartyPlan?.planName || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-900 font-medium">${Number(c.amountBilled).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{c.amountPaid ? `$${Number(c.amountPaid).toFixed(2)}` : "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{c.patientCopay ? `$${Number(c.patientCopay).toFixed(2)}` : "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{formatDate(c.createdAt)}</td>
+                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{c.insurance.thirdPartyPlan?.planName || "—"}</td>
+                      <td className="px-4 py-3 tabular-nums" style={{ color: "#0f2e1f", fontWeight: 500 }}>${Number(c.amountBilled).toFixed(2)}</td>
+                      <td className="px-4 py-3 tabular-nums" style={{ color: "#5a6b58" }}>{c.amountPaid ? `$${Number(c.amountPaid).toFixed(2)}` : "—"}</td>
+                      <td className="px-4 py-3 tabular-nums" style={{ color: "#5a6b58" }}>{c.patientCopay ? `$${Number(c.patientCopay).toFixed(2)}` : "—"}</td>
+                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{formatDate(c.createdAt)}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${si.color}`}>{si.label}</span>
+                        <span
+                          className="inline-flex items-center"
+                          style={{
+                            backgroundColor: si.bg,
+                            color: si.color,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                          }}
+                        >
+                          {si.label}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -195,49 +244,67 @@ async function PaymentsTab({ search, page }: { search: string; page: number }) {
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      <div
+        className="rounded-lg p-4 mb-4"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+      >
         <Suspense fallback={null}>
           <SearchBar placeholder="Search by reference # or patient name..." basePath="/billing?tab=payments" />
         </Suspense>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200">
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+      >
         {payments.length === 0 ? (
-          <div className="p-12 text-center"><p className="text-gray-400 text-lg">No payments found</p></div>
+          <div className="p-12 text-center"><p className="text-lg" style={{ color: "#7a8a78" }}>No payments found</p></div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" style={{ fontSize: 13 }}>
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Patient</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Method</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Reference</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Rx #</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Processed By</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Patient</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Amount</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Method</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Reference</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Rx #</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Processed By</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Date</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+              <tbody>
+                {payments.map((p, idx) => (
+                  <tr key={p.id} style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}>
                     <td className="px-4 py-3">
-                      <p className="text-sm text-gray-900">{formatPatientName({ firstName: p.patient.firstName, lastName: p.patient.lastName }, { format: "last-first" })}</p>
-                      <p className="text-xs text-gray-400 font-mono">{p.patient.mrn}</p>
+                      <p style={{ color: "#0f2e1f", fontWeight: 500 }}>
+                        {formatPatientName({ firstName: p.patient.firstName, lastName: p.patient.lastName }, { format: "last-first" })}
+                      </p>
+                      <p style={{ color: "#7a8a78", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{p.patient.mrn}</p>
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-green-700">${Number(p.amount).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 capitalize">{p.paymentMethod.replace(/_/g, " ")}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 font-mono">{p.referenceNumber || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{p.fill ? `Rx# ${p.fill.prescription.rxNumber}` : "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 tabular-nums" style={{ color: "#1f5a3a", fontWeight: 600 }}>${Number(p.amount).toFixed(2)}</td>
+                    <td className="px-4 py-3 capitalize" style={{ color: "#5a6b58" }}>{p.paymentMethod.replace(/_/g, " ")}</td>
+                    <td className="px-4 py-3" style={{ color: "#5a6b58", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{p.referenceNumber || "—"}</td>
+                    <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{p.fill ? `Rx# ${p.fill.prescription.rxNumber}` : "—"}</td>
+                    <td className="px-4 py-3" style={{ color: "#5a6b58" }}>
                       {p.processor ? formatPatientName({ firstName: p.processor.firstName, lastName: p.processor.lastName }) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(p.processedAt)}</td>
+                    <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{formatDate(p.processedAt)}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                        p.status === "completed" ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-600"
-                      }`}>{p.status}</span>
+                      <span
+                        className="inline-flex items-center capitalize"
+                        style={{
+                          backgroundColor: p.status === "completed" ? "rgba(90,168,69,0.14)" : "rgba(122,138,120,0.14)",
+                          color: p.status === "completed" ? "#2d6a1f" : "#5a6b58",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                        }}
+                      >
+                        {p.status}
+                      </span>
                     </td>
                   </tr>
                 ))}

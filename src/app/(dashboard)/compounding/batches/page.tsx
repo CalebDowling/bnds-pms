@@ -7,12 +7,13 @@ import PermissionGuard from "@/components/auth/PermissionGuard";
 import PageShell from "@/components/layout/PageShell";
 import StatsRow from "@/components/layout/StatsRow";
 
+// BNDS PMS Redesign — heritage status palette (forest+leaf+amber+burgundy)
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  in_progress: { label: "In Progress", bg: "#fefce8", color: "#a16207" },
-  completed: { label: "Completed", bg: "#eff6ff", color: "#1d4ed8" },
-  verified: { label: "Verified", bg: "var(--green-100)", color: "var(--green-700)" },
-  released: { label: "Released", bg: "#ecfdf5", color: "#047857" },
-  failed: { label: "Failed", bg: "#fef2f2", color: "#b91c1c" },
+  in_progress: { label: "In Progress", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
+  completed: { label: "Completed", bg: "rgba(212,138,40,0.14)", color: "#8a5a17" },
+  verified: { label: "Verified", bg: "rgba(90,168,69,0.14)", color: "#2d6a1f" },
+  released: { label: "Released", bg: "rgba(31,90,58,0.14)", color: "#1f5a3a" },
+  failed: { label: "Failed", bg: "rgba(184,58,47,0.10)", color: "#9a2c1f" },
 };
 
 async function BatchListContent() {
@@ -26,45 +27,52 @@ async function BatchListContent() {
 
   return (
     <PageShell
+      eyebrow="Pharmacy"
       title="Batch Records"
-      subtitle="Compounding batch log and quality assurance"
+      subtitle="Compounding batch log and quality assurance · USP 795/797"
       actions={
         <Link
           href="/compounding/batches/new"
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white no-underline transition-colors"
-          style={{ backgroundColor: "var(--color-primary)" }}
+          className="inline-flex items-center gap-1.5 rounded-md font-semibold no-underline transition-colors"
+          style={{
+            backgroundColor: "#1f5a3a",
+            color: "#ffffff",
+            border: "1px solid #1f5a3a",
+            padding: "7px 13px",
+            fontSize: 13,
+          }}
         >
-          <Plus size={14} /> New Batch
+          <Plus size={14} strokeWidth={2} /> New Batch
         </Link>
       }
       stats={
         <StatsRow
           stats={[
             { label: "Total", value: batches.total || 0, icon: <FlaskConical size={12} /> },
-            { label: "In Progress", value: inProgressCount, icon: <Clock size={12} />, accent: inProgressCount > 0 ? "#eab308" : undefined },
-            { label: "Completed", value: completedCount, icon: <CheckCircle2 size={12} />, accent: "#3b82f6" },
-            { label: "Verified", value: verifiedCount, icon: <ShieldCheck size={12} />, accent: "var(--color-primary)" },
-            { label: "Released", value: releasedCount, icon: <PackageCheck size={12} />, accent: "#10b981" },
+            { label: "In Progress", value: inProgressCount, icon: <Clock size={12} />, accent: inProgressCount > 0 ? "#d48a28" : undefined },
+            { label: "Completed", value: completedCount, icon: <CheckCircle2 size={12} />, accent: "#386d8c" },
+            { label: "Verified", value: verifiedCount, icon: <ShieldCheck size={12} />, accent: "#5aa845" },
+            { label: "Released", value: releasedCount, icon: <PackageCheck size={12} />, accent: "#1f5a3a" },
           ]}
         />
       }
     >
       <div
-        className="rounded-xl overflow-hidden"
-        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+        className="rounded-lg overflow-hidden"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
       >
         {batchList.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" style={{ fontSize: 13 }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)", backgroundColor: "var(--green-50)" }}>
-                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Batch #</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Formula</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Quantity</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Created</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Compounder</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Verifier</th>
+                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
+                  <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Batch #</th>
+                  <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Formula</th>
+                  <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Quantity</th>
+                  <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
+                  <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Created</th>
+                  <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Compounder</th>
+                  <th className="text-left px-6 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Verifier</th>
                 </tr>
               </thead>
               <tbody>
@@ -72,51 +80,63 @@ async function BatchListContent() {
                   const statusConfig =
                     STATUS_CONFIG[batch.status] || {
                       label: batch.status,
-                      bg: "rgba(0,0,0,0.05)",
-                      color: "#6b7280",
+                      bg: "rgba(122,138,120,0.14)",
+                      color: "#5a6b58",
                     };
 
                   return (
                     <tr
                       key={batch.id}
                       className="transition-colors"
-                      style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
+                      style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-3">
                         <Link
                           href={`/compounding/batches/${batch.id}`}
-                          className="font-mono text-sm font-semibold hover:underline no-underline"
-                          style={{ color: "var(--color-primary)" }}
+                          className="hover:underline no-underline"
+                          style={{
+                            color: "#1f5a3a",
+                            fontWeight: 600,
+                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                            fontSize: 13,
+                          }}
                         >
                           {batch.batchNumber}
                         </Link>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                      <td className="px-6 py-3">
+                        <p style={{ color: "#0f2e1f", fontWeight: 500 }}>
                           {batch.formulaVersion.formula.name}
                         </p>
-                        <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                        <p style={{ color: "#7a8a78", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
                           {batch.formulaVersion.formula.formulaCode}
                         </p>
                       </td>
-                      <td className="px-6 py-4 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      <td className="px-6 py-3 tabular-nums" style={{ color: "#3a4a3c" }}>
                         {Number(batch.quantityPrepared)} {batch.unit}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-3">
                         <span
-                          className="inline-flex items-center px-2.5 py-0.5 text-xs font-semibold rounded-full"
-                          style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}
+                          className="inline-flex items-center"
+                          style={{
+                            backgroundColor: statusConfig.bg,
+                            color: statusConfig.color,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                          }}
                         >
                           {statusConfig.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                      <td className="px-6 py-3" style={{ color: "#3a4a3c" }}>
                         {formatDate(batch.createdAt)}
                       </td>
-                      <td className="px-6 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                      <td className="px-6 py-3" style={{ color: "#3a4a3c" }}>
                         {formatPatientName({ firstName: batch.compounder.firstName, lastName: batch.compounder.lastName })}
                       </td>
-                      <td className="px-6 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                      <td className="px-6 py-3" style={{ color: "#3a4a3c" }}>
                         {batch.verifier
                           ? formatPatientName({ firstName: batch.verifier.firstName, lastName: batch.verifier.lastName })
                           : "—"}
@@ -129,11 +149,11 @@ async function BatchListContent() {
           </div>
         ) : (
           <div className="px-6 py-12 text-center">
-            <p className="mb-4" style={{ color: "var(--text-muted)" }}>No batch records found</p>
+            <p className="mb-4" style={{ color: "#7a8a78" }}>No batch records found</p>
             <Link
               href="/compounding/batches/new"
               className="text-sm font-semibold hover:underline no-underline"
-              style={{ color: "var(--color-primary)" }}
+              style={{ color: "#1f5a3a" }}
             >
               Create the first batch →
             </Link>

@@ -9,6 +9,7 @@ import FilterBar from "@/components/layout/FilterBar";
 
 import type { ThirdPartyPlanWithCount } from "@/types";
 
+// BNDS PMS Redesign — heritage insurance palette (forest primary, leaf-tinted active, burgundy inactive)
 async function InsurancePageContent({
   searchParams,
 }: {
@@ -21,15 +22,22 @@ async function InsurancePageContent({
 
   return (
     <PageShell
+      eyebrow="Finance"
       title="Insurance Plans"
       subtitle={`${total.toLocaleString()} third-party plan${total !== 1 ? "s" : ""}`}
       actions={
         <Link
           href="/insurance/plans/new"
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white no-underline transition-colors"
-          style={{ backgroundColor: "var(--color-primary)" }}
+          className="inline-flex items-center gap-1.5 rounded-md font-semibold no-underline transition-colors"
+          style={{
+            backgroundColor: "#1f5a3a",
+            color: "#ffffff",
+            border: "1px solid #1f5a3a",
+            padding: "7px 13px",
+            fontSize: 13,
+          }}
         >
-          <Plus size={14} /> Add Plan
+          <Plus size={14} strokeWidth={2} /> Add Plan
         </Link>
       }
       toolbar={
@@ -39,25 +47,25 @@ async function InsurancePageContent({
       }
     >
       <div
-        className="rounded-xl overflow-hidden"
-        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+        className="rounded-lg overflow-hidden"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
       >
-        <table className="w-full">
+        <table className="w-full" style={{ fontSize: 13 }}>
           <thead>
-            <tr style={{ backgroundColor: "var(--green-50)", borderBottom: "1px solid var(--border)" }}>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Plan Name</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>BIN</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>PCN</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Type</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Phone</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Members</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</th>
+            <tr style={{ backgroundColor: "#f4ede0", borderBottom: "1px solid #e3ddd1" }}>
+              <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Plan Name</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>BIN</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>PCN</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Type</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Phone</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Members</th>
+              <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
             </tr>
           </thead>
           <tbody>
             {plans.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+                <td colSpan={7} className="px-4 py-8 text-center" style={{ color: "#7a8a78" }}>
                   No plans found
                 </td>
               </tr>
@@ -66,28 +74,32 @@ async function InsurancePageContent({
                 <tr
                   key={plan.id}
                   className="transition-colors"
-                  style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
+                  style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}
                 >
                   <td className="px-4 py-3">
                     <Link
                       href={`/insurance/plans/${plan.id}`}
-                      className="text-sm font-semibold no-underline hover:underline"
-                      style={{ color: "var(--color-primary)" }}
+                      className="no-underline hover:underline"
+                      style={{ color: "#1f5a3a", fontWeight: 600 }}
                     >
                       {plan.planName}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-sm font-mono" style={{ color: "var(--text-secondary)" }}>{plan.bin}</td>
-                  <td className="px-4 py-3 text-sm font-mono" style={{ color: "var(--text-muted)" }}>{plan.pcn || "—"}</td>
-                  <td className="px-4 py-3 text-sm capitalize" style={{ color: "var(--text-muted)" }}>{plan.planType || "—"}</td>
-                  <td className="px-4 py-3 text-sm" style={{ color: "var(--text-muted)" }}>{plan.phone || "—"}</td>
-                  <td className="px-4 py-3 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>{plan._count.patientInsurance}</td>
+                  <td className="px-4 py-3" style={{ color: "#3a4a3c", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{plan.bin}</td>
+                  <td className="px-4 py-3" style={{ color: "#5a6b58", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{plan.pcn || "—"}</td>
+                  <td className="px-4 py-3 capitalize" style={{ color: "#5a6b58" }}>{plan.planType || "—"}</td>
+                  <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{plan.phone || "—"}</td>
+                  <td className="px-4 py-3 tabular-nums" style={{ color: "#3a4a3c" }}>{plan._count.patientInsurance}</td>
                   <td className="px-4 py-3">
                     <span
-                      className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full"
+                      className="inline-flex items-center"
                       style={{
-                        backgroundColor: plan.isActive ? "var(--green-100)" : "#fef2f2",
-                        color: plan.isActive ? "var(--green-700)" : "#b91c1c",
+                        backgroundColor: plan.isActive ? "rgba(31,90,58,0.14)" : "rgba(184,58,47,0.10)",
+                        color: plan.isActive ? "#1f5a3a" : "#9a2c1f",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: "2px 8px",
+                        borderRadius: 999,
                       }}
                     >
                       {plan.isActive ? "Active" : "Inactive"}

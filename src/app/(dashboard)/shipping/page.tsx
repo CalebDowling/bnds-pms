@@ -13,14 +13,15 @@ import PermissionGuard from "@/components/auth/PermissionGuard";
 
 export const dynamic = "force-dynamic";
 
+// BNDS PMS Redesign — heritage shipping palette (warn=amber, info=lake, ok=forest, danger=burgundy)
 const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  pending: { label: "Pending", bg: "#fefce8", color: "#a16207" },
-  packed: { label: "Packed", bg: "#eff6ff", color: "#1d4ed8" },
-  shipped: { label: "Shipped", bg: "#ecfeff", color: "#0e7490" },
-  in_transit: { label: "In Transit", bg: "#eef2ff", color: "#4338ca" },
-  delivered: { label: "Delivered", bg: "var(--green-100)", color: "var(--green-700)" },
-  returned: { label: "Returned", bg: "#fef2f2", color: "#b91c1c" },
-  cancelled: { label: "Cancelled", bg: "rgba(0,0,0,0.05)", color: "#6b7280" },
+  pending: { label: "Pending", bg: "rgba(212,138,40,0.14)", color: "#8a5a17" },
+  packed: { label: "Packed", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
+  shipped: { label: "Shipped", bg: "rgba(56,109,140,0.18)", color: "#2c5e7a" },
+  in_transit: { label: "In Transit", bg: "rgba(56,109,140,0.18)", color: "#2c5e7a" },
+  delivered: { label: "Delivered", bg: "rgba(31,90,58,0.14)", color: "#1f5a3a" },
+  returned: { label: "Returned", bg: "rgba(184,58,47,0.10)", color: "#9a2c1f" },
+  cancelled: { label: "Cancelled", bg: "rgba(122,138,120,0.14)", color: "#5a6b58" },
 };
 
 const STATUS_FILTERS = ["all", "pending", "packed", "shipped", "in_transit", "delivered", "returned"];
@@ -42,23 +43,30 @@ async function ShippingPageContent({
 
   return (
     <PageShell
+      eyebrow="Operations"
       title="Shipping"
       subtitle="Manage shipments and deliveries"
       actions={
         <Link
           href="/shipping/new"
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg text-white no-underline transition-colors"
-          style={{ backgroundColor: "var(--color-primary)" }}
+          className="inline-flex items-center gap-1.5 rounded-md font-semibold no-underline transition-colors"
+          style={{
+            backgroundColor: "#1f5a3a",
+            color: "#ffffff",
+            border: "1px solid #1f5a3a",
+            padding: "7px 13px",
+            fontSize: 13,
+          }}
         >
-          <Plus size={14} /> New Shipment
+          <Plus size={14} strokeWidth={2} /> New Shipment
         </Link>
       }
       stats={
         <StatsRow
           stats={[
-            { label: "Pending", value: stats.pending, icon: <Clock size={12} />, accent: stats.pending > 0 ? "#eab308" : undefined },
-            { label: "In Transit", value: stats.shipped, icon: <Truck size={12} /> },
-            { label: "Delivered", value: stats.delivered, icon: <PackageCheck size={12} />, accent: "var(--color-primary)" },
+            { label: "Pending", value: stats.pending, icon: <Clock size={12} />, accent: stats.pending > 0 ? "#d48a28" : undefined },
+            { label: "In Transit", value: stats.shipped, icon: <Truck size={12} />, accent: "#386d8c" },
+            { label: "Delivered", value: stats.delivered, icon: <PackageCheck size={12} />, accent: "#1f5a3a" },
             { label: "Shipped Today", value: stats.shippedToday, icon: <CalendarClock size={12} /> },
           ]}
         />
@@ -72,20 +80,25 @@ async function ShippingPageContent({
           }
           filters={
             <>
-              {STATUS_FILTERS.map((s) => (
-                <Link
-                  key={s}
-                  href={`/shipping?status=${s}${search ? `&search=${search}` : ""}`}
-                  className="px-3 py-1 text-xs font-semibold rounded-full border no-underline transition-colors"
-                  style={{
-                    backgroundColor: status === s ? "var(--color-primary)" : "transparent",
-                    color: status === s ? "#fff" : "var(--text-secondary)",
-                    borderColor: status === s ? "var(--color-primary)" : "var(--border)",
-                  }}
-                >
-                  {s === "all" ? "All" : s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                </Link>
-              ))}
+              {STATUS_FILTERS.map((s) => {
+                const active = status === s;
+                return (
+                  <Link
+                    key={s}
+                    href={`/shipping?status=${s}${search ? `&search=${search}` : ""}`}
+                    className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
+                    style={{
+                      backgroundColor: active ? "#1f5a3a" : "#ffffff",
+                      color: active ? "#ffffff" : "#3a4a3c",
+                      border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
+                      padding: "5px 11px",
+                      fontSize: 12,
+                    }}
+                  >
+                    {s === "all" ? "All" : s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </Link>
+                );
+              })}
             </>
           }
         />
@@ -93,63 +106,110 @@ async function ShippingPageContent({
     >
       {/* Table */}
       <div
-        className="rounded-xl overflow-hidden"
-        style={{ backgroundColor: "var(--card-bg)", border: "1px solid var(--border)" }}
+        className="rounded-lg overflow-hidden"
+        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
       >
         {shipments.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-gray-400 text-lg mb-2">{search ? "No shipments match your search" : "No shipments yet"}</p>
-            {!search && <Link href="/shipping/new" className="text-[#40721D] text-sm font-medium hover:underline">Create first shipment</Link>}
+            <p className="text-lg mb-2" style={{ color: "#7a8a78" }}>
+              {search ? "No shipments match your search" : "No shipments yet"}
+            </p>
+            {!search && (
+              <Link
+                href="/shipping/new"
+                className="text-sm font-semibold hover:underline"
+                style={{ color: "#1f5a3a" }}
+              >
+                Create first shipment
+              </Link>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" style={{ fontSize: 13 }}>
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Carrier</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tracking #</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ship Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tags</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Patient</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Carrier</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Tracking #</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Destination</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Ship Date</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Tags</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {shipments.map((s, idx) => {
-                  const si = STATUS_CONFIG[s.status] || { label: s.status, bg: "rgba(0,0,0,0.05)", color: "#6b7280" };
+                  const si = STATUS_CONFIG[s.status] || { label: s.status, bg: "rgba(122,138,120,0.14)", color: "#5a6b58" };
                   return (
                     <tr
                       key={s.id}
                       className="transition-colors"
-                      style={{ borderTop: idx > 0 ? "1px solid var(--border-light)" : undefined }}
+                      style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}
                     >
                       <td className="px-4 py-3">
-                        <Link href={`/shipping/${s.id}`} className="text-sm font-medium text-gray-900 hover:text-[#40721D]">
+                        <Link
+                          href={`/shipping/${s.id}`}
+                          className="hover:underline"
+                          style={{ color: "#0f2e1f", fontWeight: 500 }}
+                        >
                           {formatPatientName({ firstName: s.patient.firstName, lastName: s.patient.lastName }, { format: "last-first" })}
                         </Link>
-                        <p className="text-xs text-gray-400 font-mono">{s.patient.mrn}</p>
+                        <p style={{ color: "#7a8a78", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{s.patient.mrn}</p>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 uppercase">{s.carrier}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 font-mono">{s.trackingNumber || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className="px-4 py-3 uppercase" style={{ color: "#5a6b58" }}>{s.carrier}</td>
+                      <td className="px-4 py-3" style={{ color: "#5a6b58", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{s.trackingNumber || "—"}</td>
+                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>
                         {s.address ? `${s.address.city}, ${s.address.state}` : "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{s.shipDate ? formatDate(s.shipDate) : "—"}</td>
+                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{s.shipDate ? formatDate(s.shipDate) : "—"}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
                           {s.requiresColdChain && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded">COLD</span>
+                            <span
+                              className="inline-flex items-center"
+                              style={{
+                                backgroundColor: "rgba(56,109,140,0.12)",
+                                color: "#2c5e7a",
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: "1px 6px",
+                                borderRadius: 4,
+                                letterSpacing: "0.04em",
+                              }}
+                            >
+                              COLD
+                            </span>
                           )}
                           {s.requiresSignature && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-orange-50 text-orange-700 rounded">SIG REQ</span>
+                            <span
+                              className="inline-flex items-center"
+                              style={{
+                                backgroundColor: "rgba(212,138,40,0.14)",
+                                color: "#8a5a17",
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: "1px 6px",
+                                borderRadius: 4,
+                                letterSpacing: "0.04em",
+                              }}
+                            >
+                              SIG REQ
+                            </span>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full"
-                          style={{ backgroundColor: si.bg, color: si.color }}
+                          className="inline-flex items-center"
+                          style={{
+                            backgroundColor: si.bg,
+                            color: si.color,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                          }}
                         >
                           {si.label}
                         </span>

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { getPatient } from "../actions";
 import { formatDate, formatPhone, calculateAge, getInitials } from "@/lib/utils";
 import { formatPatientName } from "@/lib/utils/formatters";
@@ -27,134 +28,266 @@ async function PatientDetailPageContent({
   const activeInsurance = patient.insurance.filter((i) => i.isActive);
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-6 py-6 space-y-5">
       {/* Replace the UUID segment in the global breadcrumb with the
           patient's name (e.g. "Patients > John Smith" instead of
           "Patients > #abc12345..."). */}
       <BreadcrumbLabel segment={id} label={formatPatientName(patient)} />
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-[#40721D] flex items-center justify-center">
-            <span className="text-xl font-bold text-white">
-              {getInitials(patient.firstName, patient.lastName)}
-            </span>
+
+      {/* BNDS PMS Redesign — Patient header pattern: 64px initials avatar +
+          Source Serif 4 name + meta chips (MRN | DOB | gender | status) */}
+      <header className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4 min-w-0 flex-1">
+          <div
+            className="flex items-center justify-center flex-shrink-0"
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 999,
+              backgroundColor: "#1f5a3a",
+              color: "#ffffff",
+              fontFamily: "var(--font-serif), 'Source Serif 4', Georgia, serif",
+              fontSize: 24,
+              fontWeight: 500,
+              letterSpacing: "0.02em",
+            }}
+          >
+            {getInitials(patient.firstName, patient.lastName)}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+          <div className="min-w-0 flex-1">
+            <div
+              className="text-[11px] font-semibold uppercase"
+              style={{ color: "#7a8a78", letterSpacing: "0.12em" }}
+            >
+              Patient
+            </div>
+            <h1
+              className="truncate"
+              style={{
+                fontFamily:
+                  "var(--font-serif), 'Source Serif 4', Georgia, serif",
+                fontSize: 28,
+                fontWeight: 500,
+                color: "#0f2e1f",
+                marginTop: 2,
+                lineHeight: 1.15,
+                letterSpacing: "-0.01em",
+              }}
+            >
               {formatPatientName(patient, { format: "last-first-mi" })}
               {patient.suffix ? ` ${patient.suffix}` : ""}
             </h1>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-sm text-gray-500 font-mono">{patient.mrn}</span>
-              <span className="text-gray-300">|</span>
-              <span className="text-sm text-gray-500">
+            <div
+              className="flex items-center gap-2 flex-wrap mt-1"
+              style={{ fontSize: 13, color: "#5a6b58" }}
+            >
+              <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>
+                {patient.mrn}
+              </span>
+              <span style={{ color: "#a3a89c" }}>·</span>
+              <span>
                 {formatDate(patient.dateOfBirth)} ({calculateAge(patient.dateOfBirth)} yrs)
               </span>
-              <span className="text-gray-300">|</span>
-              <span className="text-sm text-gray-500 capitalize">{patient.gender || "—"}</span>
-              <span className="text-gray-300">|</span>
+              <span style={{ color: "#a3a89c" }}>·</span>
+              <span className="capitalize">{patient.gender || "—"}</span>
+              <span style={{ color: "#a3a89c" }}>·</span>
               <span
-                className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                  patient.status === "active"
-                    ? "bg-green-50 text-green-700"
-                    : "bg-gray-100 text-gray-600"
-                }`}
+                className="inline-flex items-center capitalize"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  backgroundColor:
+                    patient.status === "active"
+                      ? "rgba(90,168,69,0.12)"
+                      : "rgba(122,138,120,0.14)",
+                  color: patient.status === "active" ? "#2d6a1f" : "#5a6b58",
+                }}
               >
                 {patient.status}
               </span>
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Pre-fill the patient on /prescriptions/new via ?patientId=...
               so the tech doesn't have to re-find them in the picker. */}
           <Link
             href={`/prescriptions/new?patientId=${id}`}
-            className="px-4 py-2 text-sm font-medium bg-[#40721D] text-white rounded-lg hover:bg-[#2D5114] transition-colors no-underline"
+            className="inline-flex items-center gap-1.5 rounded-md font-semibold no-underline transition-colors"
+            style={{
+              backgroundColor: "#1f5a3a",
+              color: "#ffffff",
+              border: "1px solid #1f5a3a",
+              padding: "7px 13px",
+              fontSize: 13,
+            }}
           >
-            + New Rx
+            <Plus size={14} strokeWidth={2} />
+            New Rx
           </Link>
           <Link
             href={`/patients/${id}/edit`}
-            className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center rounded-md font-medium no-underline transition-colors"
+            style={{
+              backgroundColor: "#ffffff",
+              color: "#0f2e1f",
+              border: "1px solid #d9d2c2",
+              padding: "7px 13px",
+              fontSize: 13,
+            }}
           >
             Edit
           </Link>
           <Link
             href="/patients"
-            className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            className="inline-flex items-center font-medium transition-colors no-underline"
+            style={{
+              color: "#7a8a78",
+              padding: "7px 10px",
+              fontSize: 13,
+            }}
           >
             Back to List
           </Link>
         </div>
-      </div>
+      </header>
 
-      {/* Quick Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {/* Quick info — paper cards (white bg + #e3ddd1 line border) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         {/* Phone */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Phone</p>
-          <p className="text-sm text-gray-900">
+        <div
+          className="rounded-lg"
+          style={{
+            backgroundColor: "#ffffff",
+            border: "1px solid #e3ddd1",
+            padding: "12px 14px",
+          }}
+        >
+          <p
+            className="text-[10px] font-semibold uppercase mb-1"
+            style={{ color: "#7a8a78", letterSpacing: "0.12em" }}
+          >
+            Phone
+          </p>
+          <p style={{ fontSize: 14, color: "#0f2e1f" }}>
             {primaryPhone ? formatPhone(primaryPhone.number) : "No phone"}
           </p>
           {primaryPhone && (
-            <p className="text-xs text-gray-400 capitalize">{primaryPhone.phoneType}</p>
+            <p
+              className="capitalize"
+              style={{ fontSize: 12, color: "#7a8a78", marginTop: 2 }}
+            >
+              {primaryPhone.phoneType}
+            </p>
           )}
         </div>
 
         {/* Address */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Address</p>
+        <div
+          className="rounded-lg"
+          style={{
+            backgroundColor: "#ffffff",
+            border: "1px solid #e3ddd1",
+            padding: "12px 14px",
+          }}
+        >
+          <p
+            className="text-[10px] font-semibold uppercase mb-1"
+            style={{ color: "#7a8a78", letterSpacing: "0.12em" }}
+          >
+            Address
+          </p>
           {primaryAddress ? (
             <>
-              <p className="text-sm text-gray-900">{primaryAddress.line1}</p>
-              <p className="text-xs text-gray-400">
+              <p style={{ fontSize: 14, color: "#0f2e1f" }}>
+                {primaryAddress.line1}
+              </p>
+              <p style={{ fontSize: 12, color: "#7a8a78", marginTop: 2 }}>
                 {primaryAddress.city}, {primaryAddress.state} {primaryAddress.zip}
               </p>
             </>
           ) : (
-            <p className="text-sm text-gray-400">No address</p>
+            <p style={{ fontSize: 14, color: "#7a8a78" }}>No address</p>
           )}
         </div>
 
         {/* Allergies */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Allergies</p>
+        <div
+          className="rounded-lg"
+          style={{
+            backgroundColor: "#ffffff",
+            border: "1px solid #e3ddd1",
+            padding: "12px 14px",
+          }}
+        >
+          <p
+            className="text-[10px] font-semibold uppercase mb-1"
+            style={{ color: "#7a8a78", letterSpacing: "0.12em" }}
+          >
+            Allergies
+          </p>
           {activeAllergies.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {activeAllergies.slice(0, 3).map((a) => (
-                <span
-                  key={a.id}
-                  className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                    a.severity === "life_threatening" || a.severity === "severe"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-orange-50 text-orange-700"
-                  }`}
-                >
-                  {a.allergen}
-                </span>
-              ))}
+              {activeAllergies.slice(0, 3).map((a) => {
+                const severe =
+                  a.severity === "life_threatening" || a.severity === "severe";
+                return (
+                  <span
+                    key={a.id}
+                    className="inline-flex items-center"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      backgroundColor: severe
+                        ? "rgba(184,58,47,0.10)"
+                        : "rgba(212,138,40,0.12)",
+                      color: severe ? "#9a2c1f" : "#8a5a17",
+                    }}
+                  >
+                    {a.allergen}
+                  </span>
+                );
+              })}
               {activeAllergies.length > 3 && (
-                <span className="text-xs text-gray-400">+{activeAllergies.length - 3} more</span>
+                <span style={{ fontSize: 11, color: "#7a8a78" }}>
+                  +{activeAllergies.length - 3} more
+                </span>
               )}
             </div>
           ) : (
-            <p className="text-sm text-green-600 font-medium">NKDA</p>
+            <p style={{ fontSize: 14, color: "#2d6a1f", fontWeight: 500 }}>
+              NKDA
+            </p>
           )}
         </div>
 
         {/* Insurance */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Insurance</p>
+        <div
+          className="rounded-lg"
+          style={{
+            backgroundColor: "#ffffff",
+            border: "1px solid #e3ddd1",
+            padding: "12px 14px",
+          }}
+        >
+          <p
+            className="text-[10px] font-semibold uppercase mb-1"
+            style={{ color: "#7a8a78", letterSpacing: "0.12em" }}
+          >
+            Insurance
+          </p>
           {activeInsurance.length > 0 ? (
             activeInsurance.map((ins) => (
-              <p key={ins.id} className="text-sm text-gray-900">
+              <p key={ins.id} style={{ fontSize: 14, color: "#0f2e1f" }}>
                 <span className="capitalize">{ins.priority}</span>: {ins.memberId}
               </p>
             ))
           ) : (
-            <p className="text-sm text-gray-400">Cash / Self-pay</p>
+            <p style={{ fontSize: 14, color: "#7a8a78" }}>Cash / Self-pay</p>
           )}
         </div>
       </div>
