@@ -10,7 +10,6 @@ import {
   Moon,
   Bell,
   Plus,
-  Search,
   Package,
   Clock,
   Pill,
@@ -237,44 +236,9 @@ export default function HeaderNew() {
         borderBottom: "1px solid #e3ddd1",
       }}
     >
-      {/* ── Left: Search ── design .topbar .search uses --paper #faf8f4 bg with line border */}
-      <div className="flex-1 max-w-[480px] hidden md:block">
-        <div
-          className="inline-flex items-center gap-2 w-full rounded-md"
-          style={{
-            backgroundColor: "#faf8f4",
-            border: "1px solid #e3ddd1",
-            padding: "7px 12px",
-          }}
-        >
-          <Search size={14} style={{ color: "#6b7a72" }} strokeWidth={2} />
-          <input
-            placeholder="Search patients, Rx #, NDC, drug name…"
-            className="flex-1 border-none bg-transparent outline-none"
-            style={{
-              fontSize: 13,
-              color: "#14201a",
-              fontFamily:
-                "var(--font-inter), 'Inter Tight', Inter, system-ui, sans-serif",
-            }}
-          />
-          <kbd
-            className="hidden lg:inline-flex items-center justify-center"
-            style={{
-              fontSize: 11,
-              fontWeight: 500,
-              padding: "1px 5px",
-              borderRadius: 4,
-              backgroundColor: "#f3efe7",
-              color: "#3a4a42",
-              border: "1px solid #d8d1c2",
-              fontFamily: "var(--font-mono), 'JetBrains Mono', monospace",
-            }}
-          >
-            ⌘K
-          </kbd>
-        </div>
-      </div>
+      {/* Spacer — global ⌘K search is rendered as the page-level GlobalSearch
+          inside each route, so the topbar no longer carries a duplicate search chip. */}
+      <div className="flex-1" />
 
       {/* ── Right: Actions ── */}
       <div className="flex items-center gap-2 flex-shrink-0">
