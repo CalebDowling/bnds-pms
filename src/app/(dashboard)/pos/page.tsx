@@ -1,272 +1,240 @@
-import Link from "next/link";
-import { Receipt, DollarSign, Monitor } from "lucide-react";
-import { getTransactions, getSessions, getPosStats } from "./actions";
-import { formatDate } from "@/lib/utils";
-import { formatPatientName } from "@/lib/utils/formatters";
-import SearchBar from "@/components/ui/SearchBar";
-import Pagination from "@/components/ui/Pagination";
-import PermissionGuard from "@/components/auth/PermissionGuard";
-import PageShell from "@/components/layout/PageShell";
-import FilterBar from "@/components/layout/FilterBar";
-import StatsRow from "@/components/layout/StatsRow";
-import { Suspense } from "react";
+"use client";
 
-async function PosPageContent({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string; search?: string; page?: string }>;
-}) {
-  const params = await searchParams;
-  const tab = params.tab || "transactions";
-  const search = params.search || "";
-  const page = parseInt(params.page || "1", 10);
+import * as React from "react";
+import { Avatar, DesignPage, I } from "@/components/design";
 
-  const stats = await getPosStats();
+// ── Mock active sale (mirrors design-reference/screens/operations.jsx POS) ──
+interface CartItem {
+  id: number;
+  name: string;
+  rx?: string;
+  patient?: string;
+  price: number;
+  type: "Rx" | "OTC";
+  covered?: boolean;
+}
 
-  const tabs = [
-    { id: "transactions", label: "Transactions" },
-    { id: "sessions", label: "Sessions" },
-  ];
+const INITIAL_ITEMS: CartItem[] = [
+  { id: 1, name: "Atorvastatin 20mg · 30ct", rx: "RX-77412", patient: "James Hebert", price: 14.2, type: "Rx" },
+  { id: 2, name: "Lisinopril 10mg · 90ct", rx: "RX-77389", patient: "James Hebert", price: 0, type: "Rx", covered: true },
+  { id: 3, name: "Tylenol PM · 100ct", price: 12.99, type: "OTC" },
+  { id: 4, name: "Boudreaux's tote bag", price: 8.0, type: "OTC" },
+];
+
+export default function PosPage() {
+  const [items, setItems] = React.useState<CartItem[]>(INITIAL_ITEMS);
+
+  const subtotal = items.reduce((s, i) => s + i.price, 0);
+  const tax = +(subtotal * 0.0945).toFixed(2);
+  const total = +(subtotal + tax).toFixed(2);
+
+  const remove = (id: number) => setItems((arr) => arr.filter((i) => i.id !== id));
 
   return (
-    <PageShell
-      eyebrow="Operations"
+    <DesignPage
+      sublabel="Operations"
       title="Point of Sale"
-      subtitle="Transactions, sessions, and register management"
-      stats={
-        <StatsRow
-          stats={[
-            {
-              label: "Today's Transactions",
-              value: stats.todayTransactions,
-              icon: <Receipt size={12} />,
-            },
-            {
-              label: "Today's Revenue",
-              value: `$${stats.todayRevenue.toFixed(2)}`,
-              icon: <DollarSign size={12} />,
-              accent: "#1f5a3a",
-            },
-            {
-              label: "Active Registers",
-              value: stats.activeSessions,
-              icon: <Monitor size={12} />,
-            },
-          ]}
-        />
+      subtitle="Workstation 04 · Front counter · Sara Comeaux"
+      actions={
+        <>
+          <button className="btn btn-secondary btn-sm">
+            <I.Eye className="ic-sm" /> Look up sale
+          </button>
+          <a href="/pos/history" className="btn btn-secondary btn-sm" style={{ textDecoration: "none" }}>
+            History
+          </a>
+          <button className="btn btn-secondary btn-sm">Drawer</button>
+        </>
       }
-      toolbar={
-        <FilterBar
-          filters={
-            <div
-              className="inline-flex items-center"
-              style={{
-                gap: 2,
-                padding: 3,
-                backgroundColor: "#f3efe7",
-                borderRadius: 8,
-                border: "1px solid #e3ddd1",
-              }}
-            >
-              {tabs.map((t) => {
-                const active = tab === t.id;
-                return (
-                  <Link
-                    key={t.id}
-                    href={`/pos?tab=${t.id}`}
-                    className="inline-flex items-center no-underline transition-all"
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 12.5,
-                      fontWeight: active ? 600 : 500,
-                      color: active ? "#14201a" : "#6b7a72",
-                      backgroundColor: active ? "#ffffff" : "transparent",
-                      borderRadius: 6,
-                      boxShadow: active
-                        ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
-                        : "none",
-                    }}
-                  >
-                    {t.label}
-                  </Link>
-                );
-              })}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, alignItems: "start" }}>
+        {/* Cart */}
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
+            <Avatar name="James Hebert" size={32} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 500 }}>James Hebert</div>
+              <div className="t-xs">P-1042 · BCBS Louisiana · 2 ready in bin A-01</div>
             </div>
-          }
-          search={
-            tab === "transactions" ? (
-              <Suspense fallback={null}>
-                <SearchBar
-                  placeholder="Search by patient name or card last 4..."
-                  basePath="/pos?tab=transactions"
-                />
-              </Suspense>
-            ) : undefined
-          }
-        />
-      }
-    >
-      {tab === "transactions" ? (
-        <TransactionsTab search={search} page={page} />
-      ) : (
-        <SessionsTab page={page} />
-      )}
-    </PageShell>
-  );
-}
+            <button className="btn btn-ghost btn-sm">Change</button>
+          </div>
 
-async function TransactionsTab({ search, page }: { search: string; page: number }) {
-  const { transactions, total, pages } = await getTransactions({ search, page });
+          {/* Scan input */}
+          <div
+            style={{
+              padding: "10px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              background: "var(--paper)",
+              borderBottom: "1px solid var(--line)",
+            }}
+          >
+            <I.Barcode className="ic-lg" style={{ color: "var(--bnds-forest)" }} />
+            <input
+              placeholder="Scan barcode or search item…"
+              style={{
+                flex: 1,
+                border: 0,
+                background: "transparent",
+                outline: 0,
+                fontSize: 14,
+                fontFamily: "inherit",
+              }}
+            />
+            <span className="kbd">F2</span>
+          </div>
 
-  return (
-    <div
-      className="rounded-lg overflow-hidden"
-      style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-    >
-      {transactions.length === 0 ? (
-        <div className="p-12 text-center">
-          <p className="text-lg" style={{ color: "#7a8a78" }}>No transactions yet</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full" style={{ fontSize: 13 }}>
+          <table className="tbl">
             <thead>
-              <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Date</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Patient</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Type</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Items</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Subtotal</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Tax</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Total</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Payment</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Cashier</th>
+              <tr>
+                <th>Item</th>
+                <th>Type</th>
+                <th className="t-num" style={{ textAlign: "right" }}>
+                  Price
+                </th>
+                <th style={{ width: 36 }}></th>
               </tr>
             </thead>
             <tbody>
-              {transactions.map((t, idx) => (
-                <tr
-                  key={t.id}
-                  className="transition-colors"
-                  style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}
-                >
-                  <td className="px-4 py-3" style={{ color: "#3a4a3c" }}>{formatDate(t.processedAt)}</td>
-                  <td className="px-4 py-3">
-                    {t.patient ? (
-                      <>
-                        <p style={{ color: "#0f2e1f", fontWeight: 500 }}>{formatPatientName({ firstName: t.patient.firstName, lastName: t.patient.lastName }, { format: "last-first" })}</p>
-                        <p style={{ color: "#7a8a78", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{t.patient.mrn}</p>
-                      </>
-                    ) : (
-                      <span style={{ color: "#7a8a78" }}>Walk-in</span>
-                    )}
+              {items.map((i) => (
+                <tr key={i.id}>
+                  <td>
+                    <div style={{ fontWeight: 500 }}>{i.name}</div>
+                    {i.rx && <div className="t-xs bnds-mono">{i.rx}</div>}
                   </td>
-                  <td className="px-4 py-3 capitalize" style={{ color: "#3a4a3c" }}>{t.transactionType.replace(/_/g, " ")}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: "#3a4a3c" }}>{t._count.lineItems}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: "#3a4a3c" }}>${Number(t.subtotal).toFixed(2)}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: "#3a4a3c" }}>${Number(t.tax).toFixed(2)}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: "#0f2e1f", fontWeight: 600 }}>${Number(t.total).toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <span className="capitalize" style={{ color: "#3a4a3c" }}>{t.paymentMethod.replace(/_/g, " ")}</span>
-                    {t.cardLastFour && (
-                      <span className="ml-1" style={{ color: "#7a8a78", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>****{t.cardLastFour}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3" style={{ color: "#3a4a3c" }}>{formatPatientName({ firstName: t.cashier.firstName, lastName: t.cashier.lastName })}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <div className="px-4 pb-4">
-        <Suspense fallback={null}>
-          <Pagination total={total} pages={pages} page={page} basePath="/pos?tab=transactions" />
-        </Suspense>
-      </div>
-    </div>
-  );
-}
-
-async function SessionsTab({ page }: { page: number }) {
-  const { sessions, total, pages } = await getSessions({ page });
-
-  return (
-    <div
-      className="rounded-lg overflow-hidden"
-      style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-    >
-      {sessions.length === 0 ? (
-        <div className="p-12 text-center">
-          <p className="text-lg" style={{ color: "#7a8a78" }}>No register sessions yet</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full" style={{ fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Register</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Opened By</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Opened At</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Opening $</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Closed At</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Closing $</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Txns</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map((s, idx) => (
-                <tr
-                  key={s.id}
-                  className="transition-colors"
-                  style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}
-                >
-                  <td className="px-4 py-3" style={{ color: "#0f2e1f", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontWeight: 600, fontSize: 13 }}>{s.registerId}</td>
-                  <td className="px-4 py-3" style={{ color: "#3a4a3c" }}>{formatPatientName({ firstName: s.opener.firstName, lastName: s.opener.lastName })}</td>
-                  <td className="px-4 py-3" style={{ color: "#3a4a3c" }}>{formatDate(s.openedAt)}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: "#3a4a3c" }}>${Number(s.openingBalance).toFixed(2)}</td>
-                  <td className="px-4 py-3" style={{ color: "#3a4a3c" }}>{s.closedAt ? formatDate(s.closedAt) : "—"}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: "#3a4a3c" }}>{s.closingBalance ? `$${Number(s.closingBalance).toFixed(2)}` : "—"}</td>
-                  <td className="px-4 py-3 tabular-nums" style={{ color: "#3a4a3c" }}>{s._count.transactions}</td>
-                  <td className="px-4 py-3">
+                  <td>
                     <span
-                      className="inline-flex items-center capitalize"
+                      className="pill"
                       style={{
-                        backgroundColor: s.status === "open" ? "rgba(90,168,69,0.14)" : "rgba(122,138,120,0.14)",
-                        color: s.status === "open" ? "#2d6a1f" : "#5a6b58",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        padding: "2px 8px",
-                        borderRadius: 999,
+                        background: i.type === "Rx" ? "var(--bnds-leaf-100)" : "var(--paper-2)",
+                        color: i.type === "Rx" ? "var(--bnds-forest-700)" : "var(--ink-2)",
                       }}
                     >
-                      {s.status}
+                      {i.type}
                     </span>
+                  </td>
+                  <td className="t-num" style={{ textAlign: "right", fontWeight: 500 }}>
+                    {i.covered ? (
+                      <span style={{ color: "var(--ok)", fontWeight: 500, fontSize: 12 }}>Covered</span>
+                    ) : (
+                      `$${i.price.toFixed(2)}`
+                    )}
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => remove(i.id)}
+                      style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--ink-4)" }}
+                      aria-label={`Remove ${i.name}`}
+                    >
+                      <I.X />
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-      <div className="px-4 pb-4">
-        <Suspense fallback={null}>
-          <Pagination total={total} pages={pages} page={page} basePath="/pos?tab=sessions" />
-        </Suspense>
-      </div>
-    </div>
-  );
-}
 
-export default function PosPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string; search?: string; page?: string }>;
-}) {
-  return (
-    <PermissionGuard resource="pos" action="read">
-      <PosPageContent searchParams={searchParams} />
-    </PermissionGuard>
+          <div
+            style={{
+              padding: "14px 18px",
+              borderTop: "1px solid var(--line)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              fontSize: 13.5,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", color: "var(--ink-3)" }}>
+              <span>Subtotal</span>
+              <span className="t-num">${subtotal.toFixed(2)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", color: "var(--ink-3)" }}>
+              <span>Tax (9.45% · OTC only)</span>
+              <span className="t-num">${tax.toFixed(2)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", color: "var(--ink-3)" }}>
+              <span>Insurance covered</span>
+              <span className="t-num">−$58.00</span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 18,
+                fontWeight: 600,
+                marginTop: 6,
+                paddingTop: 8,
+                borderTop: "1px solid var(--line)",
+                color: "var(--ink)",
+              }}
+            >
+              <span>Total due</span>
+              <span className="t-num bnds-serif" style={{ color: "var(--bnds-forest)" }}>
+                ${total.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Pay panel */}
+        <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="t-eyebrow">Payment</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {(
+              [
+                { l: "Card", icon: I.Card, primary: true },
+                { l: "Cash", icon: I.Dollar },
+                { l: "HSA / FSA", icon: I.Shield },
+                { l: "Charge acct", icon: I.Receipt },
+                { l: "Gift card", icon: I.Tag },
+                { l: "Split", icon: I.Hash },
+              ] as Array<{ l: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; primary?: boolean }>
+            ).map((p) => {
+              const Icon = p.icon;
+              return (
+                <button
+                  key={p.l}
+                  className={p.primary ? "btn btn-primary" : "btn btn-secondary"}
+                  style={{ justifyContent: "flex-start", padding: "12px 14px" }}
+                >
+                  <Icon className="ic-sm" /> {p.l}
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            style={{
+              padding: 12,
+              background: "var(--paper-2)",
+              borderRadius: 8,
+              fontSize: 12.5,
+              color: "var(--ink-2)",
+            }}
+          >
+            <div style={{ fontWeight: 500, marginBottom: 4 }}>Counseling required</div>
+            <div className="t-xs">
+              First fill of Atorvastatin 20mg. Pharmacist must verify before sale.{" "}
+              <a href="#" style={{ color: "var(--bnds-forest)" }}>
+                Page pharmacist
+              </a>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
+            <button className="btn btn-ghost" style={{ flex: 1 }}>
+              Hold
+            </button>
+            <button className="btn btn-secondary" style={{ flex: 1 }}>
+              Print quote
+            </button>
+          </div>
+          <button className="btn btn-primary btn-lg" style={{ justifyContent: "center", fontSize: 15 }}>
+            Charge ${total.toFixed(2)} <I.ChevR />
+          </button>
+        </div>
+      </div>
+    </DesignPage>
   );
 }

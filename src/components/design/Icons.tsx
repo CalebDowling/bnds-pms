@@ -1,0 +1,305 @@
+// Design-system icon set, mirroring the standalone design's I.* shape.
+// Each icon renders a 16px stroke SVG; size and className are overridable.
+
+import * as React from "react";
+
+type IconProps = React.SVGProps<SVGSVGElement> & { size?: number };
+
+function Base({ size = 16, className = "", children, ...rest }: React.PropsWithChildren<IconProps>) {
+  return (
+    <svg
+      className={`ic ${className}`}
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      {...rest}
+    >
+      {children}
+    </svg>
+  );
+}
+
+export const I = {
+  Home: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z" />
+    </Base>
+  ),
+  Pill: (p: IconProps) => (
+    <Base {...p}>
+      <rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-30 12 12)" />
+      <path d="M9.4 7.4l7.2 7.2" />
+    </Base>
+  ),
+  Users: (p: IconProps) => (
+    <Base {...p}>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M15 14.5c3 0 6 1.7 6 4.5" />
+    </Base>
+  ),
+  Inventory: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M3 7l9-4 9 4-9 4-9-4z" />
+      <path d="M3 12l9 4 9-4" />
+      <path d="M3 17l9 4 9-4" />
+    </Base>
+  ),
+  Receipt: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M5 3h14v18l-3-2-3 2-3-2-3 2-2-2z" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+    </Base>
+  ),
+  Truck: (p: IconProps) => (
+    <Base {...p}>
+      <rect x="2" y="7" width="11" height="9" />
+      <path d="M13 10h5l3 3v3h-8z" />
+      <circle cx="6.5" cy="17.5" r="1.5" />
+      <circle cx="17" cy="17.5" r="1.5" />
+    </Base>
+  ),
+  Bell: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M6 16V11a6 6 0 1112 0v5l1.5 2H4.5z" />
+      <path d="M10 21h4" />
+    </Base>
+  ),
+  Chart: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M3 20h18" />
+      <path d="M6 16v-5M11 16V8M16 16v-3M21 16v-9" />
+    </Base>
+  ),
+  Settings: (p: IconProps) => (
+    <Base {...p}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.7 1.7 0 008 19.4a1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H2a2 2 0 110-4h.1A1.7 1.7 0 003.6 8a1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H8a1.7 1.7 0 001-1.5V2a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V8a1.7 1.7 0 001.5 1H22a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" />
+    </Base>
+  ),
+  Search: (p: IconProps) => (
+    <Base {...p}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </Base>
+  ),
+  Plus: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 5v14M5 12h14" />
+    </Base>
+  ),
+  Check: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M5 12l5 5 9-11" />
+    </Base>
+  ),
+  X: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </Base>
+  ),
+  Clock: (p: IconProps) => (
+    <Base {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </Base>
+  ),
+  Alert: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 3l10 17H2z" />
+      <path d="M12 10v4M12 17.5v.5" />
+    </Base>
+  ),
+  Phone: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z" />
+    </Base>
+  ),
+  Mail: (p: IconProps) => (
+    <Base {...p}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 7l9 6 9-6" />
+    </Base>
+  ),
+  Filter: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M3 5h18l-7 9v6l-4-2v-4z" />
+    </Base>
+  ),
+  ChevR: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M9 6l6 6-6 6" />
+    </Base>
+  ),
+  ChevD: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M6 9l6 6 6-6" />
+    </Base>
+  ),
+  Dots: (p: IconProps) => (
+    <Base {...p}>
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </Base>
+  ),
+  Star: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 3l2.7 5.7 6.3.9-4.5 4.4 1 6.3-5.5-3-5.5 3 1-6.3L3 9.6l6.3-.9z" />
+    </Base>
+  ),
+  Lock: (p: IconProps) => (
+    <Base {...p}>
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 018 0v3" />
+    </Base>
+  ),
+  Shield: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6z" />
+    </Base>
+  ),
+  Refill: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M3 12a9 9 0 0115-6.7L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 01-15 6.7L3 16" />
+      <path d="M3 21v-5h5" />
+    </Base>
+  ),
+  Calendar: (p: IconProps) => (
+    <Base {...p}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
+    </Base>
+  ),
+  Logout: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3" />
+      <path d="M10 17l-5-5 5-5" />
+      <path d="M5 12h12" />
+    </Base>
+  ),
+  Card: (p: IconProps) => (
+    <Base {...p}>
+      <rect x="3" y="6" width="18" height="13" rx="2" />
+      <path d="M3 10h18M7 15h3" />
+    </Base>
+  ),
+  Beaker: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M9 3v6L4 19a2 2 0 002 3h12a2 2 0 002-3l-5-10V3" />
+      <path d="M8 3h8M7 14h10" />
+    </Base>
+  ),
+  Box: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
+      <path d="M3 7l9 4 9-4M12 11v10" />
+    </Base>
+  ),
+  Bin: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M4 7h16" />
+      <path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13" />
+      <path d="M9 7V4h6v3" />
+    </Base>
+  ),
+  Tag: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M3 12V4a1 1 0 011-1h8l9 9-9 9z" />
+      <circle cx="8" cy="8" r="1.4" />
+    </Base>
+  ),
+  Dollar: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 3v18M16 7a4 4 0 00-4-2c-2 0-4 1-4 3s2 3 4 3 4 1 4 3-2 3-4 3a4 4 0 01-4-2" />
+    </Base>
+  ),
+  ArrowDown: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 5v14M6 13l6 6 6-6" />
+    </Base>
+  ),
+  ArrowUp: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 19V5M6 11l6-6 6 6" />
+    </Base>
+  ),
+  TrendUp: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M3 17l6-6 4 4 8-8" />
+      <path d="M14 7h7v7" />
+    </Base>
+  ),
+  TrendDown: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M3 7l6 6 4-4 8 8" />
+      <path d="M14 17h7v-7" />
+    </Base>
+  ),
+  Download: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 4v12M6 10l6 6 6-6" />
+      <path d="M4 20h16" />
+    </Base>
+  ),
+  Upload: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 20V8M6 14l6-6 6 6" />
+      <path d="M4 4h16" />
+    </Base>
+  ),
+  Print: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M7 9V3h10v6" />
+      <rect x="3" y="9" width="18" height="9" rx="2" />
+      <path d="M7 14h10v7H7z" />
+    </Base>
+  ),
+  Eye: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </Base>
+  ),
+  Barcode: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M4 5v14M7 5v14M10 5v14M14 5v14M17 5v14M20 5v14" />
+    </Base>
+  ),
+  MapPin: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 22s8-7 8-13a8 8 0 10-16 0c0 6 8 13 8 13z" />
+      <circle cx="12" cy="9" r="3" />
+    </Base>
+  ),
+  Edit: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M4 20h4l11-11-4-4L4 16z" />
+      <path d="M14 5l4 4" />
+    </Base>
+  ),
+  Hash: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M5 9h14M5 15h14M9 4l-2 16M17 4l-2 16" />
+    </Base>
+  ),
+  Send: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M22 2L11 13" />
+      <path d="M22 2l-7 20-4-9-9-4z" />
+    </Base>
+  ),
+  Paperclip: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M21 12l-9 9a5 5 0 11-7-7l9-9a3.5 3.5 0 015 5l-9 9a2 2 0 11-3-3l8-8" />
+    </Base>
+  ),
+  Sparkle: (p: IconProps) => (
+    <Base {...p}>
+      <path d="M12 3v6M12 15v6M3 12h6M15 12h6M5.5 5.5l4 4M14.5 14.5l4 4M5.5 18.5l4-4M14.5 9.5l4-4" />
+    </Base>
+  ),
+};

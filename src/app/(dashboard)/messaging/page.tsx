@@ -1,286 +1,409 @@
-/**
- * Messaging Dashboard
- * Staff view for sending notifications and viewing history
- * BNDS PMS Redesign — heritage messaging palette (forest, leaf, lake, info-blue)
- */
-
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Send, Mail, MessageSquare, Clock, Info } from "lucide-react";
-import { getMessagingStats, sendManualNotification } from "./actions";
-import PageShell from "@/components/layout/PageShell";
-import StatsRow from "@/components/layout/StatsRow";
-import { formatDateTime } from "@/lib/utils/formatters";
+import * as React from "react";
+import { Avatar, DesignPage, I, StatusPill } from "@/components/design";
 
-interface MessageStats {
-  totalSent: number;
-  emailsSent: number;
-  smsSent: number;
-  lastSentAt: string | null;
-  byTemplate: Record<string, number>;
+// ── Mock messaging inbox (mirrors design-reference/screens/insights.jsx Messaging) ──
+type ThreadType = "patient" | "prescriber" | "staff" | "payer";
+
+interface Thread {
+  id: string;
+  name: string;
+  last: string;
+  time: string;
+  unread: number;
+  type: ThreadType;
 }
 
+interface Message {
+  from: "me" | "them";
+  name: string;
+  text: string;
+  time: string;
+}
+
+const THREADS: Thread[] = [
+  { id: "thread-1", name: "Dr. Landry · Lafayette Family Med", last: "PA approved for Hebert", time: "11:42", unread: 0, type: "prescriber" },
+  { id: "thread-2", name: "James Hebert", last: "Pickup ready — see you tomorrow?", time: "11:08", unread: 2, type: "patient" },
+  { id: "thread-3", name: "Yvette Robichaux", last: "Driver ETA 3:40 PM", time: "10:50", unread: 1, type: "patient" },
+  { id: "thread-4", name: "Dr. Hebert · Lafayette Cardiology", last: "Fax received — verifying", time: "10:22", unread: 0, type: "prescriber" },
+  { id: "thread-5", name: "#staff-main-st", last: "Sara: out at 3, covering David", time: "09:48", unread: 0, type: "staff" },
+  { id: "thread-6", name: "BCBS Louisiana · payer", last: "Auth response received", time: "09:14", unread: 0, type: "payer" },
+  { id: "thread-7", name: "Marie Comeaux", last: "Thank you!", time: "Yesterday", unread: 0, type: "patient" },
+  { id: "thread-8", name: "Beau Thibodeaux", last: "Sent identification photo", time: "Yesterday", unread: 0, type: "patient" },
+];
+
+const MESSAGES: Message[] = [
+  { from: "them", name: "James Hebert", text: "Hey Marie — got the text that my Atorvastatin is ready for pickup. Are y'all open until 7 today?", time: "10:48 AM" },
+  { from: "me", name: "You", text: "Hi James! Yes, we close at 7 PM. Your script is in bin A-01 with a $14.20 copay.", time: "10:52 AM" },
+  { from: "them", name: "James Hebert", text: "Perfect. I can come by after work, around 5:30. Any chance Dr. Landry sent over my Lisinopril refill too?", time: "11:02 AM" },
+  { from: "me", name: "You", text: "Just checked — yes, Lisinopril 10mg #90 is also ready. No copay on that one (Medicare D). Want me to add a counseling slot for the new statin?", time: "11:06 AM" },
+  { from: "them", name: "James Hebert", text: "Pickup ready — see you tomorrow?", time: "11:08 AM" },
+];
+
+const TYPE_COLOR: Record<ThreadType, string> = {
+  patient: "var(--bnds-leaf)",
+  prescriber: "var(--info)",
+  staff: "var(--warn)",
+  payer: "var(--ink-3)",
+};
+
+const TYPE_LABEL: Record<ThreadType, string> = {
+  patient: "Patient",
+  prescriber: "Prescriber",
+  staff: "Staff",
+  payer: "Payer",
+};
+
 export default function MessagingPage() {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [stats, setStats] = useState<MessageStats | null>(null);
-  const [formData, setFormData] = useState({
-    patientId: "",
-    template: "readyForPickup" as const,
-    channels: ["email", "sms"],
-  });
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(
-    null
-  );
-
-  // Load stats on mount
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const statsData = await getMessagingStats();
-        setStats(statsData);
-      } catch (error) {
-        console.error("Failed to load stats:", error);
-      }
-    };
-
-    loadStats();
-  }, []);
-
-  const handleSendNotification = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMessage(null);
-
-    try {
-      if (!formData.patientId) {
-        setMessage({ type: "error", text: "Please select a patient" });
-        return;
-      }
-
-      const result = await sendManualNotification(
-        formData.patientId,
-        formData.template,
-        {},
-        formData.channels as any
-      );
-
-      if (result.success) {
-        setMessage({ type: "success", text: "Notification sent successfully!" });
-        setFormData({ patientId: "", template: "readyForPickup", channels: ["email", "sms"] });
-        // Reload stats
-        const statsData = await getMessagingStats();
-        setStats(statsData);
-      } else {
-        setMessage({
-          type: "error",
-          text: result.error || "Failed to send notification",
-        });
-      }
-    } catch (error) {
-      setMessage({
-        type: "error",
-        text: error instanceof Error ? error.message : "An error occurred",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleChannelToggle = (channel: "email" | "sms") => {
-    setFormData({
-      ...formData,
-      channels: formData.channels.includes(channel)
-        ? formData.channels.filter((c) => c !== channel)
-        : [...formData.channels, channel],
-    });
-  };
+  const [active, setActive] = React.useState("thread-2");
+  const sel = THREADS.find((t) => t.id === active) || THREADS[0];
 
   return (
-    <PageShell
-      eyebrow="Care"
-      title="Patient Messaging"
-      subtitle="Send notifications to patients via email and SMS"
-      stats={
-        stats ? (
-          <StatsRow
-            stats={[
-              { label: "Total Sent", value: stats.totalSent, icon: <Send size={12} /> },
-              { label: "Emails", value: stats.emailsSent, icon: <Mail size={12} />, accent: "#386d8c" },
-              { label: "SMS", value: stats.smsSent, icon: <MessageSquare size={12} />, accent: "#1f5a3a" },
-              {
-                label: "Last Sent",
-                value: stats.lastSentAt
-                  ? formatDateTime(stats.lastSentAt)
-                  : "Never",
-                icon: <Clock size={12} />,
-              },
-            ]}
-          />
-        ) : undefined
+    <DesignPage
+      sublabel="Insights"
+      title="Messaging"
+      subtitle="Patients · prescribers · staff · payers — one inbox"
+      dense
+      actions={
+        <a href="/messaging/notifications" className="btn btn-secondary btn-sm" style={{ textDecoration: "none" }}>
+          <I.Send className="ic-sm" /> Notifications
+        </a>
       }
     >
-      {/* Quick Send Form */}
       <div
-        className="rounded-lg p-6"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "320px 1fr 320px",
+          height: "100%",
+          minHeight: 0,
+          background: "var(--paper)",
+        }}
       >
-        <h2 className="font-serif mb-6" style={{ fontSize: 20, color: "#0f2e1f", fontWeight: 600 }}>
-          Send Notification
-        </h2>
-
-        {message && (
+        {/* Thread list */}
+        <div
+          style={{
+            borderRight: "1px solid var(--line)",
+            background: "var(--surface)",
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+          }}
+        >
           <div
-            className="mb-6 p-4 rounded-md text-sm font-semibold"
             style={{
-              backgroundColor: message.type === "success" ? "rgba(31,90,58,0.10)" : "rgba(184,58,47,0.10)",
-              border: `1px solid ${message.type === "success" ? "rgba(31,90,58,0.30)" : "rgba(184,58,47,0.30)"}`,
-              color: message.type === "success" ? "#1f5a3a" : "#9a2c1f",
+              padding: "14px 16px",
+              borderBottom: "1px solid var(--line)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
             }}
           >
-            {message.text}
+            <h2 className="bnds-serif" style={{ fontSize: 20, fontWeight: 500, margin: 0, flex: 1 }}>
+              Inbox
+            </h2>
+            <button className="btn btn-ghost btn-sm">
+              <I.Filter className="ic-sm" />
+            </button>
+            <button className="btn btn-primary btn-sm">
+              <I.Plus />
+            </button>
           </div>
-        )}
-
-        <form onSubmit={handleSendNotification} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Patient ID */}
-            <div>
-              <label
-                className="block text-[10px] font-semibold uppercase mb-2"
-                style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
-              >
-                Patient ID
-              </label>
+          <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--line)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "6px 10px",
+                background: "var(--paper)",
+                border: "1px solid var(--line)",
+                borderRadius: 6,
+              }}
+            >
+              <I.Search className="ic-sm" style={{ color: "var(--ink-3)" }} />
               <input
-                type="text"
-                value={formData.patientId}
-                onChange={(e) => setFormData({ ...formData, patientId: e.target.value })}
-                placeholder="Enter patient ID or MRN"
-                className="w-full rounded-md focus:outline-none transition-colors"
+                placeholder="Search messages…"
                 style={{
-                  border: "1px solid #d9d2c2",
-                  backgroundColor: "#ffffff",
-                  color: "#0f2e1f",
-                  padding: "8px 12px",
+                  border: 0,
+                  outline: 0,
+                  background: "transparent",
+                  flex: 1,
                   fontSize: 13,
+                  fontFamily: "inherit",
                 }}
               />
             </div>
-
-            {/* Template */}
-            <div>
-              <label
-                className="block text-[10px] font-semibold uppercase mb-2"
-                style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
-              >
-                Template
-              </label>
-              <select
-                value={formData.template}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    template: e.target.value as any,
-                  })
-                }
-                className="w-full rounded-md focus:outline-none transition-colors"
+          </div>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {THREADS.map((t) => (
+              <div
+                key={t.id}
+                onClick={() => setActive(t.id)}
                 style={{
-                  border: "1px solid #d9d2c2",
-                  backgroundColor: "#ffffff",
-                  color: "#0f2e1f",
-                  padding: "8px 12px",
-                  fontSize: 13,
+                  padding: "12px 16px",
+                  borderBottom: "1px solid var(--line)",
+                  background: active === t.id ? "var(--bnds-leaf-100)" : "transparent",
+                  cursor: "pointer",
+                  display: "flex",
+                  gap: 11,
+                  alignItems: "flex-start",
                 }}
               >
-                <option value="readyForPickup">Ready for Pickup</option>
-                <option value="refillDue">Refill Due</option>
-                <option value="refillProcessed">Refill Processed</option>
-                <option value="shippingUpdate">Shipping Update</option>
-                <option value="prescriptionExpiring">Prescription Expiring</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Channels */}
-          <div>
-            <label
-              className="block text-[10px] font-semibold uppercase mb-3"
-              style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
-            >
-              Send Via
-            </label>
-            <div className="flex gap-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.channels.includes("email")}
-                  onChange={() => handleChannelToggle("email")}
-                  className="w-4 h-4 rounded"
-                  style={{ accentColor: "#1f5a3a" }}
-                />
-                <Mail size={14} style={{ color: "#5a6b58" }} />
-                <span className="text-sm font-semibold" style={{ color: "#0f2e1f" }}>Email</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.channels.includes("sms")}
-                  onChange={() => handleChannelToggle("sms")}
-                  className="w-4 h-4 rounded"
-                  style={{ accentColor: "#1f5a3a" }}
-                />
-                <MessageSquare size={14} style={{ color: "#5a6b58" }} />
-                <span className="text-sm font-semibold" style={{ color: "#0f2e1f" }}>SMS</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isLoading || !formData.patientId}
-            className="w-full rounded-md font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
-            style={{
-              backgroundColor: "#1f5a3a",
-              color: "#ffffff",
-              border: "1px solid #1f5a3a",
-              padding: "10px 14px",
-              fontSize: 13,
-            }}
-          >
-            <Send size={14} />
-            {isLoading ? "Sending..." : "Send Notification"}
-          </button>
-        </form>
-      </div>
-
-      {/* Help Text */}
-      <div
-        className="rounded-lg p-6"
-        style={{ backgroundColor: "rgba(56,109,140,0.06)", border: "1px solid rgba(56,109,140,0.20)" }}
-      >
-        <div className="flex items-start gap-3">
-          <Info size={16} className="flex-shrink-0 mt-0.5" style={{ color: "#2c5e7a" }} />
-          <div>
-            <h3 className="text-sm font-bold mb-2" style={{ color: "#2c5e7a" }}>
-              About Patient Notifications
-            </h3>
-            <ul className="text-xs space-y-1.5" style={{ color: "#2c5e7a" }}>
-              <li>
-                · <strong>Email</strong>: Sent to patient email address if available
-              </li>
-              <li>
-                · <strong>SMS</strong>: Sent to patient phone if they have opted in
-              </li>
-              <li>· All notifications are logged in the Communication Log for compliance</li>
-              <li>· Templates are pre-formatted with pharmacy branding</li>
-            </ul>
+                <div style={{ position: "relative" }}>
+                  <Avatar name={t.name} size={36} />
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: -1,
+                      right: -1,
+                      width: 11,
+                      height: 11,
+                      borderRadius: 999,
+                      background: TYPE_COLOR[t.type],
+                      border: "2px solid var(--surface)",
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: 13.5,
+                        flex: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {t.name}
+                    </div>
+                    <div className="t-xs">{t.time}</div>
+                  </div>
+                  <div
+                    className="t-xs"
+                    style={{
+                      marginTop: 2,
+                      color: t.unread ? "var(--ink)" : "var(--ink-3)",
+                      fontWeight: t.unread ? 500 : 400,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {t.last}
+                  </div>
+                </div>
+                {t.unread > 0 && (
+                  <span
+                    style={{
+                      minWidth: 18,
+                      height: 18,
+                      padding: "0 6px",
+                      borderRadius: 999,
+                      background: "var(--bnds-leaf)",
+                      color: "white",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {t.unread}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* Conversation */}
+        <div style={{ display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 }}>
+          <div
+            style={{
+              padding: "14px 20px",
+              borderBottom: "1px solid var(--line)",
+              background: "var(--surface)",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <Avatar name={sel.name} size={36} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600 }}>{sel.name}</div>
+              <div className="t-xs" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: TYPE_COLOR[sel.type] }} />{" "}
+                {TYPE_LABEL[sel.type]} · SMS via Twilio
+              </div>
+            </div>
+            <button className="btn btn-ghost btn-sm">
+              <I.Phone className="ic-sm" />
+            </button>
+            <button className="btn btn-ghost btn-sm">
+              <I.Eye className="ic-sm" /> Profile
+            </button>
+          </div>
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: 24,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              background: "var(--paper)",
+            }}
+          >
+            <div className="t-xs" style={{ textAlign: "center", color: "var(--ink-4)" }}>
+              — Today —
+            </div>
+            {MESSAGES.map((m, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: m.from === "me" ? "flex-end" : "flex-start" }}>
+                <div
+                  style={{
+                    maxWidth: "70%",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 3,
+                    alignItems: m.from === "me" ? "flex-end" : "flex-start",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: m.from === "me" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                      background: m.from === "me" ? "var(--bnds-forest)" : "var(--surface)",
+                      color: m.from === "me" ? "white" : "var(--ink)",
+                      border: m.from === "me" ? "none" : "1px solid var(--line)",
+                      fontSize: 14,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {m.text}
+                  </div>
+                  <div className="t-xs" style={{ fontSize: 11 }}>
+                    {m.time}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: 14, borderTop: "1px solid var(--line)", background: "var(--surface)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-end",
+                gap: 10,
+                padding: "10px 14px",
+                background: "var(--paper)",
+                border: "1px solid var(--line)",
+                borderRadius: 10,
+              }}
+            >
+              <button className="btn btn-ghost btn-sm" style={{ padding: 6 }}>
+                <I.Paperclip className="ic-sm" />
+              </button>
+              <textarea
+                placeholder="Type a message…"
+                rows={1}
+                style={{
+                  flex: 1,
+                  border: 0,
+                  outline: 0,
+                  background: "transparent",
+                  resize: "none",
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  color: "var(--ink)",
+                  padding: "4px 0",
+                }}
+              />
+              <button className="btn btn-primary btn-sm">
+                <I.Send className="ic-sm" /> Send
+              </button>
+            </div>
+            <div className="t-xs" style={{ marginTop: 8, display: "flex", gap: 14 }}>
+              <span>⌘+Enter to send</span>
+              <span>Templates: Pickup ready · Refill due · Counseling</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Patient context */}
+        <div
+          style={{
+            borderLeft: "1px solid var(--line)",
+            background: "var(--surface)",
+            padding: 18,
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+            overflowY: "auto",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+              paddingBottom: 14,
+              borderBottom: "1px solid var(--line)",
+            }}
+          >
+            <Avatar name={sel.name} size={56} />
+            <div style={{ fontWeight: 600, fontSize: 16 }}>{sel.name}</div>
+            <div className="t-xs">P-1042 · DOB 03/14/1958</div>
+          </div>
+          <div>
+            <div className="t-eyebrow">Pickup ready</div>
+            <div
+              className="card"
+              style={{
+                padding: 12,
+                marginTop: 6,
+                background: "var(--bnds-leaf-100)",
+                borderColor: "rgba(90,168,69,0.3)",
+              }}
+            >
+              <div style={{ fontWeight: 500, fontSize: 13 }}>2 items · bin A-01</div>
+              <div className="t-xs" style={{ marginTop: 2 }}>
+                Atorvastatin 20mg · Lisinopril 10mg
+              </div>
+              <div className="t-num" style={{ fontWeight: 500, marginTop: 6 }}>
+                $14.20 due
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="t-eyebrow">Active prescriptions</div>
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+              {["Atorvastatin 20mg", "Lisinopril 10mg", "Metformin 500mg"].map((d) => (
+                <div
+                  key={d}
+                  className="t-small"
+                  style={{ padding: "6px 10px", background: "var(--paper-2)", borderRadius: 6, fontSize: 13 }}
+                >
+                  {d}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="t-eyebrow">Allergies</div>
+            <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <StatusPill tone="danger" label="Sulfa" />
+              <StatusPill tone="danger" label="PCN" />
+            </div>
+          </div>
+          <button className="btn btn-secondary btn-sm" style={{ justifyContent: "center" }}>
+            Open full profile <I.ChevR className="ic-sm" />
+          </button>
+        </div>
       </div>
-    </PageShell>
+    </DesignPage>
   );
 }

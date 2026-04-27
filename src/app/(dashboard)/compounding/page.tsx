@@ -1,396 +1,199 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
-import { getFormulas, getBatches } from "./actions";
-import { formatDate } from "@/lib/utils";
-import { formatPatientName, toTitleCase } from "@/lib/utils/formatters";
-import SearchBar from "@/components/ui/SearchBar";
-import Pagination from "@/components/ui/Pagination";
-import PageShell from "@/components/layout/PageShell";
-import FilterBar from "@/components/layout/FilterBar";
-import { Suspense } from "react";
-import PermissionGuard from "@/components/auth/PermissionGuard";
+"use client";
 
-// BNDS PMS Redesign — heritage status palette
-const BATCH_STATUS: Record<string, { label: string; bg: string; color: string }> = {
-  in_progress: { label: "In Progress", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
-  completed: { label: "Completed", bg: "rgba(212,138,40,0.14)", color: "#8a5a17" },
-  verified: { label: "Verified", bg: "rgba(90,168,69,0.14)", color: "#2d6a1f" },
-  failed: { label: "Failed QA", bg: "rgba(184,58,47,0.10)", color: "#9a2c1f" },
-  quarantined: { label: "Quarantined", bg: "rgba(212,138,40,0.18)", color: "#8a5a17" },
+import * as React from "react";
+import { DesignPage, I, StatusPill, Toolbar } from "@/components/design";
+
+// ── Mock compounding queue (mirrors design-reference/screens/dispensing.jsx Compounding) ──
+type Priority = "high" | "normal";
+type CmpStatus = "in-progress" | "queued" | "qc";
+
+interface CompoundJob {
+  id: string;
+  formula: string;
+  patient: string;
+  qty: number;
+  due: string;
+  priority: Priority;
+  status: CmpStatus;
+}
+
+interface Formula {
+  name: string;
+  cat: string;
+  last: string;
+  uses: number;
+}
+
+const QUEUE: CompoundJob[] = [
+  { id: "CMP-0412", formula: "Progesterone 100mg capsules", patient: "Yvette Robichaux", qty: 60, due: "Today 4 PM", priority: "high", status: "in-progress" },
+  { id: "CMP-0413", formula: "Ketoprofen 10% / Lidocaine cream", patient: "Marcus Guidry", qty: 60, due: "Tomorrow 12 PM", priority: "normal", status: "queued" },
+  { id: "CMP-0414", formula: "Tacrolimus 0.03% ointment", patient: "Camille Fontenot", qty: 30, due: "Apr 28", priority: "normal", status: "queued" },
+  { id: "CMP-0415", formula: "Estradiol 0.1mg/g vaginal cream", patient: "Annette LeBlanc", qty: 30, due: "Apr 28", priority: "normal", status: "queued" },
+  { id: "CMP-0411", formula: "BLT topical (Benzo/Lido/Tetra)", patient: "Beau Thibodeaux", qty: 30, due: "Today 2 PM", priority: "high", status: "qc" },
+  { id: "CMP-0410", formula: "Sildenafil 20mg troches", patient: "Pierre Boudreaux", qty: 30, due: "Today 5 PM", priority: "normal", status: "qc" },
+];
+
+const FORMULAS: Formula[] = [
+  { name: "BLT topical (Benzo/Lido/Tetra)", cat: "Topical · pain", last: "2 days ago", uses: 142 },
+  { name: "Progesterone 100mg capsules", cat: "HRT · oral", last: "Today", uses: 312 },
+  { name: "Ketoprofen 10% / Lidocaine 5%", cat: "Topical · pain", last: "4 days ago", uses: 98 },
+  { name: "Tacrolimus 0.03% ointment", cat: "Derm", last: "1 week ago", uses: 47 },
+  { name: "Estradiol 0.1mg/g vaginal cream", cat: "HRT · topical", last: "3 days ago", uses: 86 },
+  { name: "Magic mouthwash", cat: "Oral · rinse", last: "Today", uses: 204 },
+];
+
+const TABS = [
+  { id: "queue", label: "Active queue", count: 6 },
+  { id: "formulas", label: "Formulas", count: 38 },
+  { id: "history", label: "History" },
+  { id: "ingredients", label: "Ingredients" },
+];
+
+const STATUS_TONE: Record<CmpStatus, "info" | "mute" | "warn"> = {
+  "in-progress": "info",
+  queued: "mute",
+  qc: "warn",
 };
 
-async function CompoundingPageContent({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string; search?: string; page?: string; status?: string }>;
-}) {
-  const params = await searchParams;
-  const tab = params.tab || "formulas";
-  const search = params.search || "";
-  const page = parseInt(params.page || "1", 10);
-  const status = params.status || "all";
+const STATUS_LABEL: Record<CmpStatus, string> = {
+  "in-progress": "In progress",
+  queued: "Queued",
+  qc: "QC review",
+};
+
+export default function CompoundingPage() {
+  const [tab, setTab] = React.useState("queue");
 
   return (
-    <PageShell
-      eyebrow="Pharmacy"
+    <DesignPage
+      sublabel="Dispensing"
       title="Compounding"
-      subtitle="Formulas, batches, and quality assurance"
+      subtitle="6 formulas in queue · 2 awaiting QC"
       actions={
         <>
-          <Link
-            href="/compounding/formulas/new"
-            className="inline-flex items-center gap-1.5 rounded-md font-medium no-underline transition-colors"
-            style={{
-              border: "1px solid #d9d2c2",
-              color: "#3a4a3c",
-              backgroundColor: "#ffffff",
-              padding: "7px 13px",
-              fontSize: 13,
-            }}
-          >
-            <Plus size={14} strokeWidth={2} /> New Formula
-          </Link>
-          <Link
-            href="/compounding/batches/new"
-            className="inline-flex items-center gap-1.5 rounded-md font-semibold no-underline transition-colors"
-            style={{
-              backgroundColor: "#1f5a3a",
-              color: "#ffffff",
-              border: "1px solid #1f5a3a",
-              padding: "7px 13px",
-              fontSize: 13,
-            }}
-          >
-            <Plus size={14} strokeWidth={2} /> New Batch
-          </Link>
+          <button className="btn btn-secondary btn-sm">
+            <I.Beaker className="ic-sm" /> Lab status
+          </button>
+          <a href="/compounding/batch-record" className="btn btn-secondary btn-sm" style={{ textDecoration: "none" }}>
+            Batch records
+          </a>
+          <button className="btn btn-primary btn-sm">
+            <I.Plus /> New compound
+          </button>
         </>
       }
-      toolbar={
-        <FilterBar
-          filters={
-            <div
-              className="inline-flex items-center"
-              style={{
-                gap: 2,
-                padding: 3,
-                backgroundColor: "#f3efe7",
-                borderRadius: 8,
-                border: "1px solid #e3ddd1",
-              }}
-            >
-              {[
-                { id: "formulas", label: "Formulas" },
-                { id: "batches", label: "Batches" },
-              ].map((t) => {
-                const active = tab === t.id;
-                return (
-                  <Link
-                    key={t.id}
-                    href={`/compounding?tab=${t.id}`}
-                    className="inline-flex items-center no-underline transition-all"
+    >
+      <Toolbar
+        tabs={TABS}
+        active={tab}
+        onChange={setTab}
+        filters={[
+          { label: "Category", value: "All" },
+          { label: "Pharmacist" },
+        ]}
+      />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, alignItems: "start" }}>
+        <div className="card" style={{ overflow: "hidden" }}>
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--line)", fontWeight: 600, fontSize: 13.5 }}>
+            Active queue
+          </div>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Formula</th>
+                <th>Patient</th>
+                <th className="t-num" style={{ textAlign: "right" }}>
+                  Qty
+                </th>
+                <th>Due</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th style={{ width: 36 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {QUEUE.map((q) => (
+                <tr key={q.id} style={{ cursor: "pointer" }}>
+                  <td className="bnds-mono" style={{ fontSize: 12, color: "var(--bnds-forest)" }}>
+                    {q.id}
+                  </td>
+                  <td style={{ fontWeight: 500 }}>{q.formula}</td>
+                  <td className="t-xs">{q.patient}</td>
+                  <td className="t-num" style={{ textAlign: "right" }}>
+                    {q.qty}
+                  </td>
+                  <td
+                    className="t-xs"
                     style={{
-                      padding: "6px 12px",
-                      fontSize: 12.5,
-                      fontWeight: active ? 600 : 500,
-                      color: active ? "#14201a" : "#6b7a72",
-                      backgroundColor: active ? "#ffffff" : "transparent",
-                      borderRadius: 6,
-                      boxShadow: active
-                        ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
-                        : "none",
+                      color: q.due.startsWith("Today") ? "var(--warn)" : "var(--ink-3)",
+                      fontWeight: q.due.startsWith("Today") ? 500 : 400,
                     }}
                   >
-                    {t.label}
-                  </Link>
-                );
-              })}
-            </div>
-          }
-        />
-      }
-    >
-      {tab === "formulas" ? (
-        <FormulasTab search={search} page={page} />
-      ) : (
-        <BatchesTab search={search} page={page} status={status} />
-      )}
-    </PageShell>
-  );
-}
-
-async function FormulasTab({ search, page }: { search: string; page: number }) {
-  const { formulas, total, pages } = await getFormulas({ search, page });
-
-  return (
-    <>
-      <div
-        className="rounded-lg p-4 mb-4"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-      >
-        <Suspense fallback={null}>
-          <SearchBar placeholder="Search formulas by name or code..." basePath="/compounding?tab=formulas" />
-        </Suspense>
-      </div>
-
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-      >
-        {formulas.length === 0 ? (
-          <div className="p-12 text-center">
-            <p className="text-lg mb-2" style={{ color: "#7a8a78" }}>No formulas yet</p>
-            <Link
-              href="/compounding/formulas/new"
-              className="text-sm font-semibold hover:underline"
-              style={{ color: "#1f5a3a" }}
-            >
-              Create your first formula
-            </Link>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full" style={{ fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Code</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Formula Name</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Category</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Dosage Form</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Version</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Ingredients</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Rxs</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Sterile</th>
+                    {q.due}
+                  </td>
+                  <td>
+                    {q.priority === "high" ? (
+                      <StatusPill tone="danger" label="High" />
+                    ) : (
+                      <span className="pill pill-mute">Normal</span>
+                    )}
+                  </td>
+                  <td>
+                    <StatusPill tone={STATUS_TONE[q.status]} label={STATUS_LABEL[q.status]} />
+                  </td>
+                  <td>
+                    <I.ChevR style={{ color: "var(--ink-4)" }} />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {formulas.map((f, idx) => {
-                  const currentVersion = f.versions[0];
-                  const ingredientCount = currentVersion?.ingredients.length || 0;
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-                  return (
-                    <tr key={f.id} style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}>
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/compounding/formulas/${f.id}`}
-                          className="hover:underline"
-                          style={{
-                            color: "#1f5a3a",
-                            fontWeight: 600,
-                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                            fontSize: 13,
-                          }}
-                        >
-                          {f.formulaCode}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "#0f2e1f", fontWeight: 500 }}>{f.name}</td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{f.category || "—"}</td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{f.dosageForm || "—"}</td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>
-                        {currentVersion ? `v${currentVersion.versionNumber}` : "—"}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{ingredientCount}</td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{f._count.prescriptions}</td>
-                      <td className="px-4 py-3">
-                        {f.isSterile ? (
-                          <span
-                            className="inline-flex items-center"
-                            style={{
-                              backgroundColor: "rgba(120,80,160,0.12)",
-                              color: "#5e3d8a",
-                              fontSize: 11,
-                              fontWeight: 600,
-                              padding: "2px 8px",
-                              borderRadius: 999,
-                            }}
-                          >
-                            Sterile
-                          </span>
-                        ) : (
-                          <span style={{ color: "#7a8a78", fontSize: 12 }}>Non-sterile</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+            <div className="t-eyebrow">Most-used formulas</div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>Quick start</div>
           </div>
-        )}
-        <div className="px-4 pb-4">
-          <Suspense fallback={null}>
-            <Pagination total={total} pages={pages} page={page} basePath="/compounding?tab=formulas" />
-          </Suspense>
-        </div>
-      </div>
-    </>
-  );
-}
-
-async function BatchesTab({ search, page, status }: { search: string; page: number; status: string }) {
-  const { batches, total, pages } = await getBatches({ search, status, page });
-
-  return (
-    <>
-      <div
-        className="rounded-lg p-4 mb-4"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-      >
-        <div className="mb-3">
-          <Suspense fallback={null}>
-            <SearchBar placeholder="Search by batch number..." basePath="/compounding?tab=batches" />
-          </Suspense>
-        </div>
-        <div
-          className="inline-flex items-center flex-wrap"
-          style={{
-            gap: 2,
-            padding: 3,
-            backgroundColor: "#f3efe7",
-            borderRadius: 8,
-            border: "1px solid #e3ddd1",
-          }}
-        >
-          {["all", "in_progress", "completed", "verified", "failed"].map((s) => {
-            const active = status === s;
-            return (
-              <Link
-                key={s}
-                href={`/compounding?tab=batches&status=${s}${search ? `&search=${search}` : ""}`}
-                className="inline-flex items-center no-underline transition-all"
+          {FORMULAS.map((f) => (
+            <div
+              key={f.name}
+              style={{
+                padding: "12px 16px",
+                borderBottom: "1px solid var(--line)",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                cursor: "pointer",
+              }}
+            >
+              <div
                 style={{
-                  padding: "6px 12px",
-                  fontSize: 12.5,
-                  fontWeight: active ? 600 : 500,
-                  color: active ? "#14201a" : "#6b7a72",
-                  backgroundColor: active ? "#ffffff" : "transparent",
-                  borderRadius: 6,
-                  boxShadow: active
-                    ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
-                    : "none",
+                  width: 36,
+                  height: 36,
+                  background: "var(--bnds-leaf-100)",
+                  borderRadius: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--bnds-forest)",
                 }}
               >
-                {s === "all" ? "All" : s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-              </Link>
-            );
-          })}
+                <I.Beaker />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 500, fontSize: 13.5 }}>{f.name}</div>
+                <div className="t-xs">
+                  {f.cat} · last {f.last} · {f.uses} uses
+                </div>
+              </div>
+              <button className="btn btn-ghost btn-sm">Use</button>
+            </div>
+          ))}
         </div>
       </div>
-
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-      >
-        {batches.length === 0 ? (
-          <div className="p-12 text-center">
-            <p className="text-lg mb-2" style={{ color: "#7a8a78" }}>No batches yet</p>
-            <Link
-              href="/compounding/batches/new"
-              className="text-sm font-semibold hover:underline"
-              style={{ color: "#1f5a3a" }}
-            >
-              Compound your first batch
-            </Link>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full" style={{ fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Batch #</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Formula</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Rx / Patient</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Qty</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>BUD</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Compounder</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>QA</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {batches.map((b, idx) => {
-                  const statusInfo = BATCH_STATUS[b.status] || { label: b.status, bg: "rgba(122,138,120,0.14)", color: "#5a6b58" };
-
-                  return (
-                    <tr key={b.id} style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}>
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/compounding/batches/${b.id}`}
-                          className="hover:underline"
-                          style={{
-                            color: "#1f5a3a",
-                            fontWeight: 600,
-                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                            fontSize: 13,
-                          }}
-                        >
-                          {b.batchNumber}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p style={{ color: "#0f2e1f", fontWeight: 500 }}>{b.formulaVersion.formula.name}</p>
-                        <p style={{ color: "#7a8a78", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{b.formulaVersion.formula.formulaCode}</p>
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>
-                        {b.prescription ? (
-                          <>Rx# {b.prescription.rxNumber} — {toTitleCase(b.prescription.patient.lastName)}</>
-                        ) : (
-                          <span style={{ color: "#7a8a78" }}>Stock batch</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>
-                        {b.quantityPrepared.toString()} {b.unit}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{formatDate(b.budDate)}</td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>
-                        {formatPatientName({ firstName: b.compounder.firstName, lastName: b.compounder.lastName })}
-                      </td>
-                      <td className="px-4 py-3">
-                        {b._count.qa > 0 ? (
-                          <span style={{ color: "#5a6b58", fontSize: 12 }}>{b._count.qa} check{b._count.qa !== 1 ? "s" : ""}</span>
-                        ) : (
-                          <span style={{ color: "#7a8a78", fontSize: 12 }}>None</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center"
-                          style={{
-                            backgroundColor: statusInfo.bg,
-                            color: statusInfo.color,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            padding: "2px 8px",
-                            borderRadius: 999,
-                          }}
-                        >
-                          {statusInfo.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="px-4 pb-4">
-          <Suspense fallback={null}>
-            <Pagination total={total} pages={pages} page={page} basePath="/compounding?tab=batches" />
-          </Suspense>
-        </div>
-      </div>
-    </>
-  );
-}
-export default function CompoundingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string; search?: string; page?: string; status?: string }>;
-}) {
-  return (
-    <PermissionGuard resource="compounding" action="read">
-      <CompoundingPageContent searchParams={searchParams} />
-    </PermissionGuard>
+    </DesignPage>
   );
 }

@@ -1,358 +1,158 @@
-import Link from "next/link";
-import { Clock, XCircle, DollarSign, TrendingUp } from "lucide-react";
-import { getClaims, getPayments, getBillingStats } from "./actions";
-import { formatDate } from "@/lib/utils";
-import { formatPatientName, formatDrugName } from "@/lib/utils/formatters";
-import SearchBar from "@/components/ui/SearchBar";
-import Pagination from "@/components/ui/Pagination";
-import PageShell from "@/components/layout/PageShell";
-import FilterBar from "@/components/layout/FilterBar";
-import StatsRow from "@/components/layout/StatsRow";
-import { Suspense } from "react";
-import PermissionGuard from "@/components/auth/PermissionGuard";
+"use client";
 
-// BNDS PMS Redesign — heritage status palette
-const CLAIM_STATUS: Record<string, { label: string; bg: string; color: string }> = {
-  pending: { label: "Pending", bg: "rgba(212,138,40,0.14)", color: "#8a5a17" },
-  submitted: { label: "Submitted", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
-  accepted: { label: "Accepted", bg: "rgba(90,168,69,0.14)", color: "#2d6a1f" },
-  paid: { label: "Paid", bg: "rgba(31,90,58,0.14)", color: "#1f5a3a" },
-  partial: { label: "Partial Pay", bg: "rgba(212,138,40,0.18)", color: "#8a5a17" },
-  rejected: { label: "Rejected", bg: "rgba(184,58,47,0.10)", color: "#9a2c1f" },
-  reversed: { label: "Reversed", bg: "rgba(122,138,120,0.14)", color: "#5a6b58" },
+import * as React from "react";
+import { DesignPage, I, StatusPill, Toolbar } from "@/components/design";
+
+// ── Mock invoices (mirrors design-reference/screens/financial.jsx Billing) ──
+type InvStatus = "paid" | "unpaid" | "partial" | "overdue";
+
+interface Invoice {
+  id: string;
+  patient: string;
+  date: string;
+  amount: number;
+  paid: number;
+  status: InvStatus;
+  age: string;
+  method: string;
+}
+
+const INVOICES: Invoice[] = [
+  { id: "INV-8842", patient: "Pierre Boudreaux", date: "04/26/26", amount: 142.5, paid: 0, status: "unpaid", age: "1d", method: "—" },
+  { id: "INV-8841", patient: "James Hebert", date: "04/26/26", amount: 14.2, paid: 14.2, status: "paid", age: "1d", method: "Card" },
+  { id: "INV-8840", patient: "Yvette Robichaux", date: "04/25/26", amount: 86.0, paid: 0, status: "unpaid", age: "2d", method: "—" },
+  { id: "INV-8839", patient: "Marie Comeaux", date: "04/25/26", amount: 12.0, paid: 12.0, status: "paid", age: "2d", method: "HSA" },
+  { id: "INV-8838", patient: "Beau Thibodeaux", date: "04/22/26", amount: 28.0, paid: 28.0, status: "paid", age: "5d", method: "Card" },
+  { id: "INV-8837", patient: "Annette LeBlanc", date: "04/20/26", amount: 188.4, paid: 50.0, status: "partial", age: "7d", method: "Charge" },
+  { id: "INV-8836", patient: "Marcus Guidry", date: "04/05/26", amount: 64.0, paid: 0, status: "overdue", age: "22d", method: "—" },
+  { id: "INV-8835", patient: "Camille Fontenot", date: "03/24/26", amount: 22.0, paid: 0, status: "overdue", age: "34d", method: "—" },
+];
+
+const TABS = [
+  { id: "outstanding", label: "Outstanding", count: 42 },
+  { id: "paid", label: "Paid", count: 312 },
+  { id: "overdue", label: "Overdue", count: 3 },
+  { id: "all", label: "All" },
+];
+
+const TONE: Record<InvStatus, "ok" | "mute" | "warn" | "danger"> = {
+  paid: "ok",
+  unpaid: "mute",
+  partial: "warn",
+  overdue: "danger",
 };
 
-const CLAIM_FILTERS = ["all", "pending", "submitted", "paid", "rejected"];
+const LBL: Record<InvStatus, string> = {
+  paid: "Paid",
+  unpaid: "Unpaid",
+  partial: "Partial",
+  overdue: "Overdue",
+};
 
-async function BillingPageContent({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string; search?: string; page?: string; status?: string }>;
-}) {
-  const params = await searchParams;
-  const tab = params.tab || "claims";
-  const search = params.search || "";
-  const page = parseInt(params.page || "1", 10);
-  const status = params.status || "all";
-
-  const stats = await getBillingStats();
+export default function BillingPage() {
+  const [tab, setTab] = React.useState("outstanding");
+  const [search, setSearch] = React.useState("");
 
   return (
-    <PageShell
-      eyebrow="Finance"
+    <DesignPage
+      sublabel="Financial"
       title="Billing"
-      subtitle="Claims, payments, and revenue"
-      stats={
-        <StatsRow
-          stats={[
-            {
-              label: "Pending Claims",
-              value: stats.pendingClaims,
-              icon: <Clock size={12} />,
-              accent: stats.pendingClaims > 0 ? "#d48a28" : undefined,
-            },
-            {
-              label: "Rejected Claims",
-              value: stats.rejectedClaims,
-              icon: <XCircle size={12} />,
-              accent: stats.rejectedClaims > 0 ? "#9a2c1f" : undefined,
-            },
-            {
-              label: "Outstanding",
-              value: `$${stats.totalOutstanding.toFixed(2)}`,
-              icon: <DollarSign size={12} />,
-              accent: stats.totalOutstanding > 0 ? "#d48a28" : undefined,
-            },
-            {
-              label: "Payments (Month)",
-              value: `$${stats.paymentsThisMonthAmount.toFixed(2)}`,
-              icon: <TrendingUp size={12} />,
-              accent: "#1f5a3a",
-              sub: `${stats.paymentsThisMonth} transactions`,
-            },
-          ]}
-        />
-      }
-      toolbar={
-        <FilterBar
-          filters={
-            <div
-              className="inline-flex items-center"
-              style={{
-                gap: 2,
-                padding: 3,
-                backgroundColor: "#f3efe7",
-                borderRadius: 8,
-                border: "1px solid #e3ddd1",
-              }}
-            >
-              {[{ id: "claims", label: "Claims" }, { id: "payments", label: "Payments" }].map((t) => {
-                const active = tab === t.id;
-                return (
-                  <Link
-                    key={t.id}
-                    href={`/billing?tab=${t.id}`}
-                    className="inline-flex items-center no-underline transition-all"
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 12.5,
-                      fontWeight: active ? 600 : 500,
-                      color: active ? "#14201a" : "#6b7a72",
-                      backgroundColor: active ? "#ffffff" : "transparent",
-                      borderRadius: 6,
-                      boxShadow: active
-                        ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
-                        : "none",
-                    }}
-                  >
-                    {t.label}
-                  </Link>
-                );
-              })}
-            </div>
-          }
-        />
+      subtitle="$8,412 outstanding · 3 invoices > 30 days"
+      actions={
+        <>
+          <a href="/billing/claims" className="btn btn-secondary btn-sm" style={{ textDecoration: "none" }}>
+            Insurance claims
+          </a>
+          <button className="btn btn-secondary btn-sm">
+            <I.Send className="ic-sm" /> Send statements
+          </button>
+          <button className="btn btn-secondary btn-sm">
+            <I.Download className="ic-sm" /> Export
+          </button>
+          <button className="btn btn-primary btn-sm">
+            <I.Plus /> New invoice
+          </button>
+        </>
       }
     >
-      {tab === "claims" ? (
-        <ClaimsTab search={search} page={page} status={status} />
-      ) : (
-        <PaymentsTab search={search} page={page} />
-      )}
-    </PageShell>
-  );
-}
+      <Toolbar
+        tabs={TABS}
+        active={tab}
+        onChange={setTab}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search invoice #, patient…"
+        filters={[
+          { label: "Date", value: "Last 30d" },
+          { label: "Method", icon: I.Card },
+        ]}
+      />
 
-async function ClaimsTab({ search, page, status }: { search: string; page: number; status: string }) {
-  const { claims, total, pages } = await getClaims({ search, status, page });
-
-  return (
-    <>
-      <div
-        className="rounded-lg p-4 mb-4"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-      >
-        <div className="mb-3">
-          <Suspense fallback={null}>
-            <SearchBar placeholder="Search by claim number..." basePath="/billing?tab=claims" />
-          </Suspense>
-        </div>
-        <div
-          className="inline-flex items-center flex-wrap"
-          style={{
-            gap: 2,
-            padding: 3,
-            backgroundColor: "#f3efe7",
-            borderRadius: 8,
-            border: "1px solid #e3ddd1",
-          }}
-        >
-          {CLAIM_FILTERS.map((s) => {
-            const active = status === s;
-            return (
-              <Link
-                key={s}
-                href={`/billing?tab=claims&status=${s}${search ? `&search=${search}` : ""}`}
-                className="inline-flex items-center no-underline transition-all"
-                style={{
-                  padding: "6px 12px",
-                  fontSize: 12.5,
-                  fontWeight: active ? 600 : 500,
-                  color: active ? "#14201a" : "#6b7a72",
-                  backgroundColor: active ? "#ffffff" : "transparent",
-                  borderRadius: 6,
-                  boxShadow: active
-                    ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
-                    : "none",
-                }}
-              >
-                {s === "all" ? "All" : s.replace(/\b\w/g, (c) => c.toUpperCase())}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-      >
-        {claims.length === 0 ? (
-          <div className="p-12 text-center">
-            <p className="text-lg" style={{ color: "#7a8a78" }}>No claims found</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full" style={{ fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Claim #</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Patient</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Drug</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Plan</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Billed</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Paid</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Copay</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Date</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
+      <div className="card" style={{ overflow: "hidden" }}>
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Invoice</th>
+              <th>Patient</th>
+              <th>Date</th>
+              <th className="t-num" style={{ textAlign: "right" }}>
+                Amount
+              </th>
+              <th className="t-num" style={{ textAlign: "right" }}>
+                Paid
+              </th>
+              <th className="t-num" style={{ textAlign: "right" }}>
+                Balance
+              </th>
+              <th>Age</th>
+              <th>Method</th>
+              <th>Status</th>
+              <th style={{ width: 36 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {INVOICES.map((i) => {
+              const balance = i.amount - i.paid;
+              const aged = i.age.includes("d") && parseInt(i.age, 10) > 14;
+              return (
+                <tr key={i.id} style={{ cursor: "pointer" }}>
+                  <td className="bnds-mono" style={{ fontSize: 12, color: "var(--bnds-forest)", fontWeight: 500 }}>
+                    {i.id}
+                  </td>
+                  <td style={{ fontWeight: 500 }}>{i.patient}</td>
+                  <td className="t-xs">{i.date}</td>
+                  <td className="t-num" style={{ textAlign: "right", fontWeight: 500 }}>
+                    ${i.amount.toFixed(2)}
+                  </td>
+                  <td className="t-num" style={{ textAlign: "right", color: "var(--ink-3)" }}>
+                    ${i.paid.toFixed(2)}
+                  </td>
+                  <td
+                    className="t-num"
+                    style={{
+                      textAlign: "right",
+                      fontWeight: 500,
+                      color: balance > 0 ? "var(--ink)" : "var(--ink-4)",
+                    }}
+                  >
+                    ${balance.toFixed(2)}
+                  </td>
+                  <td className="t-xs" style={{ color: aged ? "var(--danger)" : "var(--ink-3)" }}>
+                    {i.age}
+                  </td>
+                  <td className="t-xs">{i.method}</td>
+                  <td>
+                    <StatusPill tone={TONE[i.status]} label={LBL[i.status]} />
+                  </td>
+                  <td>
+                    <I.ChevR style={{ color: "var(--ink-4)" }} />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {claims.map((c, idx) => {
-                  const si = CLAIM_STATUS[c.status] || { label: c.status, bg: "rgba(122,138,120,0.14)", color: "#5a6b58" };
-                  const fill = c.fills?.[0];
-                  const rawDrugName = fill?.prescription?.item?.name || fill?.prescription?.formula?.name || "—";
-                  const drugName = rawDrugName === "—" ? rawDrugName : formatDrugName(rawDrugName);
-                  const rxNumber = fill?.prescription?.rxNumber;
-                  return (
-                    <tr key={c.id} style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}>
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/billing/${c.id}`}
-                          className="hover:underline"
-                          style={{
-                            color: "#1f5a3a",
-                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                            fontSize: 13,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {c.claimNumber || c.id.slice(0, 8)}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p style={{ color: "#0f2e1f", fontWeight: 500 }}>
-                          {formatPatientName({ firstName: c.insurance.patient.firstName, lastName: c.insurance.patient.lastName }, { format: "last-first" })}
-                        </p>
-                        <p style={{ color: "#7a8a78", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{c.insurance.patient.mrn}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p style={{ color: "#0f2e1f" }}>{drugName}</p>
-                        {rxNumber && <p style={{ color: "#7a8a78", fontSize: 12 }}>Rx# {rxNumber}</p>}
-                      </td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{c.insurance.thirdPartyPlan?.planName || "—"}</td>
-                      <td className="px-4 py-3 tabular-nums" style={{ color: "#0f2e1f", fontWeight: 500 }}>${Number(c.amountBilled).toFixed(2)}</td>
-                      <td className="px-4 py-3 tabular-nums" style={{ color: "#5a6b58" }}>{c.amountPaid ? `$${Number(c.amountPaid).toFixed(2)}` : "—"}</td>
-                      <td className="px-4 py-3 tabular-nums" style={{ color: "#5a6b58" }}>{c.patientCopay ? `$${Number(c.patientCopay).toFixed(2)}` : "—"}</td>
-                      <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{formatDate(c.createdAt)}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center"
-                          style={{
-                            backgroundColor: si.bg,
-                            color: si.color,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            padding: "2px 8px",
-                            borderRadius: 999,
-                          }}
-                        >
-                          {si.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="px-4 pb-4">
-          <Suspense fallback={null}><Pagination total={total} pages={pages} page={page} basePath="/billing?tab=claims" /></Suspense>
-        </div>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-    </>
-  );
-}
-
-async function PaymentsTab({ search, page }: { search: string; page: number }) {
-  const { payments, total, pages } = await getPayments({ search, page });
-
-  return (
-    <>
-      <div
-        className="rounded-lg p-4 mb-4"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-      >
-        <Suspense fallback={null}>
-          <SearchBar placeholder="Search by reference # or patient name..." basePath="/billing?tab=payments" />
-        </Suspense>
-      </div>
-
-      <div
-        className="rounded-lg overflow-hidden"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
-      >
-        {payments.length === 0 ? (
-          <div className="p-12 text-center"><p className="text-lg" style={{ color: "#7a8a78" }}>No payments found</p></div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full" style={{ fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Patient</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Amount</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Method</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Reference</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Rx #</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Processed By</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Date</th>
-                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase" style={{ color: "#7a8a78", letterSpacing: "0.10em" }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((p, idx) => (
-                  <tr key={p.id} style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}>
-                    <td className="px-4 py-3">
-                      <p style={{ color: "#0f2e1f", fontWeight: 500 }}>
-                        {formatPatientName({ firstName: p.patient.firstName, lastName: p.patient.lastName }, { format: "last-first" })}
-                      </p>
-                      <p style={{ color: "#7a8a78", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{p.patient.mrn}</p>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: "#1f5a3a", fontWeight: 600 }}>${Number(p.amount).toFixed(2)}</td>
-                    <td className="px-4 py-3 capitalize" style={{ color: "#5a6b58" }}>{p.paymentMethod.replace(/_/g, " ")}</td>
-                    <td className="px-4 py-3" style={{ color: "#5a6b58", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>{p.referenceNumber || "—"}</td>
-                    <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{p.fill ? `Rx# ${p.fill.prescription.rxNumber}` : "—"}</td>
-                    <td className="px-4 py-3" style={{ color: "#5a6b58" }}>
-                      {p.processor ? formatPatientName({ firstName: p.processor.firstName, lastName: p.processor.lastName }) : "—"}
-                    </td>
-                    <td className="px-4 py-3" style={{ color: "#5a6b58" }}>{formatDate(p.processedAt)}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className="inline-flex items-center capitalize"
-                        style={{
-                          backgroundColor: p.status === "completed" ? "rgba(90,168,69,0.14)" : "rgba(122,138,120,0.14)",
-                          color: p.status === "completed" ? "#2d6a1f" : "#5a6b58",
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                        }}
-                      >
-                        {p.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="px-4 pb-4">
-          <Suspense fallback={null}><Pagination total={total} pages={pages} page={page} basePath="/billing?tab=payments" /></Suspense>
-        </div>
-      </div>
-    </>
-  );
-}
-export default function BillingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string; search?: string; page?: string; status?: string }>;
-}) {
-  return (
-    <PermissionGuard resource="billing" action="read">
-      <BillingPageContent searchParams={searchParams} />
-    </PermissionGuard>
+    </DesignPage>
   );
 }

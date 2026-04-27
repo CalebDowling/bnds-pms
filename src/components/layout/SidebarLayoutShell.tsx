@@ -5,21 +5,18 @@ import SidebarProvider, {
   useSidebar,
 } from "@/components/providers/SidebarProvider";
 import SidebarNew from "@/components/layout/SidebarNew";
-import SidebarDark from "@/components/layout/SidebarDark";
 import HeaderNew from "@/components/layout/HeaderNew";
-import TopNavLayout from "@/components/layout/TopNavLayout";
-import IconRailLayout from "@/components/layout/IconRailLayout";
-import {
-  useLayoutOption,
-  type LayoutOption,
-} from "@/components/layout/LayoutSwitcher";
 
+/**
+ * App chrome wrapper. Renders the BNDS PMS Redesign sidebar (paper-green) and
+ * topbar around all dashboard pages. Alternate layouts (dark sidebar, top nav,
+ * icon rail) were removed during the redesign — there is one canonical chrome.
+ */
 export default function SidebarLayoutShell({
   children,
 }: {
   children: ReactNode;
 }) {
-  const [layout, setLayout] = useLayoutOption();
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -29,32 +26,18 @@ export default function SidebarLayoutShell({
   if (!hydrated) return null;
 
   return (
-    <>
-      {layout === "C" ? (
-        <TopNavLayout>{children}</TopNavLayout>
-      ) : layout === "D" ? (
-        <IconRailLayout>{children}</IconRailLayout>
-      ) : (
-        <SidebarProvider>
-          <SidebarContent layout={layout}>{children}</SidebarContent>
-        </SidebarProvider>
-      )}
-    </>
+    <SidebarProvider>
+      <SidebarContent>{children}</SidebarContent>
+    </SidebarProvider>
   );
 }
 
-function SidebarContent({
-  layout,
-  children,
-}: {
-  layout: LayoutOption;
-  children: ReactNode;
-}) {
+function SidebarContent({ children }: { children: ReactNode }) {
   const { collapsed } = useSidebar();
 
   return (
     <>
-      {layout === "B" ? <SidebarDark /> : <SidebarNew />}
+      <SidebarNew />
       <style>{`
         .sidebar-main-area {
           margin-left: 0;

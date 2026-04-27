@@ -120,7 +120,136 @@
   --accent-sale: #40721d;
   --accent-insurance: #6366f1;
   --accent-system: #14b8a6;
+
+  /* ── BNDS PMS Redesign tokens (Claude Design source-of-truth) ── */
+  --ok:     #2f8f56;
+  --warn:   #c98a14;
+  --danger: #b8442e;
+  --info:   #2b6c9b;
+  --r-xs:   4px;
+  --r-sm:   6px;
+  --r-md:   10px;
+  --r-lg:   14px;
+  --r-xl:   20px;
+  --shadow-1: 0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04);
+  --shadow-2: 0 1px 0 rgba(20,32,26,0.04), 0 4px 14px rgba(20,32,26,0.06);
+  --shadow-3: 0 8px 30px rgba(20,32,26,0.10);
+  --bnds-forest-deep: #0a2517;
 }
+
+/* ══════════════════════════════════════════════
+   BNDS PMS REDESIGN — design system utility classes
+   Source: Claude Design handoff — these mirror the
+   exact button, input, card, table, and icon classes
+   used across every redesigned page.
+   ══════════════════════════════════════════════ */
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: inherit; font-size: 13.5px; font-weight: 500;
+  padding: 8px 14px; border-radius: var(--r-sm); border: 1px solid transparent;
+  cursor: pointer; line-height: 1; transition: all .15s ease;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--bnds-forest); color: white;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 0 rgba(0,0,0,0.04);
+}
+.btn-primary:hover { background: var(--bnds-forest-700); }
+.btn-secondary {
+  background: var(--surface); color: var(--ink);
+  border-color: var(--line-2);
+}
+.btn-secondary:hover { background: var(--paper-2); border-color: var(--ink-4); }
+.btn-ghost { background: transparent; color: var(--ink-2); }
+.btn-ghost:hover { background: var(--paper-2); color: var(--ink); }
+.btn-danger { background: var(--danger); color: white; }
+.btn-sm { padding: 6px 10px; font-size: 12.5px; }
+.btn-lg { padding: 11px 18px; font-size: 14.5px; }
+
+/* Form */
+.input {
+  width: 100%; font-family: inherit; font-size: 14px;
+  padding: 9px 12px; border-radius: var(--r-sm);
+  border: 1px solid var(--line-2); background: var(--surface);
+  color: var(--ink); transition: border-color .12s, box-shadow .12s;
+}
+.input:focus {
+  outline: none; border-color: var(--bnds-forest);
+  box-shadow: 0 0 0 3px rgba(31, 90, 58, 0.12);
+}
+.input::placeholder { color: var(--ink-4); }
+.label { font-size: 12.5px; font-weight: 500; color: var(--ink-2); margin-bottom: 6px; display: block; }
+
+/* Card */
+.card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); box-shadow: var(--shadow-1);
+}
+.card-flat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); }
+.card-pad  { padding: 18px; }
+
+/* Table */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th {
+  text-align: left; font-weight: 500; color: var(--ink-3);
+  font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+.tbl td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl tr:hover td { background: var(--paper); }
+.tbl tr.selected td { background: var(--bnds-leaf-100); }
+
+/* Icon stroke base */
+.ic { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.ic-lg { width: 20px; height: 20px; }
+.ic-sm { width: 13px; height: 13px; }
+
+/* Decorative */
+.divider { height: 1px; background: var(--line); }
+.kbd {
+  display: inline-block; padding: 1px 5px; border-radius: 4px;
+  background: var(--paper-2); border: 1px solid var(--line-2);
+  font-family: var(--font-mono), 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-2);
+}
+.placeholder-stripe {
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(31,90,58,0.04) 0 8px,
+      rgba(31,90,58,0.07) 8px 16px);
+  border: 1px dashed rgba(31,90,58,0.25);
+  border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-3); font-family: var(--font-mono), monospace; font-size: 11px;
+  text-align: center;
+}
+
+/* Topbar (design version) */
+.bnds-topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 24px; background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.bnds-topbar .search {
+  flex: 1; max-width: 480px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r-sm); color: var(--ink-3);
+  font-size: 13px;
+}
+.bnds-topbar .search input { background: transparent; border: 0; outline: 0; flex: 1; font-size: 13px; color: var(--ink); }
+
+/* Bnds wrapper — applies design font + smoothing to everything inside */
+.bnds {
+  font-family: var(--font-inter), 'Inter Tight', 'Inter', system-ui, sans-serif;
+  color: var(--ink);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+.bnds * { box-sizing: border-box; }
 
 /* ── Typography Base ── */
 html {
