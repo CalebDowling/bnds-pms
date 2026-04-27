@@ -22,6 +22,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { formatDrugWithStrength, formatItemDisplayName } from "@/lib/utils/formatters";
+import { isControlledDrug, isScheduleII } from "@/lib/utils/dea";
 import QueueClient, { type QueueRow, type QueueBucket } from "./QueueClient";
 
 export const dynamic = "force-dynamic";
@@ -120,6 +121,7 @@ export default async function QueuePage() {
     dbFills = [];
   }
 
+  const now = Date.now();
   const rows: QueueRow[] = (dbFills as any[])
     .map((f) => {
       const bucket = bucketForStatus(f.status);
@@ -133,14 +135,32 @@ export default async function QueuePage() {
       const hasSevereAllergy = allergies.some(
         (a: any) => a.severity === "severe" || a.severity === "critical"
       );
-      const deaSchedule = item?.deaSchedule?.toUpperCase().trim() ?? null;
-      const isControlled =
-        !!item?.isControlled ||
-        (deaSchedule != null &&
-          (deaSchedule.startsWith("C") ||
-            ["II", "III", "IV", "V"].includes(deaSchedule)));
-      const isCII =
-        deaSchedule === "II" || deaSchedule === "C-II" || deaSchedule === "CII";
+      // Use the shared isControlledDrug helper so the queue / pickup /
+      // workflow page agree on what counts as a controlled substance —
+      // see lib/utils/dea.ts. Schedule II is still detected separately
+      // for the "C-II" pill.
+      const deaSchedule = item?.deaSchedule ? String(item.deaSchedule) : null;
+      const isControlled = isControlledDrug({
+        isControlled: !!item?.isControlled,
+        deaSchedule,
+      });
+      const isCII = isScheduleII({ deaSchedule });
+
+      // Age the fill from createdAt so the queue can flag long-stuck rows
+      // (matches /pickup's age column). createdAt is the intake timestamp;
+      // we don't reset it on bucket transitions because the metric we
+      // want is "how long has this fill been in the system?"
+      const createdAt = f.createdAt ? new Date(f.createdAt).getTime() : null;
+      const ageMs = createdAt ? now - createdAt : 0;
+      const ageHours = ageMs / (60 * 60 * 1000);
+      const ageDays = ageMs / (24 * 60 * 60 * 1000);
+      const ageLabel = !createdAt
+        ? "\u2014"
+        : ageDays >= 1
+          ? `${Math.floor(ageDays)}d`
+          : ageHours >= 1
+            ? `${Math.floor(ageHours)}h`
+            : `${Math.max(1, Math.floor(ageMs / (60 * 1000)))}m`;
 
       return {
         fillId: f.id as string,
@@ -178,6 +198,8 @@ export default async function QueuePage() {
         hasSevereAllergy,
         allergyList: allergies.map((a: any) => a.allergen).filter(Boolean),
         createdAt: (f.createdAt as Date)?.toISOString() ?? null,
+        ageLabel,
+        ageDays: Math.floor(ageDays),
       } as QueueRow;
     })
     .filter((r): r is QueueRow => r !== null);

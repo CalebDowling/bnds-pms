@@ -99,11 +99,19 @@ export interface FillDetail {
     id: string;
     name: string;
     genericName: string | null;
+    brandName: string | null;
     ndc: string | null;
     strength: string | null;
     dosageForm: string | null;
     route: string | null;
-    deaSchedule: number | null;
+    /**
+     * DEA schedule as a VARCHAR — DRX delivers values like "II", "C-II",
+     * "CII", or occasionally "2". Was previously typed `number | null`
+     * which caused the workflow page's `deaSchedule >= 2` check to
+     * always evaluate false and skip the controlled-substance ID gate.
+     * Use `isControlledDrug` from lib/utils/dea.ts to test this safely.
+     */
+    deaSchedule: string | null;
     isControlled: boolean;
   } | null;
   filler: { firstName: string; lastName: string } | null;
@@ -187,7 +195,7 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
           },
           item: {
             select: {
-              id: true, name: true, genericName: true, ndc: true,
+              id: true, name: true, genericName: true, brandName: true, ndc: true,
               strength: true, dosageForm: true, route: true, deaSchedule: true, isControlled: true,
             },
           },
@@ -195,7 +203,7 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
       },
       item: {
         select: {
-          id: true, name: true, genericName: true, ndc: true,
+          id: true, name: true, genericName: true, brandName: true, ndc: true,
           strength: true, dosageForm: true, route: true, deaSchedule: true, isControlled: true,
         },
       },

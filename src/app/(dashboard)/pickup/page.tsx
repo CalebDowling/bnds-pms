@@ -14,6 +14,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { formatDrugWithStrength, formatItemDisplayName } from "@/lib/utils/formatters";
+import { isControlledDrug, isScheduleII } from "@/lib/utils/dea";
 import PickupClient, { type PickupBin } from "./PickupClient";
 
 export const dynamic = "force-dynamic";
@@ -88,13 +89,15 @@ export default async function PickupPage() {
       patient?.insurance?.[0]?.thirdPartyPlan?.planName ??
       (patient?.insurance?.length ? "On file" : "Cash");
 
-    const deaSchedule = item?.deaSchedule?.toUpperCase().trim() ?? null;
-    const isCII = deaSchedule === "II" || deaSchedule === "C-II" || deaSchedule === "CII";
-    const isControlled =
-      !!item?.isControlled ||
-      (deaSchedule != null &&
-        (deaSchedule.startsWith("C") ||
-          ["II", "III", "IV", "V"].includes(deaSchedule)));
+    // Use the shared isControlledDrug helper so the queue / pickup /
+    // workflow page agree on what counts as a controlled substance.
+    // See lib/utils/dea.ts.
+    const deaSchedule = item?.deaSchedule ? String(item.deaSchedule) : null;
+    const isCII = isScheduleII({ deaSchedule });
+    const isControlled = isControlledDrug({
+      isControlled: !!item?.isControlled,
+      deaSchedule,
+    });
 
     const hasSevereAllergy = allergies.some(
       (a: any) => a.severity === "severe" || a.severity === "critical"

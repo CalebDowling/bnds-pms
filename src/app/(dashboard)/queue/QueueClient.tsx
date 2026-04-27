@@ -45,6 +45,17 @@ export interface QueueRow {
   hasSevereAllergy: boolean;
   allergyList: string[];
   createdAt: string | null;
+  /**
+   * Pre-computed humanized age (e.g. "12m", "3h", "2d") so the row can
+   * render an aging signal without each renderer rolling its own clock.
+   * Computed on the server from `createdAt` so SSR + CSR agree.
+   */
+  ageLabel: string;
+  /**
+   * Floor of `(now - createdAt) / day`. Drives the warn / danger color
+   * on the row so a fill stuck in Insurance for 3+ days lights up.
+   */
+  ageDays: number;
 }
 
 interface QueueCounts {
@@ -74,9 +85,27 @@ export default function QueueClient({
   counts: QueueCounts;
 }) {
   const [filter, setFilter] = React.useState<FilterKey>("all");
+  const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<string | null>(rows[0]?.fillId ?? null);
 
-  const filtered = rows.filter((r) => (filter === "all" ? true : r.bucket === filter));
+  // Bucket filter + free-text search across the four fields a tech is
+  // most likely to scan: patient name, Rx number, drug, and prescriber.
+  // Mirror of /pickup so the two workflow boards behave the same way.
+  const filtered = rows.filter((r) => {
+    if (filter !== "all" && r.bucket !== filter) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (
+        !r.patientName.toLowerCase().includes(q) &&
+        !r.rxNumber.toLowerCase().includes(q) &&
+        !r.itemName.toLowerCase().includes(q) &&
+        !r.prescriberName.toLowerCase().includes(q)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
   // #24 — keep the right rail in sync with the visible bucket. If the
   // currently-selected fill isn't part of the filtered set (e.g. the user
   // selected a verify fill, then switched to the filling tab), promote the
@@ -160,7 +189,12 @@ export default function QueueClient({
             ))}
           </div>
 
-          {/* Filter row */}
+          {/* Filter / search row.
+              Previously this row had two stub buttons ("All locations",
+              "All prescribers") and a fake "Auto-refresh live" indicator
+              with no live wire-up. Walkthrough caught all three —
+              clicking the buttons did nothing, and the green dot lied.
+              Replaced with a working search input that mirrors /pickup. */}
           <div
             style={{
               display: "flex",
@@ -171,15 +205,40 @@ export default function QueueClient({
               background: "var(--surface)",
             }}
           >
-            <button className="btn btn-secondary btn-sm">
-              <I.Filter className="ic-sm" /> All locations
-            </button>
-            <button className="btn btn-secondary btn-sm">
-              All prescribers <I.ChevD className="ic-sm" />
-            </button>
+            <div style={{ flex: 1, maxWidth: 480, position: "relative" }}>
+              <I.Search
+                className="ic-sm"
+                style={{
+                  position: "absolute",
+                  left: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "var(--ink-3)",
+                  pointerEvents: "none",
+                }}
+              />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search patient, Rx#, drug, prescriber\u2026"
+                style={{
+                  width: "100%",
+                  padding: "7px 10px 7px 32px",
+                  fontSize: 13,
+                  borderRadius: 6,
+                  border: "1px solid var(--line)",
+                  background: "var(--paper)",
+                  color: "var(--ink)",
+                  outline: "none",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
             <div style={{ flex: 1 }} />
-            <span className="t-xs" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              Auto-refresh <span className="dot dot-ok" /> live
+            <span className="t-xs" style={{ color: "var(--ink-3)" }}>
+              {filtered.length} of {counts.all} fill{counts.all === 1 ? "" : "s"}
+              {search ? ` matching \u201C${search}\u201D` : ""}
             </span>
           </div>
 
@@ -196,13 +255,18 @@ export default function QueueClient({
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th style={{ width: 28, paddingLeft: 24 }}>
-                      <input type="checkbox" />
-                    </th>
-                    <th>Rx #</th>
+                    {/* Bulk-select column removed — the original
+                        checkboxes were stubs with no onClick, no selected
+                        state, and no batch-action toolbar to back them up.
+                        Walkthrough flagged them as ghost UI. Re-introduce
+                        with real behavior when there's an actual batch
+                        action ("notify all aging", "print labels for…")
+                        wired to the selection. */}
+                    <th style={{ paddingLeft: 24 }}>Rx #</th>
                     <th>Patient</th>
                     <th>Drug</th>
                     <th>Qty</th>
+                    <th>Age</th>
                     <th>Status</th>
                     <th>Insurance</th>
                     <th style={{ width: 32 }}></th>
@@ -212,6 +276,16 @@ export default function QueueClient({
                   {filtered.map((r) => {
                     const meta = BUCKET_META[r.bucket];
                     const isHigh = r.hasSevereAllergy || r.isCII;
+                    // Aging signal: 3+ days in the queue is unusual for any
+                    // bucket except waiting_bin (where /pickup owns the
+                    // RTS surfacing). Use warn at 3+, danger at 7+ so the
+                    // tech sees long-tail fills they need to chase.
+                    const ageColor =
+                      r.ageDays >= 7
+                        ? "var(--danger)"
+                        : r.ageDays >= 3
+                          ? "var(--warn)"
+                          : "var(--ink-3)";
                     return (
                       <tr
                         key={r.fillId}
@@ -219,10 +293,7 @@ export default function QueueClient({
                         onClick={() => setSelected(r.fillId)}
                         style={{ cursor: "pointer" }}
                       >
-                        <td style={{ paddingLeft: 24 }}>
-                          <input type="checkbox" onClick={(e) => e.stopPropagation()} />
-                        </td>
-                        <td className="bnds-mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                        <td className="bnds-mono" style={{ fontSize: 12, color: "var(--ink-3)", paddingLeft: 24 }}>
                           {r.rxNumber}
                         </td>
                         <td>
@@ -241,6 +312,9 @@ export default function QueueClient({
                           </div>
                         </td>
                         <td className="t-num">{r.quantity}</td>
+                        <td className="t-xs t-num" style={{ color: ageColor, fontWeight: 500 }}>
+                          {r.ageLabel}
+                        </td>
                         <td>
                           <span className={`pill pill-${meta.pill}`}>
                             <span className={`dot dot-${meta.dot}`} />
@@ -248,7 +322,7 @@ export default function QueueClient({
                           </span>
                           {(r.hasSevereAllergy || r.isCII) && (
                             <span style={{ marginLeft: 6, color: "var(--danger)", fontSize: 10.5, fontWeight: 600 }}>
-                              {[r.hasSevereAllergy && "ALG", r.isCII && "C-II"].filter(Boolean).join(" · ")}
+                              {[r.hasSevereAllergy && "Allergy", r.isCII && "C-II"].filter(Boolean).join(" \u00b7 ")}
                             </span>
                           )}
                         </td>
@@ -374,22 +448,19 @@ function RxDetail({ rx }: { rx: QueueRow }) {
           </div>
         )}
 
-        {/* Actions — links into the live process workflow, not stubs */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link
-            href={`/queue/process/${rx.fillId}`}
-            className="btn btn-primary"
-            style={{ flex: 1, justifyContent: "center", textDecoration: "none" }}
-          >
-            <I.Check /> Open in workflow
-          </Link>
-          <button className="btn btn-secondary" aria-label="Call patient">
-            <I.Phone />
-          </button>
-          <button className="btn btn-secondary" aria-label="More actions">
-            <I.Dots />
-          </button>
-        </div>
+        {/* Actions — links into the live process workflow, not stubs.
+            The previous "Phone" / "Dots" buttons next to "Open in workflow"
+            were no-op stubs (no onClick, no menu). Walkthrough caught them.
+            Removed in favor of a single primary action. The phone-call /
+            more-actions affordances live on the patient profile page,
+            which is one click away from /queue/process. */}
+        <Link
+          href={`/queue/process/${rx.fillId}`}
+          className="btn btn-primary"
+          style={{ width: "100%", justifyContent: "center", textDecoration: "none" }}
+        >
+          <I.Check /> Open in workflow
+        </Link>
       </div>
     </div>
   );

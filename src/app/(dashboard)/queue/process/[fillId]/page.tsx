@@ -56,8 +56,10 @@ import {
   formatDrugName,
   formatDrugWithStrength,
   formatFillNumber,
+  formatItemDisplayName,
 } from "@/lib/utils/formatters";
 import { formatPhone } from "@/lib/utils";
+import { isControlledDrug, formatDeaScheduleBadge } from "@/lib/utils/dea";
 
 // ─── Status Colors ────────────────────────────────────────────────
 
@@ -286,13 +288,22 @@ export default function FillProcessPage() {
   useEffect(() => {
     if (!soldGateError) return;
     if (!fill) return;
-    const isControlled =
-      fill.item?.isControlled || (fill.item?.deaSchedule && fill.item.deaSchedule >= 2);
+    // Controlled-substance detection: matches the server-side gate in
+    // `recordPickupChecklist` / `advanceFillStatus` so the banner clears at
+    // the same threshold the workflow accepts. Previously the client did
+    // `deaSchedule >= 2` against a VARCHAR column, so DRX-imported controls
+    // (`isControlled = false`, `deaSchedule = "II"`) skipped the ID gate
+    // client-side and the user was stuck looking at "Pickup checklist
+    // incomplete — ID not verified" with no idVerified checkbox in sight.
+    const controlled = isControlledDrug({
+      isControlled: fill.item?.isControlled ?? false,
+      deaSchedule: fill.item?.deaSchedule != null ? String(fill.item.deaSchedule) : null,
+    });
     const satisfied =
       pickup.counselOffered &&
       pickup.signatureCaptured &&
       pickup.paymentReceived &&
-      (!isControlled || pickup.idVerified);
+      (!controlled || pickup.idVerified);
     if (satisfied) {
       setSoldGateError(null);
     }
@@ -709,14 +720,25 @@ export default function FillProcessPage() {
     );
   }
 
-  const isControlled = fill.item?.isControlled || (fill.item?.deaSchedule && fill.item.deaSchedule >= 2);
+  // Use the shared helper so client + server agree on what counts as
+  // controlled. `deaSchedule` is a VARCHAR ("II", "C-II", "CII", "2"...)
+  // and the helper normalizes all shapes — see lib/utils/dea.ts.
+  const isControlled = isControlledDrug({
+    isControlled: fill.item?.isControlled ?? false,
+    deaSchedule: fill.item?.deaSchedule != null ? String(fill.item.deaSchedule) : null,
+  });
+  const deaScheduleBadge = formatDeaScheduleBadge(
+    fill.item?.deaSchedule != null ? String(fill.item.deaSchedule) : null
+  );
   const happyPath = fill.happyPathNext;
 
   // Friendly label for the global Breadcrumbs component — replaces the
   // fillId UUID segment with "Patient — Drug (Fill #N)" so the dashboard
   // layout's breadcrumb chrome is also legible (matches the in-page one).
+  // Use formatItemDisplayName so DRX "Fl" garbage falls through to
+  // genericName / brandName / NDC instead of bleeding into the breadcrumb.
   const fillBreadcrumbLabel = `${formatPatientName(fill.patient)} \u2014 ${
-    formatDrugName(fill.item?.name) || "Compound"
+    fill.item ? formatItemDisplayName(fill.item) : "Compound"
   } (Fill #${formatFillNumber(fill.fillNumber)})`;
 
   return (
@@ -748,7 +770,11 @@ export default function FillProcessPage() {
             </span>
             {isControlled && (
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-red-100 text-red-700">
-                C-{fill.item?.deaSchedule || "II"} Controlled
+                {/* Use formatDeaScheduleBadge so DRX-prefixed values like
+                    "C-II" don't render as "C-C-II", and so the badge falls
+                    back to plain "Controlled" when only `isControlled` is
+                    set without a schedule numeral. */}
+                {deaScheduleBadge ? `${deaScheduleBadge} Controlled` : "Controlled"}
               </span>
             )}
           </div>
@@ -876,8 +902,13 @@ export default function FillProcessPage() {
                     <Pill className="w-3.5 h-3.5" /> Drug
                   </h3>
                   <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>
-                    {fill.item?.name
-                      ? formatDrugWithStrength(fill.item.name, fill.item.strength)
+                    {/* Same formatter chain as queue/pickup — DRX delivers
+                        2-3 char garbage in `name` ("Fl") and we fall back
+                        to genericName / brandName / NDC. Then suffix the
+                        dedicated strength column when it isn't already
+                        embedded in the name. (#16 + #14) */}
+                    {fill.item
+                      ? formatDrugWithStrength(formatItemDisplayName(fill.item), fill.item.strength)
                       : "Compound"}
                   </p>
                   {fill.item?.dosageForm && (
