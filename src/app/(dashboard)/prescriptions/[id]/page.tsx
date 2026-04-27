@@ -163,13 +163,90 @@ async function PrescriptionDetailPageContent({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Info */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Original Rx source — collapsed by default. Lets the
-              pharmacist verify what the prescriber sent (eRx
-              payload, fax PDF, paper scan, or phone transcript)
-              against the structured fields rendered below. */}
+          {/* Original Rx source — pictured Rx for the pharmacist to
+              verify against. Defaults to OPEN here (DRX parity): the
+              detail page has more vertical room than the queue and
+              the pharmacist's first instinct is to see the source
+              document. The prescriptionFallback prop feeds the
+              structured Rx fields so legacy DRX-imported Rxs and any
+              other prescription without source-channel metadata still
+              render a useful pictured-Rx layout. */}
           <RxDocumentView
             source={rx.source}
             metadata={(rx.metadata as Record<string, unknown>) || {}}
+            defaultOpen
+            prescriptionFallback={{
+              rxNumber: rx.rxNumber,
+              dateWritten: rx.dateWritten,
+              expirationDate: rx.expirationDate,
+              isCompound: rx.isCompound,
+              prescriberNotes: rx.prescriberNotes,
+              patient: {
+                firstName: rx.patient.firstName,
+                lastName: rx.patient.lastName,
+                dateOfBirth: rx.patient.dateOfBirth,
+                gender: rx.patient.gender,
+                mrn: rx.patient.mrn,
+                phone: rx.patient.phoneNumbers?.[0]?.number ?? null,
+                address: rx.patient.addresses?.[0]
+                  ? {
+                      line1: rx.patient.addresses[0].line1,
+                      line2: rx.patient.addresses[0].line2,
+                      city: rx.patient.addresses[0].city,
+                      state: rx.patient.addresses[0].state,
+                      zip: rx.patient.addresses[0].zip,
+                    }
+                  : null,
+              },
+              prescriber: rx.prescriber
+                ? {
+                    firstName: rx.prescriber.firstName,
+                    lastName: rx.prescriber.lastName,
+                    suffix: rx.prescriber.suffix,
+                    npi: rx.prescriber.npi,
+                    deaNumber: rx.prescriber.deaNumber,
+                    phone: rx.prescriber.phone,
+                    fax: rx.prescriber.fax,
+                    specialty: rx.prescriber.specialty,
+                    address:
+                      rx.prescriber.addressLine1 || rx.prescriber.city
+                        ? {
+                            line1: rx.prescriber.addressLine1,
+                            city: rx.prescriber.city,
+                            state: rx.prescriber.state,
+                            zip: rx.prescriber.zip,
+                          }
+                        : null,
+                  }
+                : undefined,
+              medication: rx.isCompound
+                ? {
+                    drugName: rx.formula?.name ?? null,
+                    dosageForm: rx.formula?.dosageForm ?? null,
+                    quantity: rx.quantityPrescribed,
+                    daysSupply: rx.daysSupply,
+                    refillsAuthorized: rx.refillsAuthorized,
+                    refillsRemaining: rx.refillsRemaining,
+                    dawCode: rx.dawCode,
+                    isCompound: true,
+                    directions: rx.directions,
+                  }
+                : {
+                    drugName: rx.item?.name ?? null,
+                    genericName: rx.item?.genericName ?? null,
+                    strength: rx.item?.strength ?? null,
+                    dosageForm: rx.item?.dosageForm ?? null,
+                    route: rx.item?.route ?? null,
+                    ndc: rx.item?.ndc ?? null,
+                    deaSchedule: rx.item?.deaSchedule ?? null,
+                    quantity: rx.quantityPrescribed,
+                    daysSupply: rx.daysSupply,
+                    refillsAuthorized: rx.refillsAuthorized,
+                    refillsRemaining: rx.refillsRemaining,
+                    dawCode: rx.dawCode,
+                    directions: rx.directions,
+                  },
+            }}
           />
 
           {/* Rx Details */}

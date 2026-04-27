@@ -59,11 +59,20 @@ export interface FillDetail {
   };
   patient: {
     id: string;
+    mrn: string | null;
     firstName: string;
     lastName: string;
     dateOfBirth: string | null;
+    gender: string | null;
     allergies: { allergen: string; severity: string | null }[];
     phoneNumbers: { number: string; type: string | null }[];
+    addresses: {
+      line1: string | null;
+      line2: string | null;
+      city: string | null;
+      state: string | null;
+      zip: string | null;
+    }[];
     insurance: {
       id: string;
       planName: string | null;
@@ -75,8 +84,16 @@ export interface FillDetail {
   prescriber: {
     firstName: string;
     lastName: string;
+    suffix: string | null;
     npi: string | null;
+    deaNumber: string | null;
     phone: string | null;
+    fax: string | null;
+    specialty: string | null;
+    addressLine1: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
   } | null;
   item: {
     id: string;
@@ -85,6 +102,7 @@ export interface FillDetail {
     ndc: string | null;
     strength: string | null;
     dosageForm: string | null;
+    route: string | null;
     deaSchedule: number | null;
     isControlled: boolean;
   } | null;
@@ -149,6 +167,10 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
                 select: { number: true, phoneType: true },
                 orderBy: { isPrimary: "desc" },
               },
+              addresses: {
+                select: { line1: true, line2: true, city: true, state: true, zip: true },
+                orderBy: { isDefault: "desc" },
+              },
               insurance: {
                 where: { isActive: true },
                 include: { thirdPartyPlan: { select: { planName: true } } },
@@ -157,12 +179,16 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
             },
           },
           prescriber: {
-            select: { firstName: true, lastName: true, npi: true, phone: true },
+            select: {
+              firstName: true, lastName: true, suffix: true, npi: true, deaNumber: true,
+              phone: true, fax: true, specialty: true,
+              addressLine1: true, city: true, state: true, zip: true,
+            },
           },
           item: {
             select: {
               id: true, name: true, genericName: true, ndc: true,
-              strength: true, dosageForm: true, deaSchedule: true, isControlled: true,
+              strength: true, dosageForm: true, route: true, deaSchedule: true, isControlled: true,
             },
           },
         },
@@ -170,7 +196,7 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
       item: {
         select: {
           id: true, name: true, genericName: true, ndc: true,
-          strength: true, dosageForm: true, deaSchedule: true, isControlled: true,
+          strength: true, dosageForm: true, route: true, deaSchedule: true, isControlled: true,
         },
       },
       filler: { select: { firstName: true, lastName: true } },
@@ -269,11 +295,20 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
     },
     patient: {
       id: patient.id,
+      mrn: patient.mrn ?? null,
       firstName: patient.firstName,
       lastName: patient.lastName,
       dateOfBirth: patient.dateOfBirth?.toISOString() || null,
+      gender: patient.gender ?? null,
       allergies: patient.allergies.map((a: any) => ({ allergen: a.allergen, severity: a.severity })),
       phoneNumbers: patient.phoneNumbers.map((p: any) => ({ number: p.number, type: p.phoneType })),
+      addresses: (patient.addresses || []).map((a: any) => ({
+        line1: a.line1 ?? null,
+        line2: a.line2 ?? null,
+        city: a.city ?? null,
+        state: a.state ?? null,
+        zip: a.zip ?? null,
+      })),
       insurance: patient.insurance.map((i: any) => ({
         id: i.id,
         planName: i.thirdPartyPlan?.planName || null,
@@ -285,8 +320,16 @@ export async function getFillDetail(fillId: string): Promise<FillDetail | null> 
     prescriber: rx.prescriber ? {
       firstName: rx.prescriber.firstName,
       lastName: rx.prescriber.lastName,
+      suffix: rx.prescriber.suffix ?? null,
       npi: rx.prescriber.npi,
+      deaNumber: rx.prescriber.deaNumber ?? null,
       phone: rx.prescriber.phone,
+      fax: rx.prescriber.fax ?? null,
+      specialty: rx.prescriber.specialty ?? null,
+      addressLine1: rx.prescriber.addressLine1 ?? null,
+      city: rx.prescriber.city ?? null,
+      state: rx.prescriber.state ?? null,
+      zip: rx.prescriber.zip ?? null,
     } : null,
     item: fill.item || rx.item || null,
     filler: fill.filler,

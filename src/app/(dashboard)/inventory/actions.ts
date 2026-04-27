@@ -197,6 +197,17 @@ export async function updateItem(id: string, data: ItemFormData) {
 }
 
 // ─── SEARCH (for forms) ─────────────────────
+//
+// Relevance ranking note (Bug fix — DRX-parity): a pure alphabetical
+// `orderBy: { name: "asc" }` puts combination products ahead of the
+// plain drug whenever the combo's first word sorts earlier in the
+// alphabet. E.g. searching "metformin" with the old ordering surfaced
+//   1. "Glipizide/Metformin 2.5-250 mg Tab"   ← G wins on alpha
+//   2. "Metformin 500 mg Tab"                  ← actual exact match
+// with the tech then having to scroll past the wrong row to pick the
+// right one. We now fetch a wider candidate set and re-rank by a
+// relevance score: exact match → starts-with → contains, with the
+// alphabetical order preserved as the tiebreaker inside each tier.
 
 export async function searchItems(query: string, compoundOnly = false) {
   if (!query || query.length < 2) return [];
@@ -214,7 +225,12 @@ export async function searchItems(query: string, compoundOnly = false) {
     where.isCompoundIngredient = true;
   }
 
-  return prisma.item.findMany({
+  // Pull a wider candidate set so the in-memory relevance pass can
+  // promote an exact match even when it would otherwise fall outside
+  // the alphabetical top 10. 50 is plenty for normal pharmacy
+  // catalogs (~50k items) — the LIKE scan is cheap and we slice
+  // back to 10 below.
+  const items = await prisma.item.findMany({
     where,
     select: {
       id: true,
@@ -225,9 +241,39 @@ export async function searchItems(query: string, compoundOnly = false) {
       manufacturer: true,
       unitOfMeasure: true,
     },
-    take: 10,
+    take: 50,
     orderBy: { name: "asc" },
   });
+
+  // Lower score = better match. The tiers are:
+  //   0  exact name match
+  //   1  exact generic-name match
+  //   2  name starts with query
+  //   3  generic name starts with query
+  //   4  NDC starts with query
+  //   5  name contains query
+  //   6  generic name contains query
+  //   7  fallback (only when matched on NDC substring)
+  const q = query.toLowerCase();
+  const scoreOf = (it: { name: string; genericName: string | null; ndc: string | null }): number => {
+    const name = it.name.toLowerCase();
+    const generic = (it.genericName ?? "").toLowerCase();
+    const ndc = (it.ndc ?? "").toLowerCase();
+    if (name === q) return 0;
+    if (generic && generic === q) return 1;
+    if (name.startsWith(q)) return 2;
+    if (generic.startsWith(q)) return 3;
+    if (ndc.startsWith(q)) return 4;
+    if (name.includes(q)) return 5;
+    if (generic.includes(q)) return 6;
+    return 7;
+  };
+
+  return items
+    .map((it) => ({ it, s: scoreOf(it) }))
+    .sort((a, b) => a.s - b.s || a.it.name.localeCompare(b.it.name))
+    .slice(0, 10)
+    .map(({ it }) => it);
 }
 
 // ═══════════════════════════════════════════════

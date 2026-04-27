@@ -730,6 +730,19 @@ async function main() {
       ...sourceMetadata,
     } as Prisma.InputJsonValue;
 
+    // Lift dawCode out of the eRx metadata payload so the structured
+    // Prescription.dawCode column stays in lockstep with what the
+    // RxDocumentView eRx panel renders. buildErxPayload() applies the
+    // NCPDP "0" default ("no product selection indicated") to its
+    // medication.dawCode when the input was undefined; without this
+    // lift we'd save the raw `rx.dawCode` (undefined → null) into the
+    // column, and the detail page would render "—" right next to a
+    // panel reading "0". The two ARE meant to be the same value.
+    const erxMedication = (sourceMetadata.erxSource as
+      | { medication?: { dawCode?: string } }
+      | undefined)?.medication;
+    const resolvedDawCode = erxMedication?.dawCode ?? rx.dawCode ?? null;
+
     const rxRecord = await prisma.prescription.upsert({
       where: { rxNumber: rx.rxNumber },
       update: {
@@ -741,7 +754,7 @@ async function main() {
         quantityPrescribed: rx.quantity,
         daysSupply: rx.daysSupply,
         directions: rx.directions,
-        dawCode: rx.dawCode,
+        dawCode: resolvedDawCode,
         refillsAuthorized: rx.refillsAuthorized,
         refillsRemaining: rx.refillsRemaining,
         dateWritten,
@@ -763,7 +776,7 @@ async function main() {
         quantityPrescribed: rx.quantity,
         daysSupply: rx.daysSupply,
         directions: rx.directions,
-        dawCode: rx.dawCode,
+        dawCode: resolvedDawCode,
         refillsAuthorized: rx.refillsAuthorized,
         refillsRemaining: rx.refillsRemaining,
         dateWritten,

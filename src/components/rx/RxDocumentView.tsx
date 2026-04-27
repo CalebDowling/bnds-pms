@@ -31,10 +31,16 @@
  * prescription metadata blob and let the component decide which
  * source-specific renderer to use.
  *
- * Defensive fallbacks: when a prescription has no recognized source
- * payload (e.g. legacy DRX-imported Rx with no metadata), we still
- * render a small "Source not available" notice with whatever
- * structured fields we have — never blank.
+ * Reconstructed-Rx fallback (DRX parity): when a prescription has no
+ * source-channel payload — e.g. legacy DRX-imported Rxs, prescriptions
+ * created before the metadata.erxSource shape existed, or any Rx whose
+ * original document was lost in migration — we synthesize a "pictured"
+ * Rx document from the structured Prescription/Patient/Prescriber/Item
+ * fields. This mirrors how DRX renders every Rx as a printable-looking
+ * document so the pharmacist always has something to verify against,
+ * even when no original document is on file. A persistent banner at the
+ * top of the reconstructed view makes it clear this is rebuilt from the
+ * Rx record rather than the original prescriber-sent document.
  */
 
 import { useState } from "react";
@@ -135,6 +141,57 @@ export interface PhoneSourcePayload {
 
 // ─── Component contract ────────────────────────────────────────────────
 
+/**
+ * Structured Rx data used to render the "reconstructed" pictured-Rx view
+ * when no source-channel payload is on file. Callers pass whatever fields
+ * they have access to; the renderer suppresses any rows that come back
+ * undefined/null/empty so the result stays clean even when the data is
+ * sparse (e.g. a DRX-imported Rx with no prescriber address).
+ */
+export interface PrescriptionFallback {
+  rxNumber?: string | null;
+  dateWritten?: string | Date | null;
+  expirationDate?: string | Date | null;
+  isCompound?: boolean;
+  patient?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    dateOfBirth?: string | Date | null;
+    gender?: string | null;
+    phone?: string | null;
+    mrn?: string | null;
+    address?: { line1?: string | null; line2?: string | null; city?: string | null; state?: string | null; zip?: string | null } | null;
+  };
+  prescriber?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    suffix?: string | null;
+    npi?: string | null;
+    deaNumber?: string | null;
+    phone?: string | null;
+    fax?: string | null;
+    specialty?: string | null;
+    address?: { line1?: string | null; line2?: string | null; city?: string | null; state?: string | null; zip?: string | null } | null;
+  };
+  medication?: {
+    drugName?: string | null;
+    genericName?: string | null;
+    strength?: string | null;
+    dosageForm?: string | null;
+    route?: string | null;
+    ndc?: string | null;
+    deaSchedule?: string | number | null;
+    quantity?: number | null;
+    daysSupply?: number | null;
+    refillsAuthorized?: number | null;
+    refillsRemaining?: number | null;
+    dawCode?: string | null;
+    isCompound?: boolean;
+    directions?: string | null;
+  };
+  prescriberNotes?: string | null;
+}
+
 export interface RxDocumentViewProps {
   /**
    * Prescription source channel — `prescription.source` from the DB.
@@ -145,11 +202,20 @@ export interface RxDocumentViewProps {
   /** `Prescription.metadata` JSON — we read erxSource/faxSource/etc. */
   metadata: Record<string, unknown> | null | undefined;
   /**
+   * Structured Rx data used to render the "reconstructed" pictured-Rx
+   * view when no source-channel payload is on file. When this is
+   * provided AND the source-channel payload is missing, the body
+   * renders a DRX-style structured Rx document instead of the bare
+   * "Source document not attached" notice. Highly recommended on
+   * /queue/process and /prescriptions/[id] so the pharmacist always
+   * has a pictured Rx to verify against.
+   */
+  prescriptionFallback?: PrescriptionFallback;
+  /**
    * Display flag — when true, the panel renders pre-expanded. When
    * false (default) it shows a one-line summary header with a chevron
-   * to expand. The fill-process page uses collapsed-by-default to
-   * keep the busy 2-col workflow dense; a dedicated /rx/[id]/source
-   * route would pass `defaultOpen`.
+   * to expand. The fill-process page passes `defaultOpen` so the
+   * pharmacist sees the pictured Rx without an extra click.
    */
   defaultOpen?: boolean;
   /**
@@ -566,6 +632,255 @@ function MissingSourceView({ source }: { source: string | null }) {
   );
 }
 
+// ─── Reconstructed-Rx (pictured) view ────────────────────────────────
+//
+// Renders a DRX-style structured Rx document built from the fields we
+// already captured on the Prescription / Patient / Prescriber / Item
+// records. Used when no source-channel payload (erxSource / faxSource /
+// paperSource / phoneSource) is on file, which is the case for:
+//   • DRX-imported prescriptions (the original lives in DRX)
+//   • prescriptions written before metadata.erxSource existed
+//   • any other Rx whose source document was lost or never attached
+//
+// The layout mirrors a paper Rx: header band with RX# and date written,
+// patient demographics block, prescriber block with NPI/DEA, then the
+// medication panel with SIG, refills, DAW, and quantity. A persistent
+// banner at the top makes it clear this is a reconstruction so the
+// pharmacist isn't misled into thinking it's the original document.
+
+function ReconstructedRxView({ data, source }: { data: PrescriptionFallback; source: string | null }) {
+  const p = data.patient || {};
+  const pr = data.prescriber || {};
+  const m = data.medication || {};
+
+  const patientName = [p.firstName, p.lastName].filter(Boolean).join(" ").trim();
+  const prescriberName =
+    [pr.firstName, pr.lastName].filter(Boolean).join(" ").trim() +
+    (pr.suffix ? `, ${pr.suffix}` : "");
+  const drugLabel = [m.drugName, m.strength, m.dosageForm].filter(Boolean).join(" ").trim();
+  const isDrxImport = source === "drx_import" || source === "drx";
+
+  // Refills can be either "remaining / authorized" (nice for active Rxs)
+  // or just "authorized" (nice for newly-created intake views). Prefer
+  // the richer form when both are present.
+  const refillsLabel = (() => {
+    if (m.refillsRemaining != null && m.refillsAuthorized != null) {
+      return `${m.refillsRemaining} of ${m.refillsAuthorized}`;
+    }
+    if (m.refillsAuthorized != null) return String(m.refillsAuthorized);
+    if (m.refillsRemaining != null) return String(m.refillsRemaining);
+    return null;
+  })();
+
+  return (
+    <div className="space-y-3">
+      {/* Reconstruction banner — always visible inside the pictured Rx
+          so the pharmacist knows this is a structured-data view, not
+          the prescriber-sent document. */}
+      <div
+        className="text-[11px] px-3 py-2 rounded border flex items-start gap-2"
+        style={{
+          borderColor: "#fbbf24",
+          backgroundColor: "#fffbeb",
+          color: "#78350f",
+        }}
+      >
+        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="font-semibold">Reconstructed from Rx record</span>
+          {isDrxImport
+            ? " — original DRX prescription document was not migrated."
+            : " — original prescriber-sent document is not on file. Verify against the structured fields below."}
+        </div>
+      </div>
+
+      {/* Document header: RX# + date written */}
+      <div
+        className="rounded border px-4 py-2 flex items-center justify-between"
+        style={{
+          borderColor: "var(--border)",
+          backgroundColor: "var(--surface-2, #f8fafc)",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <Hash className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
+          <div>
+            <div className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: "var(--text-muted)" }}>
+              Rx Number
+            </div>
+            <div className="text-sm font-mono font-bold" style={{ color: "var(--text-primary)" }}>
+              {data.rxNumber || "—"}
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] uppercase tracking-wide font-semibold" style={{ color: "var(--text-muted)" }}>
+            Date Written
+          </div>
+          <div className="text-sm" style={{ color: "var(--text-primary)" }}>
+            {data.dateWritten ? formatDate(data.dateWritten) : "—"}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+        {/* Patient block — DRX styles patients in a red header band; we
+            use a left red border + tinted background to match without
+            committing to a full color block. */}
+        <div
+          className="rounded border-l-4 pl-3 pr-2 py-2"
+          style={{ borderColor: "#dc2626", backgroundColor: "var(--surface-2, #fef2f2)" }}
+        >
+          <SectionHeader icon={User} title="Patient" />
+          <div className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            {patientName || "—"}
+          </div>
+          {p.mrn && (
+            <div className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
+              MRN: {p.mrn}
+            </div>
+          )}
+          <FieldRow label="DOB" value={p.dateOfBirth ? formatDate(p.dateOfBirth) : null} />
+          <FieldRow label="Gender" value={p.gender} />
+          <FieldRow label="Phone" value={p.phone ? formatPhone(p.phone) : null} />
+          {formatAddress(p.address ? {
+            line1: p.address.line1 ?? undefined,
+            line2: p.address.line2 ?? undefined,
+            city: p.address.city ?? undefined,
+            state: p.address.state ?? undefined,
+            zip: p.address.zip ?? undefined,
+          } : undefined) && (
+            <div className="flex items-start gap-2 py-1 text-xs">
+              <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+              <span className="whitespace-pre-line" style={{ color: "var(--text-primary)" }}>
+                {formatAddress(p.address ? {
+                  line1: p.address.line1 ?? undefined,
+                  line2: p.address.line2 ?? undefined,
+                  city: p.address.city ?? undefined,
+                  state: p.address.state ?? undefined,
+                  zip: p.address.zip ?? undefined,
+                } : undefined)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Prescriber block — DRX uses blue. Same border-strip treatment
+            as the patient panel but in blue. */}
+        <div
+          className="rounded border-l-4 pl-3 pr-2 py-2"
+          style={{ borderColor: "#2563eb", backgroundColor: "var(--surface-2, #eff6ff)" }}
+        >
+          <SectionHeader icon={Stethoscope} title="Prescriber" />
+          <div className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            {prescriberName || "—"}
+          </div>
+          {pr.specialty && (
+            <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+              {pr.specialty}
+            </div>
+          )}
+          <FieldRow label="NPI" value={pr.npi} mono />
+          <FieldRow label="DEA" value={pr.deaNumber} mono />
+          <FieldRow label="Phone" value={pr.phone ? formatPhone(pr.phone) : null} />
+          <FieldRow label="Fax" value={pr.fax ? formatPhone(pr.fax) : null} />
+          {formatAddress(pr.address ? {
+            line1: pr.address.line1 ?? undefined,
+            line2: pr.address.line2 ?? undefined,
+            city: pr.address.city ?? undefined,
+            state: pr.address.state ?? undefined,
+            zip: pr.address.zip ?? undefined,
+          } : undefined) && (
+            <div className="flex items-start gap-2 py-1 text-xs">
+              <Building2 className="w-3 h-3 mt-0.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+              <span className="whitespace-pre-line" style={{ color: "var(--text-primary)" }}>
+                {formatAddress(pr.address ? {
+                  line1: pr.address.line1 ?? undefined,
+                  line2: pr.address.line2 ?? undefined,
+                  city: pr.address.city ?? undefined,
+                  state: pr.address.state ?? undefined,
+                  zip: pr.address.zip ?? undefined,
+                } : undefined)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Medication block — full-width, mimics the "Rx" big-block from
+            a paper script. Drug name as the headline, then a 2-col grid
+            of supporting fields. */}
+        <div
+          className="col-span-2 rounded border-l-4 pl-3 pr-2 py-2"
+          style={{ borderColor: "#0ea5e9", backgroundColor: "var(--surface-2, #f0f9ff)" }}
+        >
+          <SectionHeader icon={Pill} title={data.isCompound || m.isCompound ? "Compound Medication" : "Medication"} />
+          <div className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+            {drugLabel || m.drugName || "—"}
+          </div>
+          {m.genericName && m.genericName !== m.drugName && (
+            <div className="text-[11px] italic" style={{ color: "var(--text-muted)" }}>
+              Generic: {m.genericName}
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-x-6 mt-1">
+            <div>
+              <FieldRow label="NDC" value={m.ndc} mono />
+              <FieldRow label="Route" value={m.route} />
+              <FieldRow label="Quantity" value={m.quantity} />
+              <FieldRow label="Days Supply" value={m.daysSupply} />
+            </div>
+            <div>
+              <FieldRow label="Refills" value={refillsLabel} />
+              <FieldRow label="DAW" value={m.dawCode} />
+              {m.deaSchedule && <FieldRow label="DEA Sched" value={String(m.deaSchedule)} />}
+              {(data.isCompound || m.isCompound) && <FieldRow label="Compound" value="Yes" />}
+            </div>
+          </div>
+          {m.directions && (
+            <div
+              className="mt-2 rounded border-l-4 px-3 py-2 text-xs"
+              style={{ borderColor: "#0ea5e9", backgroundColor: "white" }}
+            >
+              <div
+                className="uppercase tracking-wide font-semibold mb-0.5"
+                style={{ color: "var(--text-muted)" }}
+              >
+                SIG / Directions
+              </div>
+              <div style={{ color: "var(--text-primary)" }}>{m.directions}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Notes / audit footer */}
+        {(data.prescriberNotes || data.expirationDate) && (
+          <div className="col-span-2">
+            <SectionHeader icon={Calendar} title="Notes & Audit" />
+            <div className="grid grid-cols-2 gap-x-6">
+              <FieldRow
+                label="Expires"
+                value={data.expirationDate ? formatDate(data.expirationDate) : null}
+              />
+              <div />
+            </div>
+            {data.prescriberNotes && (
+              <div className="mt-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+                <span
+                  className="uppercase tracking-wide font-semibold mr-2"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  Prescriber notes:
+                </span>
+                {data.prescriberNotes}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Document embed + placeholder ────────────────────────────────────
 
 function DocumentEmbed({ url, label }: { url: string; label: string }) {
@@ -652,6 +967,7 @@ function DocumentPlaceholder({ message, subtext }: { message: string; subtext: s
 export default function RxDocumentView({
   source,
   metadata,
+  prescriptionFallback,
   defaultOpen = false,
   headline,
 }: RxDocumentViewProps) {
@@ -679,7 +995,20 @@ export default function RxDocumentView({
     (lowSource === "phone" || lowSource === "verbal") ? !!phonePayload :
     false;
 
+  // When no source-channel payload exists, we render the structured
+  // "reconstructed" Rx view if the caller supplied fallback data. The
+  // header description and the right-hand badge both reflect this so
+  // the pharmacist can tell at a glance whether they're looking at the
+  // original document or a rebuild.
+  const hasFallback = !!prescriptionFallback;
+  const showReconstructed = !hasPayload && hasFallback;
+
   const headerLabel = headline ?? meta.label;
+  const headerDescription = hasPayload
+    ? meta.description
+    : showReconstructed
+    ? "Pictured Rx reconstructed from structured fields"
+    : "Source document not attached";
 
   return (
     <div
@@ -712,7 +1041,7 @@ export default function RxDocumentView({
               className="text-[11px] truncate"
               style={{ color: "var(--text-muted)" }}
             >
-              {hasPayload ? meta.description : "Source document not attached"}
+              {headerDescription}
             </div>
           </div>
         </div>
@@ -721,11 +1050,11 @@ export default function RxDocumentView({
             <span
               className="text-[11px] uppercase font-semibold tracking-wide px-2 py-0.5 rounded"
               style={{
-                backgroundColor: "#fef3c7",
-                color: "#92400e",
+                backgroundColor: showReconstructed ? "#dbeafe" : "#fef3c7",
+                color: showReconstructed ? "#1e40af" : "#92400e",
               }}
             >
-              No source
+              {showReconstructed ? "Reconstructed" : "No source"}
             </span>
           )}
           {open ? (
@@ -752,7 +1081,13 @@ export default function RxDocumentView({
           {(lowSource === "phone" || lowSource === "verbal") && phonePayload && (
             <PhoneSourceView payload={phonePayload} />
           )}
-          {!hasPayload && <MissingSourceView source={source} />}
+          {!hasPayload && (
+            showReconstructed && prescriptionFallback ? (
+              <ReconstructedRxView data={prescriptionFallback} source={source} />
+            ) : (
+              <MissingSourceView source={source} />
+            )
+          )}
         </div>
       )}
     </div>

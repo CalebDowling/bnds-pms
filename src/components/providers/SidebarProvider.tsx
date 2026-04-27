@@ -28,8 +28,17 @@ export function useSidebar(): SidebarContextValue {
 }
 
 export default function SidebarProvider({ children }: { children: ReactNode }) {
+  // IMPORTANT: this provider must always render its children — the `if
+  // (!hydrated) return null` pattern that used to live here interacts
+  // badly with Next 16 + React 19's router transitions. When a route
+  // change is in flight, returning null aborts the commit silently,
+  // leaving `router.push()` jammed (no URL change, no error). The
+  // walkthrough symptom was "open any prescription, click a sidebar
+  // tab, nothing happens." Render the chrome unconditionally; the
+  // localStorage value syncs in via an effect on mount, with a tiny
+  // (~1 frame) flash from expanded → collapsed if the user had it
+  // collapsed. That's a much better trade than a frozen router.
   const [collapsed, setCollapsedState] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -40,7 +49,6 @@ export default function SidebarProvider({ children }: { children: ReactNode }) {
     } catch {
       // localStorage unavailable
     }
-    setHydrated(true);
   }, []);
 
   const setCollapsed = useCallback((v: boolean) => {
@@ -55,11 +63,6 @@ export default function SidebarProvider({ children }: { children: ReactNode }) {
   const toggle = useCallback(() => {
     setCollapsed(!collapsed);
   }, [collapsed, setCollapsed]);
-
-  // Avoid flash by not rendering until hydrated
-  if (!hydrated) {
-    return null;
-  }
 
   return (
     <SidebarContext.Provider value={{ collapsed, setCollapsed, toggle }}>

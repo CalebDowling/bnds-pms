@@ -330,7 +330,24 @@ export default function NewPrescriptionForm({
             {showDD && results.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                 {results.map((item) => (
-                  <button key={item.id} type="button" onClick={() => { onSelect(item); setShowDD(false); setQuery(""); }}
+                  // Pick on `mousedown`, not `click`. The input's `onBlur`
+                  // schedules `setShowDD(false)` 200ms after losing focus;
+                  // a slow rerender between mousedown and mouseup can
+                  // unmount this button before the click event arrives,
+                  // so the selection silently never registers. mousedown
+                  // fires before the input loses focus and before the
+                  // close timer is even scheduled, so the selection
+                  // always commits. preventDefault() keeps the input
+                  // from blurring at all, which lets the user keep
+                  // typing into the same field if they cleared and
+                  // started a new search.
+                  <button key={item.id} type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      onSelect(item);
+                      setShowDD(false);
+                      setQuery("");
+                    }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
                     {renderItem(item)}
                   </button>
@@ -445,7 +462,17 @@ export default function NewPrescriptionForm({
               {showDrugDD && drugResults.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
                   {drugResults.map((d: DrugSearchResult) => (
-                    <button key={d.id} type="button" onClick={() => { setSelectedDrug(d); setShowDrugDD(false); setDrugQuery(""); }}
+                    // mousedown, not click — same blur-timer race as the
+                    // patient/prescriber pickers above. See
+                    // renderSearchField for the long version of the
+                    // explanation.
+                    <button key={d.id} type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSelectedDrug(d);
+                        setShowDrugDD(false);
+                        setDrugQuery("");
+                      }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
                       {/* Two-line layout: name (Title Case, bold) on top,
                           NDC + manufacturer underneath in muted text so a

@@ -10,6 +10,20 @@
  *     details: { firstName: "John", lastName: "Doe" },
  *     ipAddress: "192.168.1.1"
  *   });
+ *
+ * For system / webhook ingests with no human user, pass a string actor
+ * name like "system-keragon" or "system-cron". logAudit() resolves
+ * non-UUID userId values to a single shared "System" user row (lazily
+ * upserted on first call) so the FK to users is satisfied. The original
+ * actor name is preserved in newValues._actor so downstream tooling can
+ * still tell *which* automated actor wrote the row.
+ *
+ * Background: AuditLog.userId is `@db.Uuid` with a FK to users.id.
+ * Passing a literal string ("system-keragon") used to fail at insert
+ * time with "Inconsistent column data: Error creating UUID" — and
+ * because the call site swallows errors, every webhook-driven audit
+ * row was silently dropped. This module preserves the audit trail
+ * by mapping all system actors to one System user row.
  */
 
 import { prisma } from "@/lib/prisma";
@@ -36,6 +50,66 @@ export interface LogAuditParams {
   userAgent?: string;
 }
 
+// ─── System-actor resolution ─────────────────────────────────────────
+//
+// AuditLog.userId is a UUID FK to users.id. Webhook / cron / migration
+// audit calls pass a string actor name like "system-keragon"; without
+// translation those fail UUID parse and the row is dropped. We lazily
+// upsert a single "System" user row (isActive=false, can't log in)
+// and route all non-UUID actor strings to it. The original actor
+// string is preserved on the row in newValues._actor.
+
+const SYSTEM_USER_UUID = "00000000-0000-0000-0000-000000000001";
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+let systemUserPromise: Promise<string> | null = null;
+
+async function ensureSystemUser(): Promise<string> {
+  // Cache the promise so concurrent webhook bursts don't all upsert.
+  if (systemUserPromise) return systemUserPromise;
+  systemUserPromise = (async () => {
+    try {
+      await prisma.user.upsert({
+        where: { id: SYSTEM_USER_UUID },
+        update: {},
+        create: {
+          id: SYSTEM_USER_UUID,
+          supabaseId: "system-actor",
+          email: "system@bndsrx.local",
+          firstName: "System",
+          lastName: "Actor",
+          isActive: false,
+        },
+      });
+      return SYSTEM_USER_UUID;
+    } catch (err) {
+      // Reset so the next call retries — don't permanently poison
+      // the cache because of a transient connection blip.
+      systemUserPromise = null;
+      throw err;
+    }
+  })();
+  return systemUserPromise;
+}
+
+/**
+ * Resolve a userId / actor string to a UUID that AuditLog can accept.
+ * Real UUIDs pass through; everything else (e.g. "system-keragon",
+ * "system-cron", or "unknown") routes to the shared System user.
+ *
+ * Returns the resolved UUID and the original actor label (or null
+ * if it was already a UUID) so the caller can stamp _actor onto
+ * newValues.
+ */
+async function resolveActor(
+  userId: string
+): Promise<{ uuid: string; actor: string | null }> {
+  if (UUID_RE.test(userId)) return { uuid: userId, actor: null };
+  const uuid = await ensureSystemUser();
+  return { uuid, actor: userId };
+}
+
 /**
  * Log an audit event to the database
  * This is safe to call even if it fails (errors are logged but not thrown)
@@ -53,11 +127,20 @@ export async function logAudit({
 }: LogAuditParams): Promise<void> {
   try {
     // If neither oldValues nor newValues provided, use details as newValues
-    const finalNewValues = newValues || details;
+    const baseNewValues = newValues || details;
+
+    // Resolve string actors (e.g. "system-keragon") to the System user
+    // UUID so the FK passes. Stamp the original actor onto _actor so
+    // downstream queries can still tell which automated actor wrote
+    // the row.
+    const { uuid, actor } = await resolveActor(userId);
+    const finalNewValues = actor
+      ? { ...(baseNewValues || {}), _actor: actor }
+      : baseNewValues;
 
     await prisma.auditLog.create({
       data: {
-        userId,
+        userId: uuid,
         action: action.slice(0, 10), // Ensure it fits in VARCHAR(10)
         tableName: resource,
         recordId: resourceId || "unknown",

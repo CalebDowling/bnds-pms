@@ -767,13 +767,77 @@ export default function FillProcessPage() {
           {/* Left 2 columns: processing panels */}
           <div className="col-span-2 space-y-4">
 
-            {/* Original Rx source — collapsed by default. Lets the
-                pharmacist verify what the prescriber sent (eRx
-                payload, fax PDF, paper scan, or phone transcript)
-                against the structured fill data shown below. */}
+            {/* Original Rx source — pictured Rx for the pharmacist to
+                verify against. Defaults to OPEN here (DRX parity): the
+                pharmacist needs to see the prescriber-sent document (or
+                a structured reconstruction when no original is on file)
+                without an extra click. The prescriptionFallback prop
+                feeds the structured Rx data so the panel still renders
+                a useful pictured-Rx layout for legacy DRX-imported
+                Rxs and any other Rx without source-channel metadata. */}
             <RxDocumentView
               source={fill.prescription.source}
               metadata={fill.prescription.metadata}
+              defaultOpen
+              prescriptionFallback={{
+                rxNumber: fill.prescription.rxNumber,
+                dateWritten: fill.prescription.dateWritten,
+                expirationDate: fill.prescription.expirationDate,
+                prescriberNotes: fill.prescription.prescriberNotes,
+                patient: {
+                  firstName: fill.patient.firstName,
+                  lastName: fill.patient.lastName,
+                  dateOfBirth: fill.patient.dateOfBirth,
+                  gender: fill.patient.gender,
+                  mrn: fill.patient.mrn,
+                  phone: fill.patient.phoneNumbers[0]?.number ?? null,
+                  address: fill.patient.addresses[0]
+                    ? {
+                        line1: fill.patient.addresses[0].line1,
+                        line2: fill.patient.addresses[0].line2,
+                        city: fill.patient.addresses[0].city,
+                        state: fill.patient.addresses[0].state,
+                        zip: fill.patient.addresses[0].zip,
+                      }
+                    : null,
+                },
+                prescriber: fill.prescriber
+                  ? {
+                      firstName: fill.prescriber.firstName,
+                      lastName: fill.prescriber.lastName,
+                      suffix: fill.prescriber.suffix,
+                      npi: fill.prescriber.npi,
+                      deaNumber: fill.prescriber.deaNumber,
+                      phone: fill.prescriber.phone,
+                      fax: fill.prescriber.fax,
+                      specialty: fill.prescriber.specialty,
+                      address:
+                        fill.prescriber.addressLine1 || fill.prescriber.city
+                          ? {
+                              line1: fill.prescriber.addressLine1,
+                              city: fill.prescriber.city,
+                              state: fill.prescriber.state,
+                              zip: fill.prescriber.zip,
+                            }
+                          : null,
+                    }
+                  : undefined,
+                medication: {
+                  drugName: fill.item?.name ?? null,
+                  genericName: fill.item?.genericName ?? null,
+                  strength: fill.item?.strength ?? null,
+                  dosageForm: fill.item?.dosageForm ?? null,
+                  route: fill.item?.route ?? null,
+                  ndc: fill.ndc ?? fill.item?.ndc ?? null,
+                  deaSchedule: fill.item?.deaSchedule ?? null,
+                  quantity: fill.prescription.quantityPrescribed ?? fill.quantity ?? null,
+                  daysSupply: fill.prescription.daysSupply ?? fill.daysSupply ?? null,
+                  refillsAuthorized: fill.prescription.refillsAuthorized,
+                  refillsRemaining: fill.prescription.refillsRemaining,
+                  dawCode: fill.prescription.dawCode,
+                  directions: fill.prescription.directions ?? fill.prescription.sig,
+                },
+              }}
             />
 
             {/* Patient & Drug Info */}

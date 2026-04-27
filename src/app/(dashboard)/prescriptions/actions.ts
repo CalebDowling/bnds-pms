@@ -630,7 +630,11 @@ export async function createFill(
 export async function searchPatients(query: string) {
   if (!query || query.length < 2) return [];
 
-  return prisma.patient.findMany({
+  // Pull a wider candidate set so the in-memory dedup pass below has
+  // headroom — duplicates from DRX import that share name+DOB get
+  // collapsed before the picker sees them, but we still want 10
+  // distinct patients in the dropdown afterward.
+  const rows = await prisma.patient.findMany({
     where: {
       status: "active",
       OR: [
@@ -657,6 +661,7 @@ export async function searchPatients(query: string) {
       lastName: true,
       mrn: true,
       dateOfBirth: true,
+      updatedAt: true,
       // Primary phone surfaces in the picker so two "James Hebert" rows are
       // distinguishable at a glance (DOB + last 4 digits is usually enough).
       phoneNumbers: {
@@ -664,9 +669,41 @@ export async function searchPatients(query: string) {
         orderBy: { isPrimary: "desc" },
       },
     },
-    take: 10,
+    take: 30,
     orderBy: { lastName: "asc" },
   });
+
+  // ─── Dedup ──────────────────────────────────────────────────────
+  // Patient.mrn has a unique index, but the DRX import historically
+  // re-keyed the same person with two different MRNs (same name, same
+  // DOB, same phone) when the upstream `external_id` field changed
+  // mid-import. The walkthrough surfaced this as "two 'Albanesi,
+  // Avery' entries in the picker." Until those rows are merged at
+  // the data layer, collapse them here so a tech doesn't pick the
+  // stale one. Fingerprint = lower(firstName + lastName + DOB +
+  // primary-phone-digits). That's strict enough to keep two real
+  // same-named-same-DOB patients distinct (rare but real, especially
+  // twins) as long as their phone numbers differ — and lenient
+  // enough to merge the DRX-double-import case where everything
+  // matches except the synthetic MRN.
+  const seen = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    const dob = r.dateOfBirth ? r.dateOfBirth.toISOString().slice(0, 10) : "";
+    const primaryPhone = (r.phoneNumbers[0]?.number ?? "").replace(/\D/g, "");
+    const fingerprint = `${r.firstName.trim().toLowerCase()}|${r.lastName.trim().toLowerCase()}|${dob}|${primaryPhone}`;
+    const prev = seen.get(fingerprint);
+    if (!prev || r.updatedAt > prev.updatedAt) {
+      // Keep the most-recently-updated row when collapsing — that's
+      // the one a DRX re-import would have refreshed last and is
+      // therefore the canonical record.
+      seen.set(fingerprint, r);
+    }
+  }
+
+  return Array.from(seen.values())
+    .sort((a, b) => a.lastName.localeCompare(b.lastName))
+    .slice(0, 10)
+    .map(({ updatedAt: _u, ...rest }) => rest);
 }
 
 /**

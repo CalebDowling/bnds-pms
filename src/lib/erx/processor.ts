@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { parseIncomingMessage, validateParsedRx } from "./parser";
 import { matchAll, type MatchResult } from "./matcher";
 import { prisma } from "@/lib/prisma";
@@ -191,6 +192,31 @@ export async function convertToPrescription(
     const itemId = overrides?.itemId || null;
     const formulaId = overrides?.formulaId || null;
 
+    // ── DAW-code resolution ─────────────────────────────────────────
+    // NCPDP SCRIPT treats absent DAWCode as "0" — "no product selection
+    // indicated by prescriber" (i.e. generic substitution allowed). We
+    // apply that default here so the structured Prescription.dawCode
+    // column matches what the RxDocumentView eRx panel renders from
+    // metadata.erxSource.medication.dawCode. Without the default the
+    // panel shows "0" (default) while the column shows null → "—",
+    // and the two views drift visibly on the detail page.
+    const resolvedDawCode = parsed.medication.dawCode ?? "0";
+
+    // ── eRx source-channel metadata ──────────────────────────────────
+    // RxDocumentView reads metadata.erxSource off the Prescription to
+    // render the patient/prescriber/medication summary. ParsedNewRx is
+    // shape-compatible with ErxSourcePayload, so we stash the whole
+    // parsed object verbatim — the renderer is the single consumer of
+    // the format and tolerates extra fields. We also pin dawCode to
+    // the resolved value so the panel and the column stay in sync.
+    const erxSourcePayload = {
+      ...parsed,
+      medication: { ...parsed.medication, dawCode: resolvedDawCode },
+    };
+    const prescriptionMetadata: Prisma.InputJsonValue = {
+      erxSource: JSON.parse(JSON.stringify(erxSourcePayload)),
+    };
+
     // Create prescription + initial Fill in a transaction. The Fill at
     // status="intake" surfaces the Rx in the Workflow Queue's Intake stage
     // (DRX parity). IntakeQueueItem stays as the SureScripts staging buffer
@@ -210,13 +236,14 @@ export async function convertToPrescription(
           quantityPrescribed: parsed.medication.quantity || null,
           daysSupply: parsed.medication.daysSupply || null,
           directions: parsed.medication.directions || null,
-          dawCode: parsed.medication.dawCode || null,
+          dawCode: resolvedDawCode,
           refillsAuthorized: parsed.medication.refillsAuthorized || 0,
           refillsRemaining: parsed.medication.refillsAuthorized || 0,
           dateWritten: new Date(parsed.dateWritten),
           expirationDate: parsed.effectiveDate ? new Date(parsed.effectiveDate) : null,
           prescriberNotes: parsed.prescriberNotes || null,
           internalNotes: intakeItem.notes || null,
+          metadata: prescriptionMetadata,
           fills: {
             create: {
               fillNumber: 0,
