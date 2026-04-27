@@ -65,9 +65,17 @@ async function nextRxNumber(): Promise<string> {
 // granular set of `status` values that map to it. Keeping the mapping
 // here (instead of hard-coding statuses on the page) means a future
 // status migration only needs to update this one table.
+//
+// `filled` is the legacy DRX-imported "this Rx has been dispensed" status —
+// the bulk import seeded ~239k rows with this value before the local state
+// machine was introduced. New fills now set Rx.status = "dispensed" via
+// FILL_TO_RX_STATUS, but historical reports must still find these legacy
+// rows under the Completed tab. Without this entry the Completed count
+// drops from ~239k to 55 and the bulk of dispensed history disappears
+// from search.
 const STATUS_BUCKETS = {
   active: ["intake", "pending_review", "in_progress", "ready_to_fill", "compounding", "ready_for_verification", "verified", "ready", "filling", "pending_fill"],
-  completed: ["dispensed", "delivered"],
+  completed: ["dispensed", "delivered", "filled"],
   transferred: ["transferred"],
   expired: ["expired", "cancelled", "on_hold"],
 } as const satisfies Record<string, readonly string[]>;
