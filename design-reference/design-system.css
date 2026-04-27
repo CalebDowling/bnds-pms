@@ -1,0 +1,244 @@
+/* =========================================================
+   BNDS PMS — Design System
+   Rooted in the Boudreaux's logo: forest green + leaf green,
+   warm neutrals, heritage feel without being old-fashioned.
+   ========================================================= */
+
+:root {
+  /* Brand */
+  --bnds-forest:        #1f5a3a;   /* deep green from "Boudreaux's" */
+  --bnds-forest-700:    #174530;
+  --bnds-forest-900:    #0f2e1f;
+  --bnds-leaf:          #5aa845;   /* bright "NEW DRUG STORE" green */
+  --bnds-leaf-600:      #4a8e39;
+  --bnds-leaf-100:      #e8f3e2;
+
+  /* Neutrals — warm off-white, not pure white */
+  --paper:              #faf8f4;
+  --paper-2:            #f3efe7;
+  --ink:                #14201a;
+  --ink-2:              #3a4a42;
+  --ink-3:              #6b7a72;
+  --ink-4:              #a3aea7;
+  --line:               #e3ddd1;
+  --line-2:             #d8d1c2;
+
+  /* Status */
+  --ok:                 #2f8f56;
+  --warn:               #c98a14;
+  --danger:             #b8442e;
+  --info:               #2b6c9b;
+
+  /* Surfaces */
+  --surface:            #ffffff;
+  --surface-sunken:     #f6f2ea;
+
+  /* Type */
+  --font-sans:    "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif:   "Source Serif 4", "Source Serif Pro", Georgia, serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Radii */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* Shadows */
+  --shadow-1: 0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04);
+  --shadow-2: 0 1px 0 rgba(20,32,26,0.04), 0 4px 14px rgba(20,32,26,0.06);
+  --shadow-3: 0 8px 30px rgba(20,32,26,0.10);
+}
+
+/* =========================================================
+   BASE
+   ========================================================= */
+.bnds {
+  font-family: var(--font-sans);
+  color: var(--ink);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+.bnds * { box-sizing: border-box; }
+
+.bnds-serif { font-family: var(--font-serif); letter-spacing: -0.01em; }
+.bnds-mono  { font-family: var(--font-mono); }
+
+/* =========================================================
+   TYPE SCALE
+   ========================================================= */
+.t-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.t-h1 { font-size: 32px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; }
+.t-h2 { font-size: 22px; line-height: 1.2; font-weight: 600; letter-spacing: -0.015em; }
+.t-h3 { font-size: 16px; line-height: 1.3; font-weight: 600; }
+.t-body { font-size: 14px; line-height: 1.5; }
+.t-small { font-size: 13px; line-height: 1.45; }
+.t-xs { font-size: 11.5px; line-height: 1.3; color: var(--ink-3); }
+.t-num { font-variant-numeric: tabular-nums; }
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: inherit; font-size: 13.5px; font-weight: 500;
+  padding: 8px 14px; border-radius: var(--r-sm); border: 1px solid transparent;
+  cursor: pointer; line-height: 1; transition: all .15s ease;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--bnds-forest); color: white;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 0 rgba(0,0,0,0.04);
+}
+.btn-primary:hover { background: var(--bnds-forest-700); }
+.btn-secondary {
+  background: var(--surface); color: var(--ink);
+  border-color: var(--line-2);
+}
+.btn-secondary:hover { background: var(--paper-2); border-color: var(--ink-4); }
+.btn-ghost { background: transparent; color: var(--ink-2); }
+.btn-ghost:hover { background: var(--paper-2); color: var(--ink); }
+.btn-danger { background: var(--danger); color: white; }
+.btn-sm { padding: 6px 10px; font-size: 12.5px; }
+.btn-lg { padding: 11px 18px; font-size: 14.5px; }
+
+/* =========================================================
+   FORM
+   ========================================================= */
+.input {
+  width: 100%; font-family: inherit; font-size: 14px;
+  padding: 9px 12px; border-radius: var(--r-sm);
+  border: 1px solid var(--line-2); background: var(--surface);
+  color: var(--ink); transition: border-color .12s, box-shadow .12s;
+}
+.input:focus {
+  outline: none; border-color: var(--bnds-forest);
+  box-shadow: 0 0 0 3px rgba(31, 90, 58, 0.12);
+}
+.input::placeholder { color: var(--ink-4); }
+.label { font-size: 12.5px; font-weight: 500; color: var(--ink-2); margin-bottom: 6px; display: block; }
+
+/* =========================================================
+   CARD
+   ========================================================= */
+.card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); box-shadow: var(--shadow-1);
+}
+.card-flat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); }
+.card-pad { padding: 18px; }
+
+/* =========================================================
+   BADGES / PILLS
+   ========================================================= */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; font-weight: 500;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--paper-2); color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+.pill-leaf  { background: var(--bnds-leaf-100); color: var(--bnds-forest-700); border-color: rgba(90,168,69,0.2); }
+.pill-warn  { background: #fdf3dc; color: #7a5408; border-color: #f1d99c; }
+.pill-danger{ background: #fbe6e0; color: #7a2818; border-color: #f0bdaf; }
+.pill-info  { background: #e0eef9; color: #19476b; border-color: #b6d4ec; }
+.pill-mute  { background: var(--paper-2); color: var(--ink-3); }
+
+.dot { width: 7px; height: 7px; border-radius: 999px; display: inline-block; }
+.dot-ok { background: var(--ok); }
+.dot-warn { background: var(--warn); }
+.dot-danger { background: var(--danger); box-shadow: 0 0 0 3px rgba(184,68,46,0.15); }
+.dot-info { background: var(--info); }
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th {
+  text-align: left; font-weight: 500; color: var(--ink-3);
+  font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+.tbl td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl tr:hover td { background: var(--paper); }
+.tbl tr.selected td { background: var(--bnds-leaf-100); }
+
+/* =========================================================
+   APP CHROME
+   ========================================================= */
+.app-shell {
+  display: grid; grid-template-columns: 220px 1fr; min-height: 100%;
+  background: var(--paper);
+}
+.sidebar {
+  background: var(--bnds-forest-900);
+  color: rgba(255,255,255,0.85);
+  padding: 16px 12px; display: flex; flex-direction: column; gap: 4px;
+}
+.sidebar-logo {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px 18px; color: white;
+}
+.sidebar-section { font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255,255,255,0.4); padding: 14px 10px 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--r-sm);
+  font-size: 13.5px; color: rgba(255,255,255,0.78);
+  cursor: pointer; transition: background .12s, color .12s;
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: white; }
+.nav-item.active { background: var(--bnds-leaf); color: white; font-weight: 500; }
+.nav-item.active.subtle { background: rgba(90,168,69,0.18); color: white; }
+
+.topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 24px; background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.topbar .search {
+  flex: 1; max-width: 480px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r-sm); color: var(--ink-3);
+  font-size: 13px;
+}
+.topbar .search input { background: transparent; border: 0; outline: 0; flex: 1; font-size: 13px; color: var(--ink); }
+
+/* =========================================================
+   ICONS — minimal stroke set
+   ========================================================= */
+.ic { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.ic-lg { width: 20px; height: 20px; }
+.ic-sm { width: 13px; height: 13px; }
+
+/* =========================================================
+   DECORATIVE
+   ========================================================= */
+.divider { height: 1px; background: var(--line); }
+.kbd {
+  display: inline-block; padding: 1px 5px; border-radius: 4px;
+  background: var(--paper-2); border: 1px solid var(--line-2);
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-2);
+}
+
+/* Subtle striped placeholder for image areas */
+.placeholder-stripe {
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(31,90,58,0.04) 0 8px,
+      rgba(31,90,58,0.07) 8px 16px);
+  border: 1px dashed rgba(31,90,58,0.25);
+  border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-3); font-family: var(--font-mono); font-size: 11px;
+  text-align: center;
+}
+
+/* For dashboard hero blocks */
+.tone-forest { background: var(--bnds-forest); color: white; }
+.tone-paper  { background: var(--paper); }
+.tone-leaf-soft { background: var(--bnds-leaf-100); color: var(--bnds-forest-900); }

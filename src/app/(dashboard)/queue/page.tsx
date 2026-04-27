@@ -42,13 +42,15 @@ function QueueSkeleton() {
 }
 
 // ─── Queue selector pills (live counts) — rendered inside a FilterBar ───
-// Only the primary daily-workflow stages are shown as pills. Secondary
-// stages (renewals, todo, ok-to-charge, etc.) live behind a single
-// "More" dropdown so the header stays scannable.
+// BNDS PMS Redesign: render as a segmented control (paper-2 container, white
+// surface for the active stage with shadow-1) matching the Toolbar pattern in
+// `design-reference/screens/_shared.jsx`. Only the primary daily-workflow
+// stages are surfaced; secondary stages (renewals, todo, ok-to-charge, etc.)
+// live behind a single "More" dropdown so the header stays scannable.
 async function QueuePills({ activeStatus }: { activeStatus: string }) {
   const counts = await getQueueCounts();
 
-  const renderPill = (key: string) => {
+  const renderTab = (key: string) => {
     const qLabel = QUEUE_LABELS[key] ?? key;
     const count = counts[key as keyof typeof counts] ?? 0;
     const isActive = activeStatus === key;
@@ -56,40 +58,39 @@ async function QueuePills({ activeStatus }: { activeStatus: string }) {
       <Link
         key={key}
         href={`/queue?status=${key}`}
-        className="inline-flex items-center gap-1.5 font-medium rounded-md no-underline transition-colors"
+        className="inline-flex items-center no-underline transition-all"
         style={{
-          backgroundColor: isActive ? "#1f5a3a" : "#ffffff",
-          color: isActive ? "#ffffff" : "#3a4a3c",
-          border: isActive ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
-          padding: "5px 11px",
-          fontSize: 12,
+          gap: 6,
+          padding: "6px 12px",
+          fontSize: 12.5,
+          fontWeight: isActive ? 600 : 500,
+          color: isActive ? "#14201a" : "#6b7a72",
+          backgroundColor: isActive ? "#ffffff" : "transparent",
+          borderRadius: 6,
+          boxShadow: isActive
+            ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
+            : "none",
         }}
       >
         {qLabel}
-        <span
-          className="inline-flex items-center justify-center tabular-nums"
-          style={{
-            minWidth: 18,
-            height: 18,
-            borderRadius: 999,
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "0 5px",
-            backgroundColor: isActive
-              ? "rgba(255,255,255,0.22)"
-              : count > 0
-              ? "rgba(90,168,69,0.18)"
-              : "rgba(122,138,120,0.14)",
-            color: isActive ? "#ffffff" : count > 0 ? "#2d6a1f" : "#7a8a78",
-          }}
-        >
-          {count}
-        </span>
+        {count > 0 && (
+          <span
+            style={{
+              fontSize: 11,
+              padding: "0 5px",
+              borderRadius: 999,
+              backgroundColor: isActive ? "#f3efe7" : "transparent",
+              color: "#6b7a72",
+              fontWeight: 500,
+            }}
+          >
+            {count}
+          </span>
+        )}
       </Link>
     );
   };
 
-  // Build the "More" dropdown payload from secondary keys + their counts.
   const moreItems = SECONDARY_QUEUE_KEYS.map((key) => ({
     key,
     label: QUEUE_LABELS[key] ?? key,
@@ -97,44 +98,62 @@ async function QueuePills({ activeStatus }: { activeStatus: string }) {
   }));
 
   return (
-    <>
-      {PRIMARY_QUEUE_KEYS.map(renderPill)}
+    <div
+      className="inline-flex items-center flex-wrap"
+      style={{
+        gap: 2,
+        padding: 3,
+        backgroundColor: "#f3efe7",
+        borderRadius: 8,
+        border: "1px solid #e3ddd1",
+      }}
+    >
+      {PRIMARY_QUEUE_KEYS.map(renderTab)}
       <QueueMoreDropdown items={moreItems} activeStatus={activeStatus} />
-    </>
+    </div>
   );
 }
 
 function QueuePillsFallback() {
   return (
-    <>
+    <div
+      className="inline-flex items-center flex-wrap"
+      style={{
+        gap: 2,
+        padding: 3,
+        backgroundColor: "#f3efe7",
+        borderRadius: 8,
+        border: "1px solid #e3ddd1",
+      }}
+    >
       {PRIMARY_QUEUE_KEYS.map((key) => (
         <span
           key={key}
-          className="rounded-md"
+          className="inline-flex items-center"
           style={{
-            backgroundColor: "#ffffff",
-            border: "1px solid #d9d2c2",
-            color: "#7a8a78",
-            padding: "5px 11px",
-            fontSize: 12,
+            padding: "6px 12px",
+            fontSize: 12.5,
+            fontWeight: 500,
+            color: "#6b7a72",
+            borderRadius: 6,
           }}
         >
           {QUEUE_LABELS[key] ?? key}
         </span>
       ))}
       <span
-        className="rounded-md"
+        className="inline-flex items-center"
         style={{
-          backgroundColor: "#ffffff",
-          border: "1px solid #d9d2c2",
-          color: "#7a8a78",
-          padding: "5px 11px",
-          fontSize: 12,
+          padding: "6px 12px",
+          fontSize: 12.5,
+          fontWeight: 500,
+          color: "#6b7a72",
+          borderRadius: 6,
         }}
       >
         More
       </span>
-    </>
+    </div>
   );
 }
 

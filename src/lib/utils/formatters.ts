@@ -282,3 +282,33 @@ export function formatDateRelative(date: Date | string | null | undefined): stri
   if (diffDays === -1) return "Tomorrow";
   return formatDate(d);
 }
+
+/**
+ * Format a past date as a humanised "time ago" string for list cells:
+ *   Today / Yesterday / N days ago / N weeks ago / N months ago / N years ago
+ *
+ * This is the format the BNDS PMS Redesign uses in the Patients "Last fill"
+ * column and the Prescriptions "Filled" column. For future dates we fall
+ * back to the absolute formatDate so we don't print "in 3 days".
+ */
+export function formatTimeAgo(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return "—";
+
+  const now = new Date();
+  const utcDay = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const todayUtcDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const diffDays = Math.round((todayUtcDay - utcDay) / 86_400_000);
+
+  if (diffDays < 0) return formatDate(d); // future — fall back to absolute
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 14) return "1 week ago";
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays < 60) return "1 month ago";
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+  if (diffDays < 730) return "1 year ago";
+  return `${Math.floor(diffDays / 365)} years ago`;
+}

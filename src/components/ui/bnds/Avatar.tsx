@@ -1,8 +1,10 @@
-"use client";
-
 /**
  * Deterministic colored initials avatar for the BNDS PMS Redesign.
- * Matches the _shared.jsx Avatar pattern.
+ * Matches the design-reference/screens/_shared.jsx Avatar pattern exactly:
+ *   bg: hsl(h, 28%, 88%) — pastel light
+ *   fg: hsl(h, 32%, 28%) — same hue, much darker
+ * The hue is hashed deterministically from the name so the same patient
+ * always gets the same color across all pages.
  */
 export function Avatar({
   name,
@@ -13,7 +15,7 @@ export function Avatar({
   size?: number;
   color?: string;
 }) {
-  const initials = name
+  const initials = (name || "?")
     .split(" ")
     .filter(Boolean)
     .map((s) => s.charAt(0))
@@ -21,30 +23,22 @@ export function Avatar({
     .join("")
     .toUpperCase();
 
-  // Hash to a hue in the heritage palette range (forest, leaf, ochre, terra)
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const palette = [
-    "#1f5a3a", // forest
-    "#3a6a4f", // dim forest
-    "#5aa845", // leaf
-    "#2b6c9b", // info blue
-    "#7a8a78", // sage
-    "#c98a14", // ochre
-    "#9c4a25", // terra
-    "#174530", // forest deep
-  ];
-  const bg = color ?? palette[Math.abs(hash) % palette.length];
+  // Match _shared.jsx exactly: h = (h * 31 + charCode) % 360
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  const bg = color ?? `hsl(${h}, 28%, 88%)`;
+  const fg = color ? "#0f2e1f" : `hsl(${h}, 32%, 28%)`;
 
   return (
     <div
       aria-label={name}
-      className="rounded-full inline-flex items-center justify-center text-white flex-shrink-0"
+      className="rounded-full inline-flex items-center justify-center flex-shrink-0"
       style={{
         width: size,
         height: size,
         backgroundColor: bg,
-        fontSize: Math.max(10, size * 0.36),
+        color: fg,
+        fontSize: Math.max(10, size * 0.42),
         fontWeight: 600,
         letterSpacing: "0.02em",
         fontFamily:

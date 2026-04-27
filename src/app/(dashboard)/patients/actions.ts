@@ -127,8 +127,39 @@ export async function getPatients({
       include: {
         phoneNumbers: true,
         addresses: true,
-        allergies: { select: { id: true } },
-        insurance: { select: { id: true, priority: true, isActive: true } },
+        allergies: {
+          // Need both id (count) and severity (Allergy/DUR pill rendering).
+          // Inactive allergies are ignored — they're tombstones, not flags.
+          where: { status: "active" },
+          select: { id: true, severity: true, allergen: true },
+        },
+        insurance: {
+          // Pull plan name for the new "Insurance" column. Cardholder filter
+          // (priority asc + isActive) is applied at render time so we can
+          // pick the primary plan without a second query.
+          where: { isActive: true },
+          orderBy: { priority: "asc" },
+          select: {
+            id: true,
+            priority: true,
+            isActive: true,
+            thirdPartyPlan: { select: { planName: true } },
+          },
+        },
+        // BNDS PMS Redesign: list shows "Active Rx" (count) and "Last fill"
+        // (relative date). _count is cheap (single SQL aggregate); the
+        // most-recent dateFilled needs a take:1 ordered by dateFilled desc.
+        _count: {
+          select: {
+            prescriptions: { where: { isActive: true } },
+          },
+        },
+        prescriptions: {
+          where: { isActive: true, dateFilled: { not: null } },
+          orderBy: { dateFilled: "desc" },
+          take: 1,
+          select: { id: true, dateFilled: true },
+        },
       },
       orderBy: { lastName: "asc" },
       skip,

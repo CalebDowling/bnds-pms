@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BNDS PMS — Redesign Canvas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="design-system.css"/>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #2c322e; font-family: "Inter Tight", system-ui, sans-serif; }
+  #root { height: 100%; }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="screens/icons.jsx"></script>
+<script type="text/babel" src="screens/_shared.jsx"></script>
+<script type="text/babel" src="screens/login.jsx"></script>
+<script type="text/babel" src="screens/app-shell.jsx"></script>
+<script type="text/babel" src="screens/dashboard.jsx"></script>
+<script type="text/babel" src="screens/rx-queue.jsx"></script>
+<script type="text/babel" src="screens/patient.jsx"></script>
+<script type="text/babel" src="screens/inventory.jsx"></script>
+<script type="text/babel" src="screens/lists.jsx"></script>
+<script type="text/babel" src="screens/operations.jsx"></script>
+<script type="text/babel" src="screens/dispensing.jsx"></script>
+<script type="text/babel" src="screens/financial.jsx"></script>
+<script type="text/babel" src="screens/insights.jsx"></script>
+<script type="text/babel" src="screens/users.jsx"></script>
+<script type="text/babel" src="screens/settings.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+  const { DesignCanvas, DCSection, DCArtboard } = window;
+
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "showStockAlerts": false,
+    "showRecentActivity": true,
+    "showPhoneSystem": true,
+    "showWorkflowQueue": true,
+    "tilesPerRow": 3,
+    "tileStyle": "edge"
+  }/*EDITMODE-END*/;
+
+  function App() {
+    const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+    return (
+      <>
+      <DesignCanvas
+        title="Boudreaux's PMS — Redesign"
+        subtitle="A fresh visual system rooted in the existing logo · forest + leaf greens, warm neutrals, heritage serif accents"
+      >
+        {/* ===================== PROCESS NOTES ===================== */}
+        <DCSection id="notes" title="01 — Direction" subtitle="Reasoning before pixels — what we're solving for">
+          <DCArtboard id="brief" label="The brief" width={720} height={520}>
+            <div className="bnds" style={{padding: '40px 48px', height: '100%', background: 'var(--paper)', display: 'flex', flexDirection: 'column', gap: 20}}>
+              <div className="t-eyebrow">Design notes · Marie + the team</div>
+              <h1 className="bnds-serif" style={{fontSize: 36, fontWeight: 500, lineHeight: 1.1, margin: 0}}>
+                Make the PMS feel calm, fast, and unmistakably Boudreaux's.
+              </h1>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 6}}>
+                <div>
+                  <div className="t-eyebrow">What we heard</div>
+                  <ul className="t-body" style={{paddingLeft: 18, marginTop: 6, color: 'var(--ink-2)'}}>
+                    <li>UI is cluttered — too much chrome between user and task</li>
+                    <li>Wants efficiency &amp; easy navigation</li>
+                    <li>Used by pharmacists, techs, and managers — across desktop, tablet, mobile</li>
+                    <li>Use existing brand palette (forest + leaf green)</li>
+                  </ul>
+                </div>
+                <div>
+                  <div className="t-eyebrow">How we're answering</div>
+                  <ul className="t-body" style={{paddingLeft: 18, marginTop: 6, color: 'var(--ink-2)'}}>
+                    <li>One persistent left rail · density-tunable</li>
+                    <li>Status as color-coded pills + a dot, used everywhere</li>
+                    <li>Pharmacist actions surfaced first ("Needs your eyes")</li>
+                    <li>Heritage serif for headings, modern sans for everything else</li>
+                  </ul>
+                </div>
+              </div>
+              <div style={{marginTop: 'auto', padding: 16, background: 'var(--bnds-leaf-100)', borderRadius: 10, border: '1px solid rgba(90,168,69,0.25)', fontSize: 13}}>
+                <strong>Note:</strong> internal screens below use placeholder data because the live app requires login. Drop screenshots in chat and I'll match the real flows + copy.
+              </div>
+            </div>
+          </DCArtboard>
+
+          <DCArtboard id="system" label="Visual system" width={720} height={520}>
+            <div className="bnds" style={{padding: 32, height: '100%', background: 'var(--paper)', display: 'flex', flexDirection: 'column', gap: 18}}>
+              <div className="t-eyebrow">Visual system</div>
+              {/* Color */}
+              <div>
+                <div className="t-h3" style={{marginBottom: 8}}>Color</div>
+                <div style={{display: 'flex', gap: 8}}>
+                  {[
+                    {n: "Forest 900", c: "#0f2e1f"},
+                    {n: "Forest",     c: "#1f5a3a"},
+                    {n: "Leaf",       c: "#5aa845"},
+                    {n: "Leaf 100",   c: "#e8f3e2"},
+                    {n: "Paper",      c: "#faf8f4"},
+                    {n: "Ink",        c: "#14201a"},
+                    {n: "Warn",       c: "#c98a14"},
+                    {n: "Danger",     c: "#b8442e"},
+                  ].map(s => (
+                    <div key={s.n} style={{flex: 1}}>
+                      <div style={{height: 56, background: s.c, borderRadius: 8, border: '1px solid rgba(0,0,0,0.05)'}}/>
+                      <div className="t-xs" style={{marginTop: 4, fontFamily: 'var(--font-mono)'}}>{s.n}</div>
+                      <div className="t-xs" style={{fontFamily: 'var(--font-mono)', fontSize: 10}}>{s.c}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Type */}
+              <div>
+                <div className="t-h3" style={{marginBottom: 8}}>Type</div>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14}}>
+                  <div className="card card-pad" style={{padding: 14}}>
+                    <div className="t-xs">Headings · Source Serif 4</div>
+                    <div className="bnds-serif" style={{fontSize: 28, fontWeight: 500, marginTop: 4}}>Welcome back.</div>
+                    <div className="bnds-serif" style={{fontSize: 16, marginTop: 2, color: 'var(--ink-3)'}}>Heritage feel without being old.</div>
+                  </div>
+                  <div className="card card-pad" style={{padding: 14}}>
+                    <div className="t-xs">UI · Inter Tight</div>
+                    <div style={{fontSize: 14, fontWeight: 500, marginTop: 4}}>RX-7741 · Verify</div>
+                    <div className="t-xs" style={{marginTop: 2}}>Tabular nums for Rx #s, doses, counts.</div>
+                  </div>
+                </div>
+              </div>
+              {/* Components preview */}
+              <div>
+                <div className="t-h3" style={{marginBottom: 8}}>Components</div>
+                <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                  <button className="btn btn-primary"><I.Plus/> New Rx</button>
+                  <button className="btn btn-secondary">Cancel</button>
+                  <button className="btn btn-ghost">Skip</button>
+                  <span className="pill pill-leaf"><span className="dot dot-ok"/>Ready</span>
+                  <span className="pill pill-warn"><span className="dot dot-warn"/>Insurance</span>
+                  <span className="pill pill-danger"><span className="dot dot-danger"/>Verify</span>
+                  <span className="pill pill-info"><span className="dot dot-info"/>Filling</span>
+                </div>
+              </div>
+            </div>
+          </DCArtboard>
+        </DCSection>
+
+        {/* ===================== LOGIN ===================== */}
+        <DCSection id="login" title="02 — Sign in" subtitle="Three takes — pick one or mix">
+          <DCArtboard id="login-split"     label="A · Split heritage" width={1100} height={720}><LoginSplit/></DCArtboard>
+          <DCArtboard id="login-centered"  label="B · Centered card"  width={1100} height={720}><LoginCentered/></DCArtboard>
+          <DCArtboard id="login-pin"       label="C · Workstation PIN" width={1100} height={720}><LoginWorkstation/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== DASHBOARD ===================== */}
+        <DCSection id="dash" title="03 — Dashboard" subtitle="Morning-of view · pharmacist focus on what needs eyes">
+          <DCArtboard id="dashboard" label="Dashboard · desktop" width={1320} height={860}><Dashboard tweaks={t}/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== RX QUEUE ===================== */}
+        <DCSection id="queue" title="04 — Rx Queue" subtitle="The workhorse. Click a row to load its detail. Verify-and-advance is live.">
+          <DCArtboard id="rx-queue" label="Rx Queue · interactive" width={1440} height={900}><RxQueue/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== PATIENT ===================== */}
+        <DCSection id="patient" title="05 — Patient profile" subtitle="One person · everything in scanning distance">
+          <DCArtboard id="patient" label="Patient · James Hebert" width={1320} height={860}><PatientProfile/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== LISTS ===================== */}
+        <DCSection id="lists" title="06 — Patients & Prescriptions lists" subtitle="The two big indexes — entry points to detail screens">
+          <DCArtboard id="patients-list" label="Patients · index" width={1320} height={860}><PatientsList/></DCArtboard>
+          <DCArtboard id="rx-list"       label="Prescriptions · archive" width={1320} height={860}><PrescriptionsList/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== DISPENSING ===================== */}
+        <DCSection id="dispensing" title="07 — Dispensing" subtitle="Compounding queue + audit-grade batch records">
+          <DCArtboard id="compounding" label="Compounding"   width={1320} height={860}><Compounding/></DCArtboard>
+          <DCArtboard id="batch"       label="Batch Records" width={1320} height={780}><BatchRecords/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== OPERATIONS ===================== */}
+        <DCSection id="ops" title="08 — Operations" subtitle="The day-to-day floor: pickup, shipping, point-of-sale, reorder">
+          <DCArtboard id="pickup"    label="Pickup · will-call bins" width={1320} height={860}><Pickup/></DCArtboard>
+          <DCArtboard id="shipping"  label="Shipping · kanban"        width={1440} height={860}><Shipping/></DCArtboard>
+          <DCArtboard id="pos"       label="POS · front counter"      width={1320} height={780}><POS/></DCArtboard>
+          <DCArtboard id="reorder"   label="Reorder · suggested PO"   width={1440} height={900}><Reorder/></DCArtboard>
+          <DCArtboard id="inventory" label="Inventory"                width={1320} height={780}><Inventory/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== FINANCIAL ===================== */}
+        <DCSection id="fin" title="09 — Financial" subtitle="Money in, money out — billing & insurance claims">
+          <DCArtboard id="billing"   label="Billing · A/R"        width={1320} height={900}><Billing/></DCArtboard>
+          <DCArtboard id="insurance" label="Insurance · claims"   width={1320} height={920}><Insurance/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== INSIGHTS ===================== */}
+        <DCSection id="insights" title="10 — Insights" subtitle="Reporting dashboard + omni-channel messaging inbox">
+          <DCArtboard id="reports"   label="Reports · monthly"        width={1320} height={920}><Reports/></DCArtboard>
+          <DCArtboard id="messaging" label="Messaging · unified inbox" width={1440} height={820}><Messaging/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== USERS ===================== */}
+        <DCSection id="users" title="11 — Users & access" subtitle="Staff, roles, sessions, and audit log">
+          <DCArtboard id="users" label="Users · table + tabs" width={1440} height={860}><UsersA/></DCArtboard>
+        </DCSection>
+
+        {/* ===================== SETTINGS ===================== */}
+        <DCSection id="settings" title="12 — Settings" subtitle="Two-pane configuration surface">
+          <DCArtboard id="settings" label="Settings · two-pane" width={1440} height={900}><SettingsA/></DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+      <TweaksPanel title="Tweaks · Dashboard">
+        <TweakSection label="Dashboard widgets"/>
+        <TweakToggle label="Workflow Queue"   value={t.showWorkflowQueue}   onChange={v => setTweak('showWorkflowQueue', v)}/>
+        <TweakToggle label="Phone System"     value={t.showPhoneSystem}     onChange={v => setTweak('showPhoneSystem', v)}/>
+        <TweakToggle label="Recent Activity"   value={t.showRecentActivity}  onChange={v => setTweak('showRecentActivity', v)}/>
+        <TweakToggle label="Stock Alerts"      value={t.showStockAlerts}     onChange={v => setTweak('showStockAlerts', v)}/>
+        <TweakSection label="Quick Access"/>
+        <TweakSelect label="Tile style" value={t.tileStyle}
+                     options={[
+                       {value:'minimal',  label:'A · Minimal (no icon)'},
+                       {value:'mono',     label:'B · Stroke icon, side-by-side'},
+                       {value:'numeric',  label:'C · Number-forward'},
+                       {value:'edge',     label:'D · Edge accent stripe'},
+                     ]}
+                     onChange={v => setTweak('tileStyle', v)}/>
+        <TweakRadio  label="Tiles per row" value={String(t.tilesPerRow)}
+                     options={['2','3','4']}
+                     onChange={v => setTweak('tilesPerRow', Number(v))}/>
+      </TweaksPanel>
+      </>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

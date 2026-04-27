@@ -1,143 +1,263 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
-import { getPrescriptions } from "./actions";
+import { Plus, Search, Filter, ChevronRight } from "lucide-react";
+import {
+  getPrescriptions,
+  getPrescriptionCounts,
+  type PrescriptionFilter,
+} from "./actions";
 import { formatDate } from "@/lib/utils";
 import {
   formatPatientName,
   formatPrescriberName,
   formatDrugName,
+  formatTimeAgo,
 } from "@/lib/utils/formatters";
-import SearchBar from "@/components/ui/SearchBar";
-import Pagination from "@/components/ui/Pagination";
+import SearchBarPlain from "@/components/ui/SearchBarPlain";
 import ExportButton from "@/components/ui/ExportButton";
 import PermissionGuard from "@/components/auth/PermissionGuard";
 import PageShell from "@/components/layout/PageShell";
-import FilterBar from "@/components/layout/FilterBar";
 import { Suspense } from "react";
 
-// BNDS PMS Redesign — heritage status palette
-// ok = forest, leaf = leaf-green, warn = amber, danger = burgundy, info = lake
-const STATUS_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  intake: { label: "Intake", bg: "rgba(122,138,120,0.14)", color: "#5a6b58" },
-  pending_review: { label: "Pending Review", bg: "rgba(212,138,40,0.14)", color: "#8a5a17" },
-  in_progress: { label: "In Progress", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
-  compounding: { label: "Compounding", bg: "rgba(122,138,120,0.14)", color: "#5a6b58" },
-  pending_fill: { label: "Pending Fill", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
-  ready_to_fill: { label: "Ready to Fill", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
-  filling: { label: "Filling", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
-  ready_for_verification: { label: "Needs Verification", bg: "rgba(212,138,40,0.14)", color: "#8a5a17" },
-  verified: { label: "Verified", bg: "rgba(90,168,69,0.14)", color: "#2d6a1f" },
-  ready: { label: "Ready", bg: "rgba(90,168,69,0.14)", color: "#2d6a1f" },
-  on_hold: { label: "On Hold", bg: "rgba(184,58,47,0.10)", color: "#9a2c1f" },
-  dispensed: { label: "Dispensed", bg: "rgba(31,90,58,0.12)", color: "#1f5a3a" },
-  shipped: { label: "Shipped", bg: "rgba(56,109,140,0.12)", color: "#2c5e7a" },
-  delivered: { label: "Delivered", bg: "rgba(31,90,58,0.12)", color: "#1f5a3a" },
-  cancelled: { label: "Cancelled", bg: "rgba(122,138,120,0.14)", color: "#5a6b58" },
-};
-
-const STATUS_FILTERS = [
+// BNDS PMS Redesign — Prescriptions list mirrors the design in
+// `design-reference/screens/lists.jsx::PrescriptionsList`. Tabs map several
+// granular status values to the buckets the design surfaces (Active, Completed,
+// Transferred, Expired, All); the bucket → status mapping lives in actions.ts
+// so a future status migration only updates the one table.
+const TABS: ReadonlyArray<{ value: PrescriptionFilter; label: string }> = [
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+  { value: "transferred", label: "Transferred" },
+  { value: "expired", label: "Expired" },
   { value: "all", label: "All" },
-  { value: "intake", label: "Intake" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "ready_to_fill", label: "Ready to Fill" },
-  { value: "compounding", label: "Compounding" },
-  { value: "ready_for_verification", label: "Needs Verification" },
-  { value: "ready", label: "Ready" },
-  { value: "on_hold", label: "On Hold" },
-  { value: "dispensed", label: "Dispensed" },
-  { value: "shipped", label: "Shipped" },
 ];
+
+function isPrescriptionFilter(
+  value: string | undefined,
+): value is PrescriptionFilter {
+  return (
+    value === "active" ||
+    value === "completed" ||
+    value === "transferred" ||
+    value === "expired" ||
+    value === "all"
+  );
+}
+
+// Map raw status string → StatusPill tone+label per the design's
+// `statusTone` / `statusLabel` lookup. Unknown statuses fall back to mute.
+function statusDisplay(status: string): {
+  tone: "ok" | "warn" | "danger" | "info" | "mute";
+  label: string;
+} {
+  const TONE: Record<
+    string,
+    { tone: "ok" | "warn" | "danger" | "info" | "mute"; label: string }
+  > = {
+    intake: { tone: "mute", label: "Intake" },
+    pending_review: { tone: "warn", label: "Pending Review" },
+    in_progress: { tone: "info", label: "In Progress" },
+    compounding: { tone: "info", label: "Compounding" },
+    pending_fill: { tone: "info", label: "Pending Fill" },
+    ready_to_fill: { tone: "info", label: "Ready to Fill" },
+    filling: { tone: "info", label: "Filling" },
+    ready_for_verification: { tone: "warn", label: "Needs Verification" },
+    verified: { tone: "ok", label: "Verified" },
+    ready: { tone: "ok", label: "Ready" },
+    on_hold: { tone: "danger", label: "On Hold" },
+    dispensed: { tone: "ok", label: "Dispensed" },
+    shipped: { tone: "info", label: "Shipped" },
+    delivered: { tone: "ok", label: "Delivered" },
+    cancelled: { tone: "mute", label: "Cancelled" },
+    transferred: { tone: "info", label: "Transferred" },
+    expired: { tone: "warn", label: "Expired" },
+    active: { tone: "ok", label: "Active" },
+    completed: { tone: "mute", label: "Completed" },
+  };
+  return TONE[status] ?? { tone: "mute", label: status };
+}
 
 async function PrescriptionsContent({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string; status?: string }>;
+  searchParams: Promise<{
+    search?: string;
+    page?: string;
+    status?: string;
+    filter?: string;
+  }>;
 }) {
   const params = await searchParams;
   const search = params.search || "";
   const page = parseInt(params.page || "1", 10);
-  const status = params.status || "all";
+  const filter: PrescriptionFilter = isPrescriptionFilter(params.filter)
+    ? params.filter
+    : "active";
+  const legacyStatus = params.status;
 
-  const { prescriptions, total, pages } = await getPrescriptions({ search, status, page });
+  const [{ prescriptions, total, pages }, counts] = await Promise.all([
+    getPrescriptions({ search, filter, status: legacyStatus, page }),
+    getPrescriptionCounts(),
+  ]);
+
+  const showingFrom = total === 0 ? 0 : (page - 1) * 25 + 1;
+  const showingTo = Math.min(page * 25, total);
+
+  function buildHref(next: { filter?: PrescriptionFilter; page?: number }): string {
+    const qs = new URLSearchParams();
+    const f = next.filter ?? filter;
+    if (f !== "active") qs.set("filter", f);
+    if (search) qs.set("search", search);
+    const p = next.page ?? page;
+    if (p > 1) qs.set("page", String(p));
+    const s = qs.toString();
+    return s ? `/prescriptions?${s}` : "/prescriptions";
+  }
 
   return (
     <PageShell
       eyebrow="Pharmacy"
       title="Prescriptions"
-      subtitle={`${total.toLocaleString()} prescription${total === 1 ? "" : "s"}`}
+      subtitle="All filled prescriptions · for the active fill queue, see the Workflow Queue"
       actions={
         <>
           <ExportButton
             endpoint="/api/export/prescriptions"
             filename={`prescriptions_${new Date().toISOString().split("T")[0]}`}
             sheetName="Prescriptions"
-            params={{ status, search }}
+            params={{ filter, search }}
           />
           <Link
+            href="/queue"
+            className="inline-flex items-center rounded-md no-underline transition-colors"
+            style={{
+              gap: 8,
+              padding: "6px 10px",
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: "#14201a",
+              backgroundColor: "#ffffff",
+              border: "1px solid #d8d1c2",
+            }}
+          >
+            Open Workflow Queue →
+          </Link>
+          <Link
             href="/prescriptions/new"
-            className="inline-flex items-center gap-1.5 rounded-md font-semibold no-underline transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-md font-medium no-underline transition-colors"
             style={{
               backgroundColor: "#1f5a3a",
               color: "#ffffff",
               border: "1px solid #1f5a3a",
-              padding: "7px 13px",
-              fontSize: 13,
+              padding: "6px 10px",
+              fontSize: 12.5,
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 0 rgba(0,0,0,0.04)",
             }}
           >
-            <Plus size={14} strokeWidth={2} /> New Rx
+            <Plus size={13} strokeWidth={2} /> New Rx
           </Link>
         </>
       }
       toolbar={
-        <FilterBar
-          search={
+        <div className="flex items-center flex-wrap" style={{ gap: 12 }}>
+          {/* Segmented tabs */}
+          <div
+            className="inline-flex items-center"
+            style={{
+              gap: 2,
+              padding: 3,
+              backgroundColor: "#f3efe7",
+              borderRadius: 8,
+              border: "1px solid #e3ddd1",
+            }}
+          >
+            {TABS.map((tab) => {
+              const isActive = filter === tab.value;
+              const count = counts[tab.value];
+              return (
+                <Link
+                  key={tab.value}
+                  href={buildHref({ filter: tab.value, page: 1 })}
+                  className="inline-flex items-center no-underline transition-all"
+                  style={{
+                    gap: 6,
+                    padding: "6px 12px",
+                    fontSize: 12.5,
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? "#14201a" : "#6b7a72",
+                    backgroundColor: isActive ? "#ffffff" : "transparent",
+                    borderRadius: 6,
+                    boxShadow: isActive
+                      ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
+                      : "none",
+                  }}
+                >
+                  {tab.label}
+                  <span
+                    style={{
+                      fontSize: 11,
+                      padding: "0 5px",
+                      borderRadius: 999,
+                      backgroundColor: isActive ? "#f3efe7" : "transparent",
+                      color: "#6b7a72",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {count.toLocaleString()}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Search */}
+          <div
+            className="inline-flex items-center"
+            style={{
+              gap: 7,
+              padding: "6px 11px",
+              backgroundColor: "#ffffff",
+              border: "1px solid #e3ddd1",
+              borderRadius: 6,
+              minWidth: 220,
+              flex: "0 1 320px",
+            }}
+          >
+            <Search size={13} style={{ color: "#6b7a72" }} strokeWidth={2} />
             <Suspense fallback={null}>
-              <SearchBar
-                placeholder="Search by Rx#, patient name, or MRN..."
+              <SearchBarPlain
+                placeholder="Search Rx#, drug, patient, prescriber…"
                 basePath="/prescriptions"
               />
             </Suspense>
-          }
-          filters={
-            <>
-              {STATUS_FILTERS.map((f) => {
-                const active = status === f.value;
-                return (
-                  <Link
-                    key={f.value}
-                    href={`/prescriptions?status=${f.value}${search ? `&search=${search}` : ""}`}
-                    className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
-                    style={{
-                      backgroundColor: active ? "#1f5a3a" : "#ffffff",
-                      color: active ? "#ffffff" : "#3a4a3c",
-                      border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
-                      padding: "5px 11px",
-                      fontSize: 12,
-                    }}
-                  >
-                    {f.label}
-                  </Link>
-                );
-              })}
-            </>
-          }
-        />
+          </div>
+
+          <FilterPill label="Drug class" value="Any" />
+          <FilterPill label="Prescriber" value="Any" />
+          <FilterPill label="Date" value="Last 30 days" />
+
+          <div style={{ flex: 1 }} />
+        </div>
       }
     >
       <div
         className="rounded-lg overflow-hidden"
-        style={{ backgroundColor: "#ffffff", border: "1px solid #e3ddd1" }}
+        style={{
+          backgroundColor: "#ffffff",
+          border: "1px solid #e3ddd1",
+          boxShadow: "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)",
+        }}
       >
         {prescriptions.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-lg mb-2" style={{ color: "#7a8a78" }}>
+            <p style={{ color: "#6b7a72", fontSize: 14 }}>
               {search ? "No prescriptions match your search" : "No prescriptions yet"}
             </p>
             {!search && (
               <Link
                 href="/prescriptions/new"
-                className="text-sm font-semibold hover:underline"
-                style={{ color: "#1f5a3a" }}
+                className="inline-block mt-2 hover:underline"
+                style={{ color: "#1f5a3a", fontSize: 13, fontWeight: 600 }}
               >
                 Create the first prescription
               </Link>
@@ -145,92 +265,115 @@ async function PrescriptionsContent({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full" style={{ fontSize: 13 }}>
+            <table
+              className="w-full"
+              style={{ fontSize: 13, borderCollapse: "collapse" }}
+            >
               <thead>
-                <tr style={{ borderBottom: "1px solid #e3ddd1", backgroundColor: "#f4ede0" }}>
-                  <th
-                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
-                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
-                  >Rx #</th>
-                  <th
-                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
-                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
-                  >Patient</th>
-                  <th
-                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
-                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
-                  >Medication</th>
-                  <th
-                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
-                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
-                  >Prescriber</th>
-                  <th
-                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
-                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
-                  >Created</th>
-                  <th
-                    className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase"
-                    style={{ color: "#7a8a78", letterSpacing: "0.10em" }}
-                  >Status</th>
+                <tr style={{ backgroundColor: "#faf8f4" }}>
+                  <th style={th()}>Rx #</th>
+                  <th style={th()}>Drug</th>
+                  <th style={th()}>Patient</th>
+                  <th style={th()}>Prescriber</th>
+                  <th style={th({ textAlign: "right", numeric: true })}>Qty</th>
+                  <th style={th({ textAlign: "right", numeric: true })}>Days</th>
+                  <th style={th()}>Refills</th>
+                  <th style={th()}>Filled</th>
+                  <th style={th()}>Status</th>
+                  <th style={th({ width: 36 })}></th>
                 </tr>
               </thead>
               <tbody>
-                {prescriptions.map((rx, idx) => {
-                  const statusConfig = STATUS_CONFIG[rx.status] || { label: rx.status, bg: "rgba(122,138,120,0.14)", color: "#5a6b58" };
+                {prescriptions.map((rx) => {
+                  const drugName = rx.item?.name
+                    ? formatDrugName(rx.item.name)
+                    : rx.formula?.name
+                      ? formatDrugName(rx.formula.name)
+                      : "—";
+                  const strength = rx.item?.strength;
+                  const refillsLabel =
+                    rx.refillsAuthorized > 0
+                      ? `${rx.refillsRemaining} of ${rx.refillsAuthorized}`
+                      : "None";
+                  const filledLabel = rx.dateFilled
+                    ? formatTimeAgo(rx.dateFilled)
+                    : formatDate(rx.createdAt);
+                  const display = statusDisplay(rx.status);
+
                   return (
-                    <tr
-                      key={rx.id}
-                      className="transition-colors"
-                      style={{ borderTop: idx > 0 ? "1px solid #ede6d6" : undefined }}
-                    >
-                      <td className="px-4 py-3">
+                    <tr key={rx.id}>
+                      <td style={td()}>
                         <Link
                           href={`/prescriptions/${rx.id}`}
                           className="hover:underline"
                           style={{
                             color: "#1f5a3a",
-                            fontWeight: 600,
-                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                            fontSize: 13,
+                            fontWeight: 500,
+                            fontFamily:
+                              "var(--font-mono), 'JetBrains Mono', ui-monospace, monospace",
+                            fontSize: 12,
                           }}
                         >
                           {rx.rxNumber}
                         </Link>
                       </td>
-                      <td className="px-4 py-3">
-                        <p style={{ color: "#0f2e1f", fontWeight: 500, fontSize: 13 }}>
-                          {formatPatientName({ firstName: rx.patient.firstName, lastName: rx.patient.lastName })}
-                        </p>
-                        <p style={{ color: "#7a8a78", fontSize: 12 }}>{rx.patient.mrn}</p>
+                      <td style={td()}>
+                        <div style={{ fontWeight: 500, color: "#14201a" }}>
+                          {drugName}
+                          {strength ? ` ${strength}` : ""}
+                        </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <p style={{ color: "#3a4a3c", fontSize: 13 }}>
-                          {rx.item?.name ? formatDrugName(rx.item.name) : (rx.formula?.name ? formatDrugName(rx.formula.name) : "—")}
-                        </p>
-                        {rx.item?.strength && <p style={{ color: "#7a8a78", fontSize: 12 }}>{rx.item.strength}</p>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <p style={{ color: "#3a4a3c", fontSize: 13 }}>
-                          {formatPrescriberName({ firstName: rx.prescriber.firstName, lastName: rx.prescriber.lastName })}{rx.prescriber.suffix ? `, ${rx.prescriber.suffix}` : ""}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span style={{ color: "#3a4a3c", fontSize: 13 }}>{formatDate(rx.createdAt)}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center"
-                          style={{
-                            backgroundColor: statusConfig.bg,
-                            color: statusConfig.color,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            padding: "2px 8px",
-                            borderRadius: 999,
-                          }}
+                      <td style={td()}>
+                        <Link
+                          href={`/patients/${rx.patient.id}`}
+                          className="no-underline"
+                          style={{ color: "#14201a" }}
                         >
-                          {statusConfig.label}
+                          {formatPatientName({
+                            firstName: rx.patient.firstName,
+                            lastName: rx.patient.lastName,
+                          })}
+                        </Link>
+                      </td>
+                      <td style={td()}>
+                        <span style={{ fontSize: 11.5, color: "#6b7a72" }}>
+                          {formatPrescriberName({
+                            firstName: rx.prescriber.firstName,
+                            lastName: rx.prescriber.lastName,
+                          })}
+                          {rx.prescriber.suffix ? `, ${rx.prescriber.suffix}` : ""}
                         </span>
+                      </td>
+                      <td style={td({ textAlign: "right", numeric: true })}>
+                        {rx.quantityPrescribed
+                          ? Number(rx.quantityPrescribed).toString()
+                          : "—"}
+                      </td>
+                      <td style={td({ textAlign: "right", numeric: true })}>
+                        {rx.daysSupply ?? "—"}
+                      </td>
+                      <td style={td()}>
+                        <span style={{ fontSize: 11.5, color: "#6b7a72" }}>
+                          {refillsLabel}
+                        </span>
+                      </td>
+                      <td style={td()}>
+                        <span style={{ fontSize: 11.5, color: "#6b7a72" }}>
+                          {filledLabel}
+                        </span>
+                      </td>
+                      <td style={td()}>
+                        <StatusPill tone={display.tone} label={display.label} />
+                      </td>
+                      <td style={td({ width: 36 })}>
+                        <Link
+                          href={`/prescriptions/${rx.id}`}
+                          className="inline-flex items-center"
+                          style={{ color: "#a3aea7" }}
+                          aria-label="Open prescription"
+                        >
+                          <ChevronRight size={16} strokeWidth={2} />
+                        </Link>
                       </td>
                     </tr>
                   );
@@ -239,10 +382,53 @@ async function PrescriptionsContent({
             </table>
           </div>
         )}
-        <div className="px-4 pb-4">
-          <Suspense fallback={null}>
-            <Pagination total={total} pages={pages} page={page} basePath="/prescriptions" />
-          </Suspense>
+        {/* Footer — Showing X of N + Prev/Next */}
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: "10px 14px",
+            borderTop: "1px solid #e3ddd1",
+            fontSize: 12,
+            color: "#6b7a72",
+          }}
+        >
+          <div>
+            {total === 0
+              ? "No prescriptions"
+              : `Showing ${showingFrom}–${showingTo} of ${total.toLocaleString()}`}
+          </div>
+          <div className="flex" style={{ gap: 6 }}>
+            {page > 1 ? (
+              <Link
+                href={buildHref({ page: page - 1 })}
+                className="inline-flex items-center no-underline"
+                style={paginationGhost}
+              >
+                Prev
+              </Link>
+            ) : (
+              <span style={{ ...paginationGhost, color: "#a3aea7" }}>Prev</span>
+            )}
+            {page < pages ? (
+              <Link
+                href={buildHref({ page: page + 1 })}
+                className="inline-flex items-center no-underline"
+                style={paginationActive}
+              >
+                Next
+              </Link>
+            ) : (
+              <span
+                style={{
+                  ...paginationActive,
+                  color: "#a3aea7",
+                  backgroundColor: "#faf8f4",
+                }}
+              >
+                Next
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </PageShell>
@@ -252,11 +438,156 @@ async function PrescriptionsContent({
 export default async function PrescriptionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string; status?: string }>;
+  searchParams: Promise<{
+    search?: string;
+    page?: string;
+    status?: string;
+    filter?: string;
+  }>;
 }) {
   return (
     <PermissionGuard resource="prescriptions" action="read">
       <PrescriptionsContent searchParams={searchParams} />
     </PermissionGuard>
+  );
+}
+
+// ─── Inline helpers (shared with patients/page.tsx style) ─────────────────
+
+function th({
+  width,
+  textAlign = "left",
+  numeric = false,
+}: {
+  width?: number;
+  textAlign?: "left" | "right" | "center";
+  numeric?: boolean;
+} = {}): React.CSSProperties {
+  return {
+    width,
+    textAlign,
+    padding: "10px 12px",
+    fontSize: 11.5,
+    fontWeight: 500,
+    color: "#6b7a72",
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    borderBottom: "1px solid #e3ddd1",
+    backgroundColor: "#faf8f4",
+    fontVariantNumeric: numeric ? "tabular-nums" : undefined,
+  };
+}
+
+function td({
+  width,
+  textAlign = "left",
+  numeric = false,
+  fontWeight,
+}: {
+  width?: number;
+  textAlign?: "left" | "right" | "center";
+  numeric?: boolean;
+  fontWeight?: number;
+} = {}): React.CSSProperties {
+  return {
+    width,
+    textAlign,
+    padding: "12px",
+    borderBottom: "1px solid #e3ddd1",
+    verticalAlign: "middle",
+    fontWeight,
+    fontVariantNumeric: numeric ? "tabular-nums" : undefined,
+  };
+}
+
+const paginationGhost: React.CSSProperties = {
+  padding: "6px 10px",
+  fontSize: 12.5,
+  fontWeight: 500,
+  color: "#3a4a42",
+  backgroundColor: "transparent",
+  border: "1px solid transparent",
+  borderRadius: 6,
+};
+
+const paginationActive: React.CSSProperties = {
+  padding: "6px 10px",
+  fontSize: 12.5,
+  fontWeight: 500,
+  color: "#14201a",
+  backgroundColor: "#ffffff",
+  border: "1px solid #d8d1c2",
+  borderRadius: 6,
+};
+
+function StatusPill({
+  tone,
+  label,
+  dot = true,
+}: {
+  tone: "ok" | "warn" | "danger" | "info" | "mute";
+  label: string;
+  dot?: boolean;
+}) {
+  const palette = {
+    ok: { bg: "#e8f3e2", fg: "#174530", border: "rgba(90,168,69,0.2)", dot: "#2f8f56" },
+    warn: { bg: "#fdf3dc", fg: "#7a5408", border: "#f1d99c", dot: "#c98a14" },
+    danger: { bg: "#fbe6e0", fg: "#7a2818", border: "#f0bdaf", dot: "#b8442e" },
+    info: { bg: "#e0eef9", fg: "#19476b", border: "#b6d4ec", dot: "#2b6c9b" },
+    mute: { bg: "#f3efe7", fg: "#6b7a72", border: "#e3ddd1", dot: "#a3aea7" },
+  }[tone];
+  return (
+    <span
+      className="inline-flex items-center"
+      style={{
+        gap: 5,
+        padding: "3px 8px",
+        borderRadius: 999,
+        backgroundColor: palette.bg,
+        color: palette.fg,
+        border: `1px solid ${palette.border}`,
+        fontSize: 11.5,
+        fontWeight: 500,
+        lineHeight: 1.3,
+      }}
+    >
+      {dot && (
+        <span
+          aria-hidden
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 999,
+            backgroundColor: palette.dot,
+            display: "inline-block",
+          }}
+        />
+      )}
+      {label}
+    </span>
+  );
+}
+
+function FilterPill({ label, value }: { label: string; value: string }) {
+  return (
+    <button
+      type="button"
+      className="inline-flex items-center transition-colors"
+      style={{
+        gap: 8,
+        padding: "6px 10px",
+        fontSize: 12.5,
+        fontWeight: 500,
+        color: "#3a4a42",
+        backgroundColor: "#ffffff",
+        border: "1px dashed #d8d1c2",
+        borderRadius: 6,
+        cursor: "pointer",
+      }}
+    >
+      <Filter size={13} strokeWidth={2} style={{ color: "#6b7a72" }} />
+      {label}
+      <span style={{ color: "#6b7a72", marginLeft: 2 }}>· {value}</span>
+    </button>
   );
 }

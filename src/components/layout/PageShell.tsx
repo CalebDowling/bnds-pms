@@ -62,8 +62,9 @@ export default function PageShell({
         <div className="min-w-0 flex-1">
           {eyebrow && (
             <div
+              // BNDS Design: t-eyebrow — 11px / 600 / 0.12em / ink-3 (#6b7a72)
               className="text-[11px] font-semibold uppercase"
-              style={{ color: "#7a8a78", letterSpacing: "0.12em" }}
+              style={{ color: "#6b7a72", letterSpacing: "0.12em" }}
             >
               {eyebrow}
             </div>
@@ -71,13 +72,14 @@ export default function PageShell({
           <h1
             className="truncate"
             style={{
+              // BNDS Design: bnds-serif h1 — 28px / weight 500 / -0.01em
               fontFamily:
                 "var(--font-serif), 'Source Serif 4', Georgia, serif",
-              fontSize: 26,
+              fontSize: 28,
               fontWeight: 500,
-              color: "#0f2e1f",
+              color: "#14201a",
               marginTop: eyebrow ? 4 : 0,
-              lineHeight: 1.15,
+              lineHeight: 1.1,
               letterSpacing: "-0.01em",
             }}
           >
@@ -86,10 +88,11 @@ export default function PageShell({
           {subtitle && (
             <p
               style={{
-                color: "#5a6b58",
-                fontSize: 13,
+                // BNDS Design: t-body — 14px / 1.5 line-height / ink-3 (#6b7a72)
+                color: "#6b7a72",
+                fontSize: 14,
                 marginTop: 4,
-                lineHeight: 1.45,
+                lineHeight: 1.5,
               }}
             >
               {subtitle}

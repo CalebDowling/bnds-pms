@@ -56,23 +56,55 @@ async function nextRxNumberSeed(): Promise<number> {
 
 // ─── LIST / SEARCH ───────────────────────────
 
+// BNDS PMS Redesign — high-level filter buckets shown as tabs in the
+// Prescriptions list. We translate a simple bucket name into the more
+// granular set of `status` values that map to it. Keeping the mapping
+// here (instead of hard-coding statuses on the page) means a future
+// status migration only needs to update this one table.
+const STATUS_BUCKETS = {
+  active: ["intake", "pending_review", "in_progress", "ready_to_fill", "compounding", "ready_for_verification", "verified", "ready", "filling", "pending_fill"],
+  completed: ["dispensed", "delivered"],
+  transferred: ["transferred"],
+  expired: ["expired", "cancelled", "on_hold"],
+} as const satisfies Record<string, readonly string[]>;
+
+export type PrescriptionFilter = keyof typeof STATUS_BUCKETS | "all";
+
+function buildPrescriptionWhere(
+  filter: PrescriptionFilter,
+  legacyStatus?: string,
+): Prisma.PrescriptionWhereInput {
+  // Legacy `?status=...` URLs (older saved exports / bookmarks) get the
+  // exact-match behavior they originally had — pre-tab filtering.
+  if (legacyStatus) {
+    if (legacyStatus === "all") return {};
+    return { status: legacyStatus };
+  }
+
+  if (filter === "all") return {};
+  const bucket = STATUS_BUCKETS[filter];
+  return { status: { in: [...bucket] } };
+}
+
 export async function getPrescriptions({
   search = "",
   status = "",
+  filter = "all",
   page = 1,
   limit = 25,
 }: {
   search?: string;
+  /** @deprecated use `filter` for tab-style buckets. Kept for back-compat. */
   status?: string;
+  filter?: PrescriptionFilter;
   page?: number;
   limit?: number;
 } = {}) {
   const skip = (page - 1) * limit;
-  const where: Prisma.PrescriptionWhereInput = {};
-
-  if (status && status !== "all") {
-    where.status = status;
-  }
+  const where: Prisma.PrescriptionWhereInput = buildPrescriptionWhere(
+    filter,
+    status || undefined,
+  );
 
   if (search) {
     where.OR = [
@@ -80,6 +112,9 @@ export async function getPrescriptions({
       { patient: { lastName: { contains: search, mode: "insensitive" } } },
       { patient: { firstName: { contains: search, mode: "insensitive" } } },
       { patient: { mrn: { contains: search, mode: "insensitive" } } },
+      { item: { name: { contains: search, mode: "insensitive" } } },
+      { formula: { name: { contains: search, mode: "insensitive" } } },
+      { prescriber: { lastName: { contains: search, mode: "insensitive" } } },
     ];
   }
 
@@ -105,6 +140,34 @@ export async function getPrescriptions({
   ]);
 
   return { prescriptions, total, pages: Math.ceil(total / limit), page };
+}
+
+// ─── TAB COUNTS ─────────────────────────────
+// Used by the Prescriptions list tabs. Each query runs in parallel so the
+// page render isn't bottlenecked on the slowest one.
+export async function getPrescriptionCounts(): Promise<{
+  all: number;
+  active: number;
+  completed: number;
+  transferred: number;
+  expired: number;
+}> {
+  const [allCount, activeCount, completedCount, transferredCount, expiredCount] =
+    await Promise.all([
+      prisma.prescription.count(),
+      prisma.prescription.count({ where: { status: { in: [...STATUS_BUCKETS.active] } } }),
+      prisma.prescription.count({ where: { status: { in: [...STATUS_BUCKETS.completed] } } }),
+      prisma.prescription.count({ where: { status: { in: [...STATUS_BUCKETS.transferred] } } }),
+      prisma.prescription.count({ where: { status: { in: [...STATUS_BUCKETS.expired] } } }),
+    ]);
+
+  return {
+    all: allCount,
+    active: activeCount,
+    completed: completedCount,
+    transferred: transferredCount,
+    expired: expiredCount,
+  };
 }
 
 // ─── GET SINGLE ─────────────────────────────

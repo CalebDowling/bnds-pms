@@ -68,7 +68,16 @@ async function CompoundingPageContent({
       toolbar={
         <FilterBar
           filters={
-            <>
+            <div
+              className="inline-flex items-center"
+              style={{
+                gap: 2,
+                padding: 3,
+                backgroundColor: "#f3efe7",
+                borderRadius: 8,
+                border: "1px solid #e3ddd1",
+              }}
+            >
               {[
                 { id: "formulas", label: "Formulas" },
                 { id: "batches", label: "Batches" },
@@ -78,20 +87,24 @@ async function CompoundingPageContent({
                   <Link
                     key={t.id}
                     href={`/compounding?tab=${t.id}`}
-                    className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
+                    className="inline-flex items-center no-underline transition-all"
                     style={{
-                      backgroundColor: active ? "#1f5a3a" : "#ffffff",
-                      color: active ? "#ffffff" : "#3a4a3c",
-                      border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
-                      padding: "5px 13px",
-                      fontSize: 12,
+                      padding: "6px 12px",
+                      fontSize: 12.5,
+                      fontWeight: active ? 600 : 500,
+                      color: active ? "#14201a" : "#6b7a72",
+                      backgroundColor: active ? "#ffffff" : "transparent",
+                      borderRadius: 6,
+                      boxShadow: active
+                        ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
+                        : "none",
                     }}
                   >
                     {t.label}
                   </Link>
                 );
               })}
-            </>
+            </div>
           }
         />
       }
@@ -228,20 +241,33 @@ async function BatchesTab({ search, page, status }: { search: string; page: numb
             <SearchBar placeholder="Search by batch number..." basePath="/compounding?tab=batches" />
           </Suspense>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div
+          className="inline-flex items-center flex-wrap"
+          style={{
+            gap: 2,
+            padding: 3,
+            backgroundColor: "#f3efe7",
+            borderRadius: 8,
+            border: "1px solid #e3ddd1",
+          }}
+        >
           {["all", "in_progress", "completed", "verified", "failed"].map((s) => {
             const active = status === s;
             return (
               <Link
                 key={s}
                 href={`/compounding?tab=batches&status=${s}${search ? `&search=${search}` : ""}`}
-                className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
+                className="inline-flex items-center no-underline transition-all"
                 style={{
-                  backgroundColor: active ? "#1f5a3a" : "#ffffff",
-                  color: active ? "#ffffff" : "#3a4a3c",
-                  border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
-                  padding: "5px 11px",
-                  fontSize: 12,
+                  padding: "6px 12px",
+                  fontSize: 12.5,
+                  fontWeight: active ? 600 : 500,
+                  color: active ? "#14201a" : "#6b7a72",
+                  backgroundColor: active ? "#ffffff" : "transparent",
+                  borderRadius: 6,
+                  boxShadow: active
+                    ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
+                    : "none",
                 }}
               >
                 {s === "all" ? "All" : s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}

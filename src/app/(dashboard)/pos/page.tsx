@@ -58,27 +58,40 @@ async function PosPageContent({
       toolbar={
         <FilterBar
           filters={
-            <>
+            <div
+              className="inline-flex items-center"
+              style={{
+                gap: 2,
+                padding: 3,
+                backgroundColor: "#f3efe7",
+                borderRadius: 8,
+                border: "1px solid #e3ddd1",
+              }}
+            >
               {tabs.map((t) => {
                 const active = tab === t.id;
                 return (
                   <Link
                     key={t.id}
                     href={`/pos?tab=${t.id}`}
-                    className="inline-flex items-center font-medium rounded-md no-underline transition-colors"
+                    className="inline-flex items-center no-underline transition-all"
                     style={{
-                      backgroundColor: active ? "#1f5a3a" : "#ffffff",
-                      color: active ? "#ffffff" : "#3a4a3c",
-                      border: active ? "1px solid #1f5a3a" : "1px solid #d9d2c2",
-                      padding: "5px 13px",
-                      fontSize: 12,
+                      padding: "6px 12px",
+                      fontSize: 12.5,
+                      fontWeight: active ? 600 : 500,
+                      color: active ? "#14201a" : "#6b7a72",
+                      backgroundColor: active ? "#ffffff" : "transparent",
+                      borderRadius: 6,
+                      boxShadow: active
+                        ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
+                        : "none",
                     }}
                   >
                     {t.label}
                   </Link>
                 );
               })}
-            </>
+            </div>
           }
           search={
             tab === "transactions" ? (

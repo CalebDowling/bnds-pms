@@ -49,34 +49,48 @@ export default function QueueMoreDropdown({
 
   return (
     <div className="relative inline-block" ref={ref}>
+      {/* BNDS PMS Redesign: trigger renders as a segmented-control tab so it
+       * sits flush with the primary queue tabs. White surface + shadow when
+       * the active queue is inside this dropdown so users can see at a
+       * glance that they're in a non-primary queue. */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full border transition-colors"
+        className="inline-flex items-center transition-all"
         style={{
-          backgroundColor: isActive ? "var(--color-primary)" : "transparent",
-          color: isActive ? "#fff" : "var(--text-secondary)",
-          borderColor: isActive ? "var(--color-primary)" : "var(--border)",
+          gap: 6,
+          padding: "6px 12px",
+          fontSize: 12.5,
+          fontWeight: isActive ? 600 : 500,
+          color: isActive ? "#14201a" : "#6b7a72",
+          backgroundColor: isActive ? "#ffffff" : "transparent",
+          border: "none",
+          borderRadius: 6,
+          boxShadow: isActive
+            ? "0 1px 0 rgba(20,32,26,0.04), 0 1px 2px rgba(20,32,26,0.04)"
+            : "none",
+          cursor: "pointer",
         }}
       >
         {activeItem ? activeItem.label : "More"}
-        <span
-          className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[11px] font-bold tabular-nums px-1"
-          style={{
-            backgroundColor: isActive
-              ? "rgba(255,255,255,0.22)"
-              : totalCount > 0
-              ? "var(--green-100)"
-              : "var(--green-50)",
-            color: isActive
-              ? "#fff"
-              : totalCount > 0
-              ? "var(--green-700)"
-              : "var(--text-muted)",
-          }}
-        >
-          {activeItem ? activeItem.count : totalCount}
-        </span>
-        <ChevronDown size={12} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        {(activeItem ? activeItem.count : totalCount) > 0 && (
+          <span
+            style={{
+              fontSize: 11,
+              padding: "0 5px",
+              borderRadius: 999,
+              backgroundColor: isActive ? "#f3efe7" : "transparent",
+              color: "#6b7a72",
+              fontWeight: 500,
+            }}
+          >
+            {activeItem ? activeItem.count : totalCount}
+          </span>
+        )}
+        <ChevronDown
+          size={12}
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+          style={{ color: "#6b7a72" }}
+        />
       </button>
       {open && (
         <div
