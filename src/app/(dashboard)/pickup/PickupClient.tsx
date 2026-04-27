@@ -130,8 +130,15 @@ export default function PickupClient({ bins }: { bins: PickupBin[] }) {
           }}
         >
           {filtered.map((b) => {
+            // #20 — distinguish aging from restock-eligible by age band.
+            // Pharmacy RTS convention: 3+ days = aging (warn border only,
+            // no badge), 7+ days = AGING badge (yellow), 14+ days = RESTOCK
+            // (red). Previously a single "RESTOCK" badge fired at 7 days,
+            // which over-flagged fills that were merely aging and burned
+            // the badge's signal value for the truly RTS-eligible ones.
             const aged = b.ageDays >= 3;
-            const old = b.ageDays >= 7;
+            const aging = b.ageDays >= 7;
+            const restock = b.ageDays >= 14;
             return (
               <Link
                 key={b.fillId}
@@ -142,25 +149,25 @@ export default function PickupClient({ bins }: { bins: PickupBin[] }) {
                   cursor: "pointer",
                   textDecoration: "none",
                   color: "inherit",
-                  borderColor: old
+                  borderColor: restock
                     ? "var(--danger)"
-                    : aged
+                    : aging || aged
                       ? "var(--warn)"
                       : "var(--line)",
-                  borderWidth: old || aged ? 1.5 : 1,
+                  borderWidth: restock || aging || aged ? 1.5 : 1,
                   background: "var(--surface)",
                   position: "relative",
                   display: "block",
                 }}
               >
-                {old && (
+                {(restock || aging) && (
                   <div
                     style={{
                       position: "absolute",
                       top: -1,
                       right: -1,
                       padding: "3px 7px",
-                      background: "var(--danger)",
+                      background: restock ? "var(--danger)" : "var(--warn)",
                       color: "white",
                       borderRadius: "0 9px 0 9px",
                       fontSize: 10,
@@ -168,7 +175,7 @@ export default function PickupClient({ bins }: { bins: PickupBin[] }) {
                       letterSpacing: 0.06,
                     }}
                   >
-                    RESTOCK
+                    {restock ? "RESTOCK" : "AGING"}
                   </div>
                 )}
                 <div
@@ -226,9 +233,12 @@ export default function PickupClient({ bins }: { bins: PickupBin[] }) {
                         Allergy
                       </span>
                     )}
-                    {old && (
-                      <span className="pill pill-warn" style={{ padding: "2px 6px" }}>
-                        Old
+                    {(restock || aging) && (
+                      <span
+                        className={restock ? "pill pill-danger" : "pill pill-warn"}
+                        style={{ padding: "2px 6px" }}
+                      >
+                        {restock ? "Old" : "Aging"}
                       </span>
                     )}
                   </div>

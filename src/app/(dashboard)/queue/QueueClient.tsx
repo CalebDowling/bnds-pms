@@ -20,7 +20,11 @@ import * as React from "react";
 import Link from "next/link";
 import { DesignPage, I } from "@/components/design";
 
-export type QueueBucket = "verify" | "filling" | "insurance" | "ready";
+// Visual bucket order on the queue tabs is intake → insurance → filling →
+// verify → ready. Reflects the workflow's left-to-right progression so a
+// fill physically moves down the tab strip as it advances. (#8 added intake
+// as its own bucket — was previously rolled into insurance.)
+export type QueueBucket = "intake" | "insurance" | "filling" | "verify" | "ready";
 
 export interface QueueRow {
   fillId: string;
@@ -45,16 +49,18 @@ export interface QueueRow {
 
 interface QueueCounts {
   all: number;
-  verify: number;
-  filling: number;
+  intake: number;
   insurance: number;
+  filling: number;
+  verify: number;
   ready: number;
 }
 
 const BUCKET_META: Record<QueueBucket, { label: string; pill: string; dot: string }> = {
-  verify: { label: "Verify", pill: "danger", dot: "danger" },
-  filling: { label: "Filling", pill: "info", dot: "info" },
+  intake: { label: "Intake", pill: "info", dot: "info" },
   insurance: { label: "Insurance", pill: "warn", dot: "warn" },
+  filling: { label: "Filling", pill: "info", dot: "info" },
+  verify: { label: "Verify", pill: "danger", dot: "danger" },
   ready: { label: "Ready", pill: "leaf", dot: "ok" },
 };
 
@@ -71,13 +77,24 @@ export default function QueueClient({
   const [selected, setSelected] = React.useState<string | null>(rows[0]?.fillId ?? null);
 
   const filtered = rows.filter((r) => (filter === "all" ? true : r.bucket === filter));
-  const active = rows.find((r) => r.fillId === selected) ?? rows[0] ?? null;
+  // #24 — keep the right rail in sync with the visible bucket. If the
+  // currently-selected fill isn't part of the filtered set (e.g. the user
+  // selected a verify fill, then switched to the filling tab), promote the
+  // first filtered row instead of leaving a stale rail. Falls back to the
+  // overall first row only when the filtered list is empty so the rail
+  // doesn't unexpectedly disappear on an empty bucket.
+  const active =
+    filtered.find((r) => r.fillId === selected) ??
+    filtered[0] ??
+    rows.find((r) => r.fillId === selected) ??
+    null;
 
   const tabs: Array<{ id: FilterKey; label: string; n: number; dot?: string }> = [
     { id: "all", label: "All", n: counts.all },
-    { id: "verify", label: "Verify", n: counts.verify, dot: "danger" },
-    { id: "filling", label: "Filling", n: counts.filling, dot: "info" },
+    { id: "intake", label: "Intake", n: counts.intake, dot: "info" },
     { id: "insurance", label: "Insurance", n: counts.insurance, dot: "warn" },
+    { id: "filling", label: "Filling", n: counts.filling, dot: "info" },
+    { id: "verify", label: "Verify", n: counts.verify, dot: "danger" },
     { id: "ready", label: "Ready", n: counts.ready, dot: "ok" },
   ];
 

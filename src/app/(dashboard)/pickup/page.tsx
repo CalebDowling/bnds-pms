@@ -13,6 +13,7 @@
  * links from older deploys will redirect to the canonical page.
  */
 import { prisma } from "@/lib/prisma";
+import { formatDrugWithStrength, formatItemDisplayName } from "@/lib/utils/formatters";
 import PickupClient, { type PickupBin } from "./PickupClient";
 
 export const dynamic = "force-dynamic";
@@ -46,10 +47,30 @@ export default async function PickupPage() {
                 },
               },
             },
-            item: { select: { name: true, deaSchedule: true, isControlled: true } },
+            item: {
+              select: {
+                name: true,
+                genericName: true,
+                brandName: true,
+                ndc: true,
+                strength: true,
+                deaSchedule: true,
+                isControlled: true,
+              },
+            },
           },
         },
-        item: { select: { name: true, deaSchedule: true, isControlled: true } },
+        item: {
+          select: {
+            name: true,
+            genericName: true,
+            brandName: true,
+            ndc: true,
+            strength: true,
+            deaSchedule: true,
+            isControlled: true,
+          },
+        },
       },
       orderBy: { verifiedAt: "asc" }, // oldest first → those need to be flagged for restock
       take: 200,
@@ -95,7 +116,11 @@ export default async function PickupPage() {
         ? `${patient.firstName ?? ""} ${patient.lastName ?? ""}`.trim()
         : "Unknown",
       patientId: patient?.id ?? null,
-      itemName: item?.name ?? "Unknown drug",
+      // #14/#16 — same dedup/sanitize logic as the queue page so the
+      // pickup card and the queue row render the same drug label.
+      itemName: item
+        ? formatDrugWithStrength(formatItemDisplayName(item), item.strength)
+        : "Unknown drug",
       copay,
       ageLabel,
       ageDays: Math.floor(ageDays),

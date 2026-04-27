@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { searchPatientsLive, type PatientLookupResult } from "./actions";
 import { formatDate, formatPatientName, formatDrugName } from "@/lib/utils/formatters";
+import { FILL_STATUS_META } from "@/lib/workflow/fill-status";
 
 function formatPhone(phone: string | null): string {
   if (!phone) return "—";
@@ -215,7 +216,10 @@ export default function PatientLookupPage() {
                                       </td>
                                       <td className="px-4 py-2">
                                         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                                          {fill.status}
+                                          {/* #22 — fill-status enum →
+                                              human label so "waiting_bin"
+                                              renders as "Waiting Bin". */}
+                                          {FILL_STATUS_META[fill.status]?.label ?? fill.status}
                                         </span>
                                       </td>
                                       <td className="px-4 py-2">

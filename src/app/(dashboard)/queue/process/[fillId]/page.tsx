@@ -1782,18 +1782,50 @@ export default function FillProcessPage() {
                   </div>
                 )}
 
-                {/* Happy path button */}
-                {happyPath && (
-                  <button
-                    onClick={() => handleAdvance(happyPath)}
-                    disabled={processing || (fill.status === "scan" && !scanResult?.match)}
-                    className="w-full px-4 py-3 text-sm font-bold text-white rounded-lg disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                    style={{ backgroundColor: statusColor(happyPath) }}
-                  >
-                    {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                    Advance to {statusLabel(happyPath)}
-                  </button>
-                )}
+                {/* Happy path button.
+                    #11 — Block the adjudicating → print transition until
+                    the claim is actually paid. Without this guard a tech
+                    can click "Advance to Print" the second the fill lands
+                    in adjudicating, even though no claim has come back
+                    yet — the bottle goes to the bench unpriced and the
+                    pharmacy eats the difference if the payer rejects.
+                    Cash-pay patients route through Prepay → ok_to_charge
+                    → print (the Prepay button at line ~1062 is the
+                    intentional escape hatch for no-insurance fills). */}
+                {happyPath && (() => {
+                  const blockPrintNoClaim =
+                    fill.status === "adjudicating" &&
+                    happyPath === "print" &&
+                    (!fill.latestClaim || fill.latestClaim.status !== "paid");
+                  const disabled =
+                    processing ||
+                    (fill.status === "scan" && !scanResult?.match) ||
+                    blockPrintNoClaim;
+                  return (
+                    <>
+                      <button
+                        onClick={() => handleAdvance(happyPath)}
+                        disabled={disabled}
+                        title={
+                          blockPrintNoClaim
+                            ? "Claim must be paid before advancing to Print. Submit (or re-submit) the claim above, or send to Prepay for cash-pay patients."
+                            : undefined
+                        }
+                        className="w-full px-4 py-3 text-sm font-bold text-white rounded-lg disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                        style={{ backgroundColor: statusColor(happyPath) }}
+                      >
+                        {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                        Advance to {statusLabel(happyPath)}
+                      </button>
+                      {blockPrintNoClaim && (
+                        <p className="text-[11px] text-amber-700 -mt-1">
+                          Claim must be paid before Print. Submit/re-submit
+                          the claim above, or use Prepay for cash patients.
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* Other transitions */}
                 <div className="flex flex-wrap gap-2">

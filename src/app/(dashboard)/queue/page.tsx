@@ -2,13 +2,18 @@
  * /queue — Rx Queue landing page (real data).
  *
  * This page replaces the original mock-data redesign. It fetches active fills
- * directly from the database (not via DRX) and groups them into the four
+ * directly from the database (not via DRX) and groups them into the five
  * pharmacist-facing visual buckets:
  *
- *   verify    → fill_status = "verify"
+ *   intake    → fill_status = "intake"
+ *   insurance → fill_status in ("adjudicating", "rejected", "rph_rejected")
  *   filling   → fill_status in ("print", "scan")
- *   insurance → fill_status in ("intake", "adjudicating", "rejected", "rph_rejected")
+ *   verify    → fill_status = "verify"
  *   ready     → fill_status = "waiting_bin"
+ *
+ * Intake was split out from insurance (#8 — pre-adjudication fills are a
+ * distinct workstream from rejected/resubmit work, and lumping them together
+ * caused techs to miss new intake during a heavy rejection day).
  *
  * Each row links to /queue/process/[fillId] — the actual workflow page where
  * the technician/pharmacist completes scan, verify, and pickup steps. The
@@ -16,17 +21,19 @@
  * handles tab filtering and right-rail selection client-side.
  */
 import { prisma } from "@/lib/prisma";
+import { formatDrugWithStrength, formatItemDisplayName } from "@/lib/utils/formatters";
 import QueueClient, { type QueueRow, type QueueBucket } from "./QueueClient";
 
 export const dynamic = "force-dynamic";
 
-// Map the four visual tabs to the real fill statuses behind them. Kept here so
-// the client can render a buckets-by-status filter without re-importing the
-// entire fill-status module.
+// Map the five visual tabs to the real fill statuses behind them. Kept here
+// so the client can render a buckets-by-status filter without re-importing
+// the entire fill-status module.
 const BUCKET_MAP: Record<QueueBucket, string[]> = {
-  verify: ["verify"],
+  intake: ["intake"],
+  insurance: ["adjudicating", "rejected", "rph_rejected"],
   filling: ["print", "scan"],
-  insurance: ["intake", "adjudicating", "rejected", "rph_rejected"],
+  verify: ["verify"],
   ready: ["waiting_bin"],
 };
 
@@ -80,12 +87,30 @@ export default async function QueuePage() {
               },
             },
             item: {
-              select: { name: true, deaSchedule: true, isControlled: true },
+              select: {
+                name: true,
+                genericName: true,
+                brandName: true,
+                ndc: true,
+                strength: true,
+                deaSchedule: true,
+                isControlled: true,
+              },
             },
             prescriber: { select: { firstName: true, lastName: true, suffix: true } },
           },
         },
-        item: { select: { name: true, deaSchedule: true, isControlled: true } },
+        item: {
+          select: {
+            name: true,
+            genericName: true,
+            brandName: true,
+            ndc: true,
+            strength: true,
+            deaSchedule: true,
+            isControlled: true,
+          },
+        },
       },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       take: 200,
@@ -126,7 +151,18 @@ export default async function QueuePage() {
         patientDob: patient?.dateOfBirth
           ? new Date(patient.dateOfBirth).toISOString().slice(0, 10)
           : null,
-        itemName: item?.name ?? "Unknown drug",
+        // Compose the queue's drug label by:
+        //   1. Picking a non-junk display name (#16 — DRX occasionally
+        //      lands "Fl" / "" / "—" garbage; fall back to genericName /
+        //      brandName / NDC).
+        //   2. Suffixing the dedicated strength column when it isn't
+        //      already embedded in the name (#14 — "Lisinopril 1.25 mg
+        //      Capsule 1.25 MG" duplicate).
+        // Both helpers live in formatters.ts so the intake picker, queue,
+        // and Rx detail page render the same composed label.
+        itemName: item
+          ? formatDrugWithStrength(formatItemDisplayName(item), item.strength)
+          : "Unknown drug",
         prescriberName: prescriber
           ? `Dr. ${prescriber.lastName}${prescriber.suffix ? `, ${prescriber.suffix}` : ""}`
           : "—",
@@ -148,9 +184,10 @@ export default async function QueuePage() {
 
   const counts = {
     all: rows.length,
-    verify: rows.filter((r) => r.bucket === "verify").length,
-    filling: rows.filter((r) => r.bucket === "filling").length,
+    intake: rows.filter((r) => r.bucket === "intake").length,
     insurance: rows.filter((r) => r.bucket === "insurance").length,
+    filling: rows.filter((r) => r.bucket === "filling").length,
+    verify: rows.filter((r) => r.bucket === "verify").length,
     ready: rows.filter((r) => r.bucket === "ready").length,
   };
 

@@ -7,6 +7,7 @@ import { Printer, MessageSquare } from "lucide-react";
 import type { QueueFill } from "./constants";
 import { formatDate, formatDrugName, toTitleCase } from "@/lib/utils/formatters";
 import { formatPhone } from "@/lib/utils";
+import { FILL_STATUS_META } from "@/lib/workflow/fill-status";
 
 // ─── Types ──────────────────────────────────────
 type SortDir = "asc" | "desc" | null;
@@ -488,7 +489,13 @@ export default function QueueTable({ fills }: { fills: QueueFill[] }) {
                             color: "#2c5e7a",
                           }}
                         >
-                          {fill.status}
+                          {/* #22 — render the human-readable label from
+                              FILL_STATUS_META rather than the raw enum
+                              ("intake", "waiting_bin") which leaks
+                              snake_case to pharmacists. Falls back to the
+                              raw value if a new status lands without a
+                              meta entry yet. */}
+                          {FILL_STATUS_META[fill.status]?.label ?? fill.status}
                         </span>
                       </td>
                     </tr>

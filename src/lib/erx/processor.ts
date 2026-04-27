@@ -221,6 +221,11 @@ export async function convertToPrescription(
     // status="intake" surfaces the Rx in the Workflow Queue's Intake stage
     // (DRX parity). IntakeQueueItem stays as the SureScripts staging buffer
     // but is no longer the user-facing intake surface.
+    //
+    // We pull the initial fill's id back through `select` so the activity
+    // log gets a `fill_created` event after the transaction commits — the
+    // queue/process page's Activity Log otherwise renders "No events yet"
+    // for the entire intake → adjudicating window (#6).
     const [prescription] = await prisma.$transaction([
       prisma.prescription.create({
         data: {
@@ -254,6 +259,10 @@ export async function convertToPrescription(
             },
           },
         },
+        select: {
+          id: true,
+          fills: { select: { id: true, status: true } },
+        },
       }),
       prisma.intakeQueueItem.update({
         where: { id: intakeId },
@@ -275,6 +284,28 @@ export async function convertToPrescription(
         notes: `Auto-converted from eRx intake: ${intakeItem.messageId || intakeId}`,
       },
     });
+
+    // Stamp a `fill_created` FillEvent on the initial fill so the
+    // queue/process Activity Log has a non-empty starting point. The eRx
+    // auto-convert path runs without a logged-in user, so we fall back
+    // through the same chain the status-log uses (#6 — Activity Log
+    // empty for fresh fills).
+    const initialFill = prescription.fills?.[0];
+    const performer = user?.id || intakeItem.createdBy;
+    if (initialFill && performer) {
+      prisma.fillEvent.create({
+        data: {
+          fillId: initialFill.id,
+          eventType: "fill_created",
+          fromValue: null,
+          toValue: initialFill.status,
+          performedBy: performer,
+          notes: `Auto-created from eRx intake (${intakeItem.source})`,
+        },
+      }).catch((err) => {
+        console.warn("[convertToPrescription] failed to log fill_created event", err);
+      });
+    }
 
     // Link prescription back to intake item
     await prisma.intakeQueueItem.update({

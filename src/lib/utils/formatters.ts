@@ -192,6 +192,50 @@ export function formatDrugWithStrength(
   return `${formattedName} ${strength}`;
 }
 
+/**
+ * Resolve a usable drug display name from a DRX-imported Item.
+ *
+ * The DRX feed occasionally lands a `name` that is empty, all-numeric, or
+ * a junk fragment like `"Fl"` (truncated form indicator that the DRX feed
+ * sometimes returns when the canonical product description failed to load).
+ * Rendering "Fl" in the queue / detail header looks like a bug to a
+ * pharmacist — we'd rather fall through to genericName, brandName, or the
+ * NDC than display garbage.
+ *
+ * Heuristic for "junk":
+ *   - empty / whitespace-only
+ *   - 3 chars or fewer AND no digit (real drug abbreviations like "5HT" or
+ *     "B12" are kept; standalone two-letter form indicators like "Fl",
+ *     "Tb", "Cp" are rejected)
+ *
+ * Falls back through: genericName → brandName → NDC → "Unknown drug".
+ * Note: we DO NOT mutate the underlying Item — this is a display-time
+ * formatter so DRX provenance stays intact for the next sync pass.
+ */
+export function formatItemDisplayName(item: {
+  name: string | null | undefined;
+  genericName?: string | null;
+  brandName?: string | null;
+  ndc?: string | null;
+}): string {
+  const isJunk = (s: string | null | undefined): boolean => {
+    if (!s) return true;
+    const trimmed = s.trim();
+    if (trimmed.length === 0) return true;
+    // 3 or fewer chars and no digits = likely a truncated/corrupt fragment
+    // ("Fl", "Tb", "Rx") — accept if it has a digit ("B12", "5HT") because
+    // those are real drug abbreviations.
+    if (trimmed.length <= 3 && !/\d/.test(trimmed)) return true;
+    return false;
+  };
+
+  if (!isJunk(item.name)) return formatDrugName(item.name);
+  if (!isJunk(item.genericName)) return formatDrugName(item.genericName);
+  if (!isJunk(item.brandName)) return formatDrugName(item.brandName);
+  if (item.ndc) return `NDC ${item.ndc}`;
+  return "Unknown drug";
+}
+
 // ─── Fill numbers ─────────────────────────────────────────────────────
 
 /**

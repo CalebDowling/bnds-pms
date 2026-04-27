@@ -11,6 +11,7 @@ import {
   formatDateTime,
   formatSpecialty,
 } from "@/lib/utils/formatters";
+import { FILL_STATUS_META } from "@/lib/workflow/fill-status";
 import { prisma } from "@/lib/prisma";
 // PrescriptionStatusBar (legacy `Prescription.status` state machine) is no
 // longer rendered — `PrescriptionFill.status` is the canonical workflow
@@ -327,11 +328,14 @@ async function PrescriptionDetailPageContent({
                         Fill #{formatFillNumber(fill.fillNumber)} {fill.fillNumber === 0 ? "(Original)" : "(Refill)"}
                       </span>
                       <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                        fill.status === "dispensed" || fill.status === "verified" ? "bg-green-50 text-green-700"
+                        fill.status === "dispensed" || fill.status === "verified" || fill.status === "sold" ? "bg-green-50 text-green-700"
                           : fill.status === "pending" ? "bg-yellow-50 text-yellow-700"
                           : "bg-blue-50 text-blue-700"
                       }`}>
-                        {fill.status}
+                        {/* #22 — display the proper title-cased label
+                            from the fill-status meta rather than the raw
+                            enum value ("waiting_bin" → "Waiting Bin"). */}
+                        {FILL_STATUS_META[fill.status]?.label ?? fill.status}
                       </span>
                     </div>
                     <dl className="grid grid-cols-3 gap-2 text-sm">

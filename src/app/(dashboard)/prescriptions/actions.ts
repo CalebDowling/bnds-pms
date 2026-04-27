@@ -317,8 +317,40 @@ export async function createPrescription(data: PrescriptionFormData) {
             },
           },
         },
-        select: { id: true, rxNumber: true },
+        // Capture the initial fill's ID so we can stamp a `fill_created`
+        // FillEvent — without it the queue/process Activity Log shows
+        // "No events yet" until the tech advances the fill, which made
+        // the panel look broken on a brand-new Rx (#6).
+        select: {
+          id: true,
+          rxNumber: true,
+          fills: { select: { id: true, status: true } },
+        },
       });
+
+      // Stamp a `fill_created` event on the initial fill so the
+      // /queue/process Activity Log has a non-empty starting point.
+      // Fire-and-forget: a failure here is purely cosmetic (the fill
+      // and Rx are already committed), so we log + swallow rather than
+      // 500ing the New Rx form.
+      const initialFill = prescription.fills?.[0];
+      if (initialFill) {
+        const creator = await getCurrentUser();
+        if (creator?.id) {
+          prisma.fillEvent.create({
+            data: {
+              fillId: initialFill.id,
+              eventType: "fill_created",
+              fromValue: null,
+              toValue: initialFill.status,
+              performedBy: creator.id,
+              notes: `Rx created via New Rx form (source: ${data.source})`,
+            },
+          }).catch((err) => {
+            console.warn("[createPrescription] failed to log fill_created event", err);
+          });
+        }
+      }
 
       // If the form pre-uploaded a source document (paper scan, fax
       // PDF, phone-call image), re-link the Document row to the new
@@ -619,6 +651,27 @@ export async function createFill(
         notes: `Fill #${nextFillNumber} for Rx ${prescriptionId}`,
       },
     }).catch(() => { /* non-critical */ });
+  }
+
+  // ─── Stamp `fill_created` FillEvent so the queue/process Activity
+  // Log has a starting point for refills too. Without this, refill
+  // fills (#1+) show "No events yet" until the first status_change
+  // — same root cause as the new-fill case fixed in createPrescription
+  // and convertToPrescription. Non-blocking; refills should always
+  // run with a logged-in user, but we guard for safety.
+  if (user) {
+    prisma.fillEvent.create({
+      data: {
+        fillId: fill.id,
+        eventType: "fill_created",
+        fromValue: null,
+        toValue: fill.status,
+        performedBy: user.id,
+        notes: `Refill #${nextFillNumber} created`,
+      },
+    }).catch((err) => {
+      console.warn("[createFill] failed to log fill_created event", err);
+    });
   }
 
   revalidatePath(`/prescriptions/${prescriptionId}`);
