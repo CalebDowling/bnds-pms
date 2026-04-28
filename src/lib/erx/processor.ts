@@ -75,17 +75,24 @@ export async function processIncomingErx(
       },
     });
 
-    // Audit log (non-blocking)
+    // Audit log. Awaited — Vercel kills unawaited promises after the
+    // response is sent, so audit rows would be lost. logCreate failures
+    // are non-fatal (the intake_queue row is already committed) so we
+    // log and continue.
     if (user) {
-      logCreate(user.id, "intake_queue", intakeItem.id, {
-        source,
-        messageId: parsed.messageId,
-        patientName: intakeItem.patientName,
-        prescriberName: intakeItem.prescriberName,
-        drugName: intakeItem.drugName,
-        status,
-        priority,
-      }).catch(() => {});
+      try {
+        await logCreate(user.id, "intake_queue", intakeItem.id, {
+          source,
+          messageId: parsed.messageId,
+          patientName: intakeItem.patientName,
+          prescriberName: intakeItem.prescriberName,
+          drugName: intakeItem.drugName,
+          status,
+          priority,
+        });
+      } catch (err) {
+        console.warn("[erx] failed to write intake_queue audit log", err);
+      }
     }
 
     // Create notifications for pharmacy staff
@@ -101,18 +108,25 @@ export async function processIncomingErx(
       take: 10,
     });
 
-    for (const pharmacyUser of pharmacyUsers) {
-      createNotification(
-        pharmacyUser.id,
-        "new_erx",
-        `New e-Prescription: ${intakeItem.drugName}`,
-        `From: ${intakeItem.prescriberName} | Patient: ${intakeItem.patientName}`,
-        {
-          prescriptionId: intakeItem.id,
-          patientName: intakeItem.patientName || undefined,
-        }
-      ).catch(() => {});
-    }
+    // Awaited fan-out to pharmacy staff — Vercel was killing the
+    // notifications before they wrote to the DB. Run in parallel via
+    // Promise.allSettled so a single failed write doesn't prevent the
+    // rest from landing, and we still get the intake fully processed
+    // even if every notification fails.
+    await Promise.allSettled(
+      pharmacyUsers.map((pharmacyUser) =>
+        createNotification(
+          pharmacyUser.id,
+          "new_erx",
+          `New e-Prescription: ${intakeItem.drugName}`,
+          `From: ${intakeItem.prescriberName} | Patient: ${intakeItem.patientName}`,
+          {
+            prescriptionId: intakeItem.id,
+            patientName: intakeItem.patientName || undefined,
+          }
+        )
+      )
+    );
 
     // Auto-convert to prescription if all matches are exact
     let prescriptionId: string | null = null;
@@ -319,15 +333,21 @@ export async function convertToPrescription(
       data: { prescriptionId: prescription.id },
     });
 
-    // Audit log (non-blocking)
+    // Audit log. Awaited — Vercel kills unawaited promises before the
+    // DB write completes. Failures are logged but non-fatal (the
+    // prescription is already committed).
     if (user) {
-      logCreate(user.id, "prescription", prescription.id, {
-        rxNumber,
-        patientId,
-        prescriberId,
-        source: intakeItem.source,
-        fromIntake: intakeId,
-      }).catch(() => {});
+      try {
+        await logCreate(user.id, "prescription", prescription.id, {
+          rxNumber,
+          patientId,
+          prescriberId,
+          source: intakeItem.source,
+          fromIntake: intakeId,
+        });
+      } catch (err) {
+        console.warn("[erx] failed to write prescription audit log", err);
+      }
     }
 
     return prescription.id;

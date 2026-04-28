@@ -195,17 +195,26 @@ export async function autoCreateClaim(fillId: string) {
     },
   });
 
-  // Log creation
+  // Log creation. Awaited (was fire-and-forget) — Vercel/serverless
+  // freezes the lambda after the response is sent, so unawaited Prisma
+  // promises die before the DB write completes. claimStatusLog rows
+  // are part of the financial audit trail; losing them is not
+  // acceptable. If the write fails, log and continue (the claim row
+  // itself is already committed).
   const user = await getCurrentUser();
-  await prisma.claimStatusLog.create({
-    data: {
-      claimId: claim.id,
-      fromStatus: null,
-      toStatus: "pending",
-      reason: "Auto-created from fill",
-      changedBy: user?.id || null,
-    },
-  }).catch(() => {});
+  try {
+    await prisma.claimStatusLog.create({
+      data: {
+        claimId: claim.id,
+        fromStatus: null,
+        toStatus: "pending",
+        reason: "Auto-created from fill",
+        changedBy: user?.id || null,
+      },
+    });
+  } catch (err) {
+    console.warn("[billing] failed to log claimStatusLog row", err);
+  }
 
   revalidatePath("/billing");
   return claim;

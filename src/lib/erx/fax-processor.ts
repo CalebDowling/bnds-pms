@@ -170,19 +170,27 @@ export async function processFaxIntake(input: FaxIntakeInput): Promise<FaxIntake
     },
   });
 
-  await logAudit({
-    userId: "system-keragon",
-    action: "CREATE",
-    resource: "intake_queue",
-    resourceId: intakeItem.id,
-    newValues: {
-      source: "fax",
-      faxNumber: input.faxNumber,
-      senderName: input.senderName,
-      pageCount: input.pageCount,
-      documentId: upload.documentId,
-    },
-  }).catch(() => {});
+  // Awaited — was fire-and-forget with `.catch(() => {})`, but Vercel
+  // kills unawaited promises and the audit row would be lost. Failures
+  // are logged but non-fatal (the intake_queue row is already
+  // committed at this point).
+  try {
+    await logAudit({
+      userId: "system-keragon",
+      action: "CREATE",
+      resource: "intake_queue",
+      resourceId: intakeItem.id,
+      newValues: {
+        source: "fax",
+        faxNumber: input.faxNumber,
+        senderName: input.senderName,
+        pageCount: input.pageCount,
+        documentId: upload.documentId,
+      },
+    });
+  } catch (err) {
+    console.warn("[fax-intake] failed to write audit log for intake", err);
+  }
 
   logger.info(
     `[fax-intake] created intake ${intakeItem.id} for fax from ${
