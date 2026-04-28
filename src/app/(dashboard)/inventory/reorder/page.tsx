@@ -64,7 +64,10 @@ export default async function ReorderPage() {
       reorderPoint: a.reorderPoint,
       suggestedQuantity: a.suggestedQuantity,
       unitOfMeasure: a.unitOfMeasure ?? "",
-      vendor: a.supplierName ?? "—",
+      // Surface "Set at order" when no supplier (or fallback)
+      // resolved — operators recognize that as "I'll pick when I
+      // build the PO" rather than "—" which suggests broken data.
+      vendor: a.supplierName ?? "Set at order",
       urgency: a.urgencyScore,
       status: (a.currentStock <= 0
         ? "out"

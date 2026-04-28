@@ -52,7 +52,13 @@ export async function getReorderAlerts(): Promise<ReorderAlert[]> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  // Get all items below reorder point with their lots
+  // Get all items below reorder point with their lots and supplier.
+  // Supplier comes through two paths: Item.supplierId (direct) or the
+  // most recent ItemLot.supplierId (legacy DRX items often have lots
+  // tagged with a supplier even when the item itself doesn't). The
+  // page used to render "—" for everything because most DRX items
+  // have neither populated; we now also fall back to manufacturer
+  // name so the operator at least sees who makes the drug.
   const items = await prisma.item.findMany({
     where: {
       isActive: true,
@@ -61,10 +67,28 @@ export async function getReorderAlerts(): Promise<ReorderAlert[]> {
     include: {
       lots: {
         where: { quantityOnHand: { gt: 0 } },
-        select: { quantityOnHand: true },
+        select: { quantityOnHand: true, supplierId: true },
+        orderBy: { dateReceived: "desc" },
       },
+      supplier: { select: { id: true, name: true } },
     },
   });
+
+  // Look up suppliers from lot fallbacks in one round-trip.
+  const lotSupplierIds = new Set<string>();
+  for (const item of items) {
+    if (!item.supplierId && item.lots.length > 0) {
+      const lotSupId = item.lots[0]?.supplierId;
+      if (lotSupId) lotSupplierIds.add(lotSupId);
+    }
+  }
+  const lotSuppliers = lotSupplierIds.size > 0
+    ? await prisma.supplier.findMany({
+        where: { id: { in: Array.from(lotSupplierIds) } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const lotSupplierById = new Map(lotSuppliers.map((s) => [s.id, s.name]));
 
   const alerts: ReorderAlert[] = [];
 
@@ -84,6 +108,18 @@ export async function getReorderAlerts(): Promise<ReorderAlert[]> {
       // Calculate urgency: how far below threshold
       const urgencyScore = reorderPoint - currentStock;
 
+      // Supplier resolution chain: Item.supplier → most-recent
+      // ItemLot.supplier → manufacturer string → null. The reorder
+      // page treats null as "Set at order time" so the operator
+      // picks one when they build the PO.
+      const lotSupId = item.lots[0]?.supplierId ?? null;
+      const supplierName =
+        item.supplier?.name
+        ?? (lotSupId ? lotSupplierById.get(lotSupId) ?? null : null)
+        ?? item.manufacturer
+        ?? null;
+      const supplierId = item.supplier?.id ?? lotSupId ?? null;
+
       alerts.push({
         itemId: item.id,
         itemName: item.name,
@@ -92,6 +128,8 @@ export async function getReorderAlerts(): Promise<ReorderAlert[]> {
         reorderPoint,
         reorderQuantity: Number(item.reorderQuantity || undefined),
         suggestedQuantity,
+        supplierId: supplierId ?? undefined,
+        supplierName: supplierName ?? undefined,
         unitOfMeasure: item.unitOfMeasure || undefined,
         urgencyScore,
       });

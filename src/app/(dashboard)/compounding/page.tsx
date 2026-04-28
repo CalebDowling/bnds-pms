@@ -7,6 +7,7 @@
  * Server-fetches via existing getBatches() and getFormulas() actions.
  */
 import { getBatches, getFormulas } from "./actions";
+import { prisma } from "@/lib/prisma";
 import { formatPatientName, formatDateRelative, formatDate } from "@/lib/utils/formatters";
 import CompoundingClient, { type CompoundJob, type FormulaRow } from "./CompoundingClient";
 
@@ -55,17 +56,34 @@ export default async function CompoundingPage() {
 
   const qcCount = queueRows.filter((b) => b.status === "qc").length;
 
-  // Top formulas by recent use — real query approximation: order by
-  // dateCreated desc as a stand-in for "most recent" until we add a
-  // dedicated last-used timestamp.
-  const formulaRows: FormulaRow[] = formulas.map((f: any) => ({
-    id: f.id,
-    name: f.name,
-    code: f.formulaCode ?? null,
-    category: f.category ?? "—",
-    lastUsed: f.updatedAt ? formatDateRelative(f.updatedAt) : "—",
-    uses: f._count?.prescriptions ?? 0,
-  }));
+  // "Last used" derives from the most-recent Prescription that
+  // references each Formula. Formula has no updatedAt column in the
+  // schema, so the previous fallback always rendered "—" — caught
+  // during verification. Single grouped query keeps this O(1) per
+  // page render even when there are hundreds of formulas.
+  const formulaIds = formulas.map((f: any) => f.id);
+  const lastUsedByFormula = formulaIds.length
+    ? await prisma.prescription.groupBy({
+        by: ["formulaId"],
+        where: { formulaId: { in: formulaIds } },
+        _max: { dateReceived: true },
+      })
+    : [];
+  const lastUsedById = new Map(
+    lastUsedByFormula.map((g) => [g.formulaId, g._max.dateReceived])
+  );
+
+  const formulaRows: FormulaRow[] = formulas.map((f: any) => {
+    const lastUsed = lastUsedById.get(f.id) ?? null;
+    return {
+      id: f.id,
+      name: f.name,
+      code: f.formulaCode ?? null,
+      category: f.category ?? "—",
+      lastUsed: lastUsed ? formatDateRelative(lastUsed) : "Never",
+      uses: f._count?.prescriptions ?? 0,
+    };
+  });
 
   return (
     <CompoundingClient
