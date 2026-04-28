@@ -221,7 +221,7 @@ export default function QueueClient({
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search patient, Rx#, drug, prescriber\u2026"
+                placeholder={"Search patient, Rx#, drug, prescriber\u2026"}
                 style={{
                   width: "100%",
                   padding: "7px 10px 7px 32px",

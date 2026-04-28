@@ -40,3 +40,11 @@ fix.js
 
 # agent-generated docs (not for version control)
 REORDER_ALERTS_*.md
+
+# Claude Code runtime artifacts
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+
+# experimental / scratch test scripts
+scripts/test-fax-intake.ts
+scripts/_*.ts

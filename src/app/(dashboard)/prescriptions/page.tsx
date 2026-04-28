@@ -13,14 +13,18 @@ import PrescriptionsClient, { type PrescriptionRow } from "./PrescriptionsClient
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams?: Promise<{ tab?: string; page?: string; search?: string }>;
+  // Support both `?q=...` (the conventional short form most users type) and
+  // `?search=...` (what the in-page input would emit if it ever syncs to
+  // the URL). When both are present, `q` wins because it's the form
+  // copy-pasted from external links.
+  searchParams?: Promise<{ tab?: string; page?: string; search?: string; q?: string }>;
 }
 
 export default async function PrescriptionsListPage({ searchParams }: PageProps) {
   const sp = (await searchParams) ?? {};
   const tab = (sp.tab as any) || "active";
   const page = Number(sp.page ?? 1);
-  const search = sp.search ?? "";
+  const search = (sp.q ?? sp.search ?? "").trim();
 
   const [{ prescriptions, total, pages }, counts] = await Promise.all([
     getPrescriptions({ filter: tab, page, search, limit: 25 }),

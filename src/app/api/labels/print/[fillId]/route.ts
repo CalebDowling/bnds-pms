@@ -82,15 +82,36 @@ export async function GET(
     const buffer = await generateTemplatePreviewPDF(template, data);
 
     const download = request.nextUrl.searchParams.get("download") === "true";
-    const filename = `label-${fillId}.pdf`;
+
+    // Use the rxNumber for the filename so the browser tab title and
+    // download name read like "label-Rx9990008.pdf" instead of the raw
+    // fillId UUID. Fall back to fillId if the lookup fails.
+    let filename = `label-${fillId}.pdf`;
+    try {
+      const fill = await prisma.prescriptionFill.findUnique({
+        where: { id: fillId },
+        select: { prescription: { select: { rxNumber: true } } },
+      });
+      const rxNumber = fill?.prescription?.rxNumber;
+      if (rxNumber) {
+        // Strip characters that aren't safe in a Content-Disposition
+        // filename token (RFC 6266 + most browsers' tolerance window).
+        const safeRx = rxNumber.replace(/[^A-Za-z0-9._-]/g, "");
+        filename = `label-Rx${safeRx}.pdf`;
+      }
+    } catch {
+      // Non-fatal — keep the fillId fallback.
+    }
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": download
-          ? `attachment; filename="${filename}"`
-          : "inline",
+        // Include the filename in BOTH download and inline dispositions.
+        // Browsers use the Content-Disposition filename for inline PDFs
+        // as the tab title and the default save-as name. Without it,
+        // the URL path is used → which contains the fillId UUID.
+        "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,
         "Cache-Control": "no-cache, no-store, must-revalidate",
       },
     });
