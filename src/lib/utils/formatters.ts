@@ -15,6 +15,43 @@
 // ─── Names ────────────────────────────────────────────────────────────
 
 /**
+ * Strip DRX-import artifacts that the legacy feed embeds inside name
+ * fields. We've observed two shapes in real data:
+ *
+ *   1. `*WORD*` ALL-CAPS asterisk-wrapped tokens used as specialty /
+ *      group / form markers. Example: "Boston *SP**GROUP*",
+ *      "Stanga *SYR**SP*". These belong in a separate metadata field
+ *      but DRX sometimes splices them into firstName / lastName.
+ *
+ *   2. Trailing ` - lowercase-word` categorization. Example:
+ *      "Bridget Richie - white". The " - white" is a DRX patient
+ *      bucket (probably for label / wristband color), not part of
+ *      the legal name. Hyphenated surnames like "Smith-Jones" are
+ *      preserved because they have no surrounding spaces and the
+ *      suffix isn't all-lowercase.
+ *
+ * Called by formatPatientName / formatPrescriberName so every UI
+ * surface that goes through the standard formatters automatically
+ * loses the artifacts. Underlying DB values are never mutated —
+ * provenance is preserved for the next sync pass.
+ */
+export function cleanDrxArtifacts(s: string | null | undefined): string {
+  if (!s) return "";
+  return s
+    // *WORD* … *WORD* … runs anywhere in the string. Match a sequence of
+    // asterisk-delimited ALL-CAPS tokens (with the optional leading
+    // whitespace consumed too) so "Boston *SP**GROUP*" → "Boston".
+    .replace(/\s*(?:\*[A-Z][A-Z0-9_]*\*+)+/g, " ")
+    // Trailing " - lowercase-word" suffix. Only matches when the dash
+    // is surrounded by spaces AND the suffix is all-lowercase letters,
+    // so legitimate hyphenated surnames ("Smith-Jones", "Hardwick-Smith")
+    // survive untouched.
+    .replace(/\s+-\s+[a-z]+\s*$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * Convert ALL CAPS / lowercase / mixed-case names into Title Case.
  *
  * Handles middle initials, hyphenated names ("Smith-Jones"), and
@@ -64,9 +101,12 @@ export function formatPatientName(
   opts: { format?: "first-last" | "last-first" | "last-first-mi" } = {}
 ): string {
   if (!patient) return "";
-  const first = toTitleCase(patient.firstName);
-  const last = toTitleCase(patient.lastName);
-  const middle = toTitleCase(patient.middleName);
+  // cleanDrxArtifacts before title-casing so we don't carry the noise
+  // through (e.g. "Richie - white" must collapse to "Richie" before we
+  // try to detect hyphenated surnames).
+  const first = toTitleCase(cleanDrxArtifacts(patient.firstName));
+  const last = toTitleCase(cleanDrxArtifacts(patient.lastName));
+  const middle = toTitleCase(cleanDrxArtifacts(patient.middleName));
   const format = opts.format ?? "first-last";
   if (!first && !last) return "";
   switch (format) {
@@ -98,8 +138,10 @@ export function formatPrescriberName(
   opts: { withCredentials?: boolean; withPrefix?: boolean } = {}
 ): string {
   if (!prescriber) return "";
-  const first = toTitleCase(prescriber.firstName);
-  const last = toTitleCase(prescriber.lastName);
+  // Same DRX-artifact cleanup as patient names — DRX often splices
+  // "*SP**GROUP*"-shaped specialty markers directly into lastName.
+  const first = toTitleCase(cleanDrxArtifacts(prescriber.firstName));
+  const last = toTitleCase(cleanDrxArtifacts(prescriber.lastName));
   const creds = prescriber.credentials?.trim().toUpperCase() || "";
   const withCreds = opts.withCredentials ?? true;
   const withPrefix = opts.withPrefix ?? true;

@@ -9,6 +9,12 @@
  */
 import { getPrescriptions, getPrescriptionCounts } from "./actions";
 import PrescriptionsClient, { type PrescriptionRow } from "./PrescriptionsClient";
+import {
+  formatPatientName,
+  formatPrescriberName,
+  formatItemDisplayName,
+  formatDrugWithStrength,
+} from "@/lib/utils/formatters";
 
 export const dynamic = "force-dynamic";
 
@@ -35,22 +41,34 @@ export default async function PrescriptionsListPage({ searchParams }: PageProps)
   // need to know about the relational structure.
   const rows: PrescriptionRow[] = (prescriptions as any[]).map((p) => {
     const filled = p.fills?.find?.((f: any) => f.status === "sold")?.fillNumber ?? 0;
-    const drugName =
-      p.item?.name ?? p.formula?.name ?? "Unknown drug";
-    const strength = p.item?.strength ?? "";
-    const fullDrug = strength ? `${drugName} ${strength}` : drugName;
+
+    // Drug name: use the same display resolver as /pickup so the queue,
+    // pickup card, and prescriptions list render the same label. Falls
+    // through item → formula → genericName/brandName → NDC → "Unknown
+    // drug" only when literally nothing usable is on file.
+    const itemForDisplay = p.item ?? p.formula
+      ? {
+          name: p.item?.name ?? p.formula?.name ?? null,
+          genericName: p.item?.genericName ?? null,
+          brandName: p.item?.brandName ?? null,
+          ndc: p.item?.ndc ?? null,
+        }
+      : null;
+    const drugLabel = itemForDisplay
+      ? formatDrugWithStrength(formatItemDisplayName(itemForDisplay), p.item?.strength)
+      : "Unknown drug";
 
     return {
       id: p.id as string,
       rxNumber: p.rxNumber as string,
-      drug: fullDrug,
-      patient: p.patient
-        ? `${p.patient.firstName ?? ""} ${p.patient.lastName ?? ""}`.trim()
-        : "Unknown",
+      drug: drugLabel,
+      // formatPatientName cleans DRX artifacts (e.g. "- white" suffix)
+      // before composing first + last.
+      patient: formatPatientName(p.patient) || "Unknown",
       patientId: p.patient?.id ?? null,
-      prescriber: p.prescriber
-        ? `Dr. ${p.prescriber.lastName}${p.prescriber.suffix ? `, ${p.prescriber.suffix}` : ""}`
-        : "—",
+      // formatPrescriberName cleans DRX artifacts ("*SP**GROUP*" markers)
+      // and emits "Dr. First Last" by default.
+      prescriber: formatPrescriberName(p.prescriber) || "—",
       quantity: Number(p.quantityPrescribed ?? 0),
       daysSupply: p.daysSupply ?? null,
       refillsAuthorized: p.refillsAuthorized ?? 0,

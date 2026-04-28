@@ -13,7 +13,11 @@
  * links from older deploys will redirect to the canonical page.
  */
 import { prisma } from "@/lib/prisma";
-import { formatDrugWithStrength, formatItemDisplayName } from "@/lib/utils/formatters";
+import {
+  formatDrugWithStrength,
+  formatItemDisplayName,
+  formatPatientName,
+} from "@/lib/utils/formatters";
 import { isControlledDrug, isScheduleII } from "@/lib/utils/dea";
 import PickupClient, { type PickupBin } from "./PickupClient";
 
@@ -115,9 +119,10 @@ export default async function PickupPage() {
       fillId: f.id,
       bin: f.binLocation || "—",
       rxNumber: f.prescription?.rxNumber ?? "—",
-      patientName: patient
-        ? `${patient.firstName ?? ""} ${patient.lastName ?? ""}`.trim()
-        : "Unknown",
+      // formatPatientName cleans DRX artifacts ("- white" suffix) and
+      // title-cases the all-caps DRX values. Without this, the cashier
+      // sees "BRIDGET RICHIE - WHITE" on the pickup card.
+      patientName: formatPatientName(patient) || "Unknown",
       patientId: patient?.id ?? null,
       // #14/#16 — same dedup/sanitize logic as the queue page so the
       // pickup card and the queue row render the same drug label.

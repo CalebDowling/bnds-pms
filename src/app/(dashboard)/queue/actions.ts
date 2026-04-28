@@ -9,6 +9,7 @@
  */
 
 import { QUEUE_LABELS, type QueueFill } from "./constants";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 export async function getQueueFills({
   status,
@@ -93,9 +94,9 @@ export async function getQueueFills({
 
     const fills: QueueFill[] = dbFills.map((f: any) => {
       const patient = f.prescription?.patient;
-      const patientName = patient
-        ? `${patient.firstName || ""} ${patient.lastName || ""}`.trim()
-        : "Unknown";
+      // Use formatPatientName so DRX artifacts ("- white", "*SP*", etc.)
+      // are stripped before the queue row renders.
+      const patientName = formatPatientName(patient) || "Unknown";
 
       // After ordering by isPrimary desc, [0] is either the primary phone
       // or — if no phone is flagged primary — the first phone we have.

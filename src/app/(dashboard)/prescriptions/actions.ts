@@ -157,7 +157,21 @@ export async function getPrescriptions({
         prescriber: {
           select: { id: true, firstName: true, lastName: true, suffix: true, npi: true },
         },
-        item: { select: { name: true, strength: true, dosageForm: true } },
+        // Include genericName/brandName/ndc so /prescriptions can render
+        // a real drug label via formatItemDisplayName when item.name is
+        // empty or junk (DRX-imported records often arrive with name=null
+        // and only an NDC populated). Without these the list shows
+        // "Unknown drug" for ~170k legacy fills.
+        item: {
+          select: {
+            name: true,
+            strength: true,
+            dosageForm: true,
+            genericName: true,
+            brandName: true,
+            ndc: true,
+          },
+        },
         formula: { select: { name: true, dosageForm: true } },
         fills: { select: { id: true, fillNumber: true, status: true } },
       },
