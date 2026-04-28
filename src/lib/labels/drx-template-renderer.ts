@@ -832,7 +832,14 @@ export async function renderDRXTemplate(
   template: DRXTemplate,
   data: Record<string, string>,
   useLandscape: boolean = false,
-  layoutOverrides?: LayoutOverride[]
+  layoutOverrides?: LayoutOverride[],
+  // When set, only elements belonging to this labelGroupId are rendered.
+  // Used by generateTemplatePreviewPDF to put each label group on its
+  // own PDF page so multi-up DRX templates (vial label + signature
+  // receipt + aux label + transaction stub) don't overlap. Pass null
+  // to limit to ungrouped elements; pass undefined for "render all"
+  // (the legacy behaviour).
+  filterGroupId?: number | null
 ): Promise<void> {
   // Group elements by labelGroupId for offset application
   const groupMap = new Map<number, DRXLabelGroup>();
@@ -866,9 +873,22 @@ export async function renderDRXTemplate(
     // Skip sub-template references (handled separately if needed)
     if (element.subLabelTemplateId) continue;
 
+    // When filterGroupId is specified, skip elements outside that group.
+    // `filterGroupId === null` means "only ungrouped elements".
+    if (filterGroupId !== undefined) {
+      const elementGroupId = element.labelGroupId ?? null;
+      if (elementGroupId !== filterGroupId) continue;
+    }
+
     const group = element.labelGroupId ? groupMap.get(element.labelGroupId) : null;
-    const gx = group?.xOffset || 0;
-    const gy = group?.yOffset || 0;
+    // When rendering one group per page, zero out the group offset so the
+    // group's elements anchor at the page origin instead of getting
+    // pushed off the visible area by the multi-up sheet offsets that
+    // were designed for an 8.5×11 layout. Single-page rendering
+    // (filterGroupId === undefined) keeps the offsets so existing
+    // single-group templates render exactly as they did before.
+    const gx = filterGroupId !== undefined ? 0 : (group?.xOffset || 0);
+    const gy = filterGroupId !== undefined ? 0 : (group?.yOffset || 0);
 
     const override = overrideMap.get(element.id);
 
@@ -995,14 +1015,62 @@ export async function generateTemplatePreviewPDF(
 
     doc.on("error", reject);
 
-    renderDRXTemplate(doc, template, data, useLandscape, layoutOverrides)
+    // Detect multi-group templates. DRX label groups represent distinct
+    // physical label panels — vial label, signature receipt, transaction
+    // stub, aux/safety label — each anchored at its own (xOffset,
+    // yOffset) on the FULL sheet. Our PDF page is sized to a single
+    // panel, so when multiple groups exist they all overlap on the
+    // same canvas (caught in the 04/28 walkthrough as the duplicated/
+    // overlapping label PDF). Render each group on its own PDF page
+    // instead. Single-group and ungrouped templates render unchanged.
+    const groupIds = new Set<number>();
+    let hasUngrouped = false;
+    for (const el of template.elements) {
+      if (el.subLabelTemplateId) continue;
+      if (el.labelGroupId) groupIds.add(el.labelGroupId);
+      else hasUngrouped = true;
+    }
+    const totalSurfaces = groupIds.size + (hasUngrouped ? 1 : 0);
+    const useMultiPage = totalSurfaces > 1;
+
+    const drawBorder = () => {
+      doc.save();
+      doc.lineWidth(0.5);
+      doc.strokeColor("#000000");
+      doc.rect(0, 0, pageWidth, pageHeight).stroke();
+      doc.restore();
+    };
+
+    const renderPlan: Promise<void> = useMultiPage
+      ? (async () => {
+          // Order groups by their (yOffset, xOffset) so the resulting
+          // pages roughly mirror reading order on the original sheet.
+          const orderedGroups = Array.from(groupIds)
+            .map((id) => {
+              const grp = template.elements.find(
+                (el) => el.labelGroupId === id && el.labelGroup
+              )?.labelGroup;
+              return { id, yOffset: grp?.yOffset ?? 0, xOffset: grp?.xOffset ?? 0 };
+            })
+            .sort((a, b) => a.yOffset - b.yOffset || a.xOffset - b.xOffset);
+
+          let first = true;
+          if (hasUngrouped) {
+            await renderDRXTemplate(doc, template, data, useLandscape, layoutOverrides, null);
+            drawBorder();
+            first = false;
+          }
+          for (const grp of orderedGroups) {
+            if (!first) doc.addPage({ size: [pageWidth, pageHeight], margin: 0 });
+            await renderDRXTemplate(doc, template, data, useLandscape, layoutOverrides, grp.id);
+            drawBorder();
+            first = false;
+          }
+        })()
+      : renderDRXTemplate(doc, template, data, useLandscape, layoutOverrides).then(drawBorder);
+
+    renderPlan
       .then(() => {
-        // Draw a thin black border around the label (matches DRX output)
-        doc.save();
-        doc.lineWidth(0.5);
-        doc.strokeColor("#000000");
-        doc.rect(0, 0, pageWidth, pageHeight).stroke();
-        doc.restore();
         doc.end();
       })
       .catch(reject);
