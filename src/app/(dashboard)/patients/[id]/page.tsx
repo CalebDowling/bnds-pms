@@ -84,16 +84,37 @@ export default async function PatientProfilePage({ params }: PageProps) {
       return a.reaction ? `${name} (${a.reaction})` : name;
     });
 
-  // Map prescriptions → med rows. Status "active" = refills remaining and
-  // not expired/cancelled. Anything else falls into "completed" so the
-  // history tab still shows them.
+  // Map prescriptions → med rows. "Active" semantics on a patient
+  // profile is "the patient is currently on this drug" — a chronic Rx
+  // with refills available counts even after each individual fill is
+  // dispensed. Walkthrough caught the previous filter being too
+  // strict: a Lisinopril Rx with status="dispensed" + 5 refills was
+  // showing as Completed instead of Active.
+  //
+  // New rule: a Rx is Active unless it's in a known terminal/inactive
+  // state (cancelled, expired, transferred, voided, on_hold) AND it
+  // either has refills remaining > 0 OR was filled within the
+  // last 90 days (covers single-fill courses still being taken).
+  const TERMINAL_STATUSES = new Set([
+    "cancelled",
+    "expired",
+    "transferred",
+    "voided",
+    "on_hold",
+    "discontinued",
+  ]);
+  const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+  const now = new Date();
   const meds: PatientProfileData["meds"] = (patient.prescriptions ?? []).map((rx: any) => {
     const drugLabel = rx.item
       ? formatDrugWithStrength(formatItemDisplayName(rx.item), rx.item.strength ?? null)
       : "Unknown drug";
+    const refillsRemaining = rx.refillsRemaining ?? 0;
+    const lastFillMs = rx.dateFilled ? new Date(rx.dateFilled).getTime() : null;
+    const filledRecently =
+      lastFillMs != null && now.getTime() - lastFillMs <= NINETY_DAYS_MS;
     const isActive =
-      (rx.status === "active" || rx.status === "filled" || rx.status === "ready") &&
-      (rx.refillsRemaining ?? 0) >= 0;
+      !TERMINAL_STATUSES.has(rx.status) && (refillsRemaining > 0 || filledRecently);
     const dateWritten = rx.dateWritten ? new Date(rx.dateWritten) : null;
     return {
       id: rx.id,

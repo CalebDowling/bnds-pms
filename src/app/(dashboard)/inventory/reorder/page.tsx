@@ -23,10 +23,31 @@ export default async function ReorderPage() {
   const outOfStock = alerts.filter((a) => a.currentStock <= 0).length;
   const belowPar = alerts.length;
 
+  // Dedupe by NDC+name. The DRX item catalog has duplicate rows (same
+  // NDC, same name) for several drugs — Lipoderm Base, Lisinopril 10mg,
+  // Synthroid 50mcg, Ketamine, Humalog. The walkthrough caught the
+  // reorder list showing each twice, which would order double if the
+  // operator clicked Build PO. Keep the row with the highest urgency
+  // score (lowest current stock relative to par).
+  const dedupeKey = (a: typeof alerts[number]) =>
+    `${a.ndc ?? "—"}|${a.itemName.toLowerCase().trim()}`;
+  const dedupedAlerts = Array.from(
+    alerts
+      .reduce((acc, a) => {
+        const key = dedupeKey(a);
+        const existing = acc.get(key);
+        if (!existing || existing.urgencyScore < a.urgencyScore) {
+          acc.set(key, a);
+        }
+        return acc;
+      }, new Map<string, typeof alerts[number]>())
+      .values()
+  );
+
   // Fetch the item to get NDC + strength + manufacturer for nicer display.
   // getReorderAlerts already returns name + ndc but no strength/manufacturer
   // — for the cards-display we want title-cased names with proper fallbacks.
-  const rows: ReorderRow[] = alerts.map((a) => {
+  const rows: ReorderRow[] = dedupedAlerts.map((a) => {
     // formatItemDisplayName needs the {name, genericName, brandName, ndc}
     // shape; the alert only has name + ndc, but that's enough for the
     // common case where name is present. Junk-name DRX rows will fall

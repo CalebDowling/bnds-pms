@@ -42,11 +42,21 @@ export default async function InventoryPage({ searchParams }: PageProps) {
       ? "OTC"
       : "Rx";
 
-    // Status pill — out/low/ok rule mirrors the mock's tri-state.
+    // Status pill — out/low/ok/untracked. The DRX legacy item catalog
+    // doesn't have ItemLot records so totalOnHand is always 0 for those
+    // rows. Showing "Out" + a red badge across 112k rows is misleading;
+    // operators see a sea of red and can't tell real out-of-stock
+    // ($lotCount > 0 AND on_hand=0) from "this item just isn't tracked
+    // by lot in our system yet." The "untracked" state distinguishes
+    // them visually.
     const onHand = Number(item.totalOnHand ?? 0);
     const par = item.reorderPoint != null ? Number(item.reorderPoint) : null;
-    const status: "ok" | "low" | "out" =
-      onHand <= 0 ? "out" : item.isLow ? "low" : "ok";
+    const lotCount = item._count?.lots ?? 0;
+    const status: "ok" | "low" | "out" | "untracked" =
+      lotCount === 0 ? "untracked"
+      : onHand <= 0 ? "out"
+      : item.isLow ? "low"
+      : "ok";
 
     return {
       id: item.id,

@@ -209,12 +209,25 @@ export function formatSpecialty(specialty: string | null | undefined): string {
  * Title-case a drug / item name. Special-cases common dosage form
  * tokens (mg, ML, MG/ML, etc.) and DEA-schedule indicators so they
  * stay uppercase / lower-case as expected.
+ *
+ * Also strips CSV-escape artifacts the legacy import sometimes leaves
+ * embedded in name strings — `"foo""bar"` shapes from a CSV cell that
+ * was double-quoted by the source system. The walkthrough caught
+ * "Bd 3 ml Syringe 25Gx1-1/2""" "25 gauge X 1 1/2"""" as a real value
+ * in production. Stripping at display time is preferable to a one-off
+ * data migration because it's idempotent and forward-compatible: any
+ * future re-import of dirty CSV data still renders cleanly.
  */
 export function formatDrugName(name: string | null | undefined): string {
   if (!name) return "";
+  // Strip CSV-escape artifacts: collapse runs of quotes (`""""` → ``),
+  // and drop leading/trailing single quotes that were CSV cell
+  // delimiters. Real drug names never include literal double-quote
+  // characters, so this is safe.
+  const dequoted = name.replace(/"+/g, "").trim();
   // Split off bracketed/parenthesized clauses so we can title-case
   // the human-readable portion without mangling, e.g. dosage "mg".
-  const titled = toTitleCase(name);
+  const titled = toTitleCase(dequoted);
   // Re-normalize unit tokens that title-case will have mis-cased.
   return titled
     .replace(/\b(Mg|Mcg|Ml|G|Iu|Mmol|Mg\/Ml|Mcg\/Ml|Mg\/Hr|Mg\/Kg)\b/g, (m) => m.toLowerCase())

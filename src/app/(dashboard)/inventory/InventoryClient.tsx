@@ -23,7 +23,7 @@ export interface InventoryRow {
   cls: string;
   onHand: number;
   par: number | null;
-  status: "ok" | "low" | "out";
+  status: "ok" | "low" | "out" | "untracked";
   location: string | null;
   earliestExpiry: string;
   lotCount: number;
@@ -141,8 +141,15 @@ export default function InventoryClient({
                   <td>
                     <span className="pill">{x.cls}</span>
                   </td>
-                  <td className="t-num" style={{ fontWeight: 500, textAlign: "right" }}>
-                    {x.onHand.toLocaleString()}
+                  <td
+                    className="t-num"
+                    style={{
+                      fontWeight: 500,
+                      textAlign: "right",
+                      color: x.status === "untracked" ? "var(--ink-4)" : undefined,
+                    }}
+                  >
+                    {x.status === "untracked" ? "—" : x.onHand.toLocaleString()}
                   </td>
                   <td className="t-num" style={{ textAlign: "right", color: "var(--ink-3)" }}>
                     {x.par != null ? x.par.toLocaleString() : "—"}
@@ -164,6 +171,11 @@ export default function InventoryClient({
                       <span className="pill pill-danger">
                         <span className="dot dot-danger" />
                         Out
+                      </span>
+                    )}
+                    {x.status === "untracked" && (
+                      <span className="pill pill-mute" title="No ItemLot records — on-hand qty isn't tracked for this SKU">
+                        Not tracked
                       </span>
                     )}
                   </td>

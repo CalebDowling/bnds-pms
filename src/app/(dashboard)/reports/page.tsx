@@ -31,13 +31,17 @@ function pctDelta(thisVal: number, lastVal: number): { dir: "up" | "down"; label
 }
 
 export default async function ReportsPage() {
-  // getAnalytics returns the heavy aggregate. getTopDrugs needs an
-  // explicit date range; we pull from start of month → today.
+  // getAnalytics returns the heavy aggregate. getTopDrugs needs date-
+  // ONLY strings (YYYY-MM-DD) — internally it appends a time-of-day
+  // string. Passing toISOString() blows up because it concatenates two
+  // time portions ("...000ZT00:00:00.000-06:00" → invalid Date).
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dateOnly = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const [analytics, topDrugs] = await Promise.all([
     getAnalytics(),
-    getTopDrugs(startOfMonth.toISOString(), now.toISOString(), 6),
+    getTopDrugs(dateOnly(startOfMonth), dateOnly(now), 6),
   ]);
 
   // Top drug colors — fixed palette so the bars stay BNDS heritage.
@@ -67,12 +71,12 @@ export default async function ReportsPage() {
       avgDaysToPay: analytics.claims.avgDaysToPay,
     },
     dailyFills: analytics.prescriptions.dailyFillData,
-    topDrugs: (topDrugs as Array<{ name?: string | null; ndc?: string | null; count?: number | null }>).map((d, i) => ({
-      name: formatItemDisplayName({
-        name: d.name ?? null,
-        ndc: d.ndc ?? null,
-      }),
-      count: Number(d.count ?? 0),
+    // getTopDrugs returns { name, fills, revenue } — name is already
+    // formatted by the action ("Lisinopril (10mg)"), so we just trust
+    // it. fills is the count we want; revenue is unused here.
+    topDrugs: (topDrugs as Array<{ name: string; fills: number; revenue: number }>).map((d, i) => ({
+      name: d.name,
+      count: d.fills,
       color: COLORS[i % COLORS.length],
     })),
     revenueMix: [
