@@ -339,16 +339,31 @@ export default function FillProcessPage() {
   // Sold-gate failures (waiting_bin → sold with an incomplete pickup
   // checklist) drop into the soldGateError banner so the override modal
   // can offer a bypass path. Everything else is a generic action error.
+  //
+  // Stale server-action IDs are translated to a friendly "Page out of
+  // date" message. Next.js raises
+  //   "Server Action `<hash>` was not found on the server. Read more:
+  //    https://nextjs.org/docs/messages/failed-to-find-server-action"
+  // when the build hash changed between page load and click (i.e. a
+  // deploy landed while this tab was open). The raw message + nextjs.org
+  // docs link are hostile to a pharmacist; what they actually need is
+  // "refresh and try again".
   const surfaceWorkflowError = useCallback(
     (msg: string, newStatus: string, fromStatus: string) => {
+      const isStaleAction =
+        /Server Action.*was not found on the server/i.test(msg) ||
+        /failed-to-find-server-action/i.test(msg);
+      const friendlyMsg = isStaleAction
+        ? "This page is out of date — please refresh and try again. (The app was updated while this tab was open.)"
+        : msg;
       if (
         newStatus === "sold" &&
         fromStatus === "waiting_bin" &&
-        /pickup checklist incomplete|missing:/i.test(msg)
+        /pickup checklist incomplete|missing:/i.test(friendlyMsg)
       ) {
-        setSoldGateError(msg);
+        setSoldGateError(friendlyMsg);
       } else {
-        setError(msg);
+        setError(friendlyMsg);
       }
     },
     []
