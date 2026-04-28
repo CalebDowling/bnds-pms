@@ -1,7 +1,6 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -35,33 +34,51 @@ export async function getWaitingBinItems({
   sortBy?: "binLocation" | "patientName" | "daysInBin";
   searchTerm?: string;
 } = {}) {
+  // Canonical filter: status = 'waiting_bin'. Previously this query
+  // filtered on `metadata.waitingBin` IS NOT NULL, which silently hid
+  // every fill that didn't go through the modern Save-Bin path. Result
+  // (caught in the 04/28 walkthrough): the dashboard sidebar reported
+  // "18 in Waiting Bin", /pickup showed 14 cards, but /waiting-bin
+  // rendered "No items in waiting bin". Three views, three counts.
+  //
+  // Now every view agrees on `status = 'waiting_bin'`. Enrichment
+  // (dateAdded, location) falls through metadata.waitingBin (modern
+  // path) → fill.binLocation + fill.verifiedAt (legacy / DRX) →
+  // fill.createdAt as a last resort. We never drop a row just because
+  // its enrichment is incomplete.
   const fills = await prisma.prescriptionFill.findMany({
-    where: {
-      metadata: {
-        path: ["waitingBin"],
-        not: Prisma.DbNull,
-      },
-    },
+    where: { status: "waiting_bin" },
     include: {
       prescription: {
         include: {
           patient: { select: { firstName: true, lastName: true } },
-          item: { select: { name: true } },
+          item: {
+            select: { name: true, genericName: true, brandName: true, ndc: true },
+          },
           formula: { select: { name: true } },
         },
+      },
+      item: {
+        select: { name: true, genericName: true, brandName: true, ndc: true },
       },
     },
   });
 
   const items: WaitingBinItem[] = fills
     .map((fill) => {
-      const metadata = fill.metadata as Record<string, any>;
-      const waitingBinData = metadata?.waitingBin;
+      const metadata = fill.metadata as Record<string, any> | null;
+      const waitingBinData = metadata?.waitingBin ?? null;
 
-      if (!waitingBinData) return null;
-
-      const dateAdded = new Date(waitingBinData.dateAdded);
-      const daysInBin = Math.floor((new Date().getTime() - dateAdded.getTime()) / (1000 * 60 * 60 * 24));
+      // dateAdded resolution chain: modern metadata → verifiedAt
+      // (legacy fills that hit verify but never had Save Bin clicked)
+      // → filledAt → createdAt. Same chain as /pickup uses for ageMs
+      // so the two pages agree on "days in bin".
+      const dateAddedSource =
+        waitingBinData?.dateAdded ?? fill.verifiedAt ?? fill.filledAt ?? fill.createdAt;
+      const dateAdded = new Date(dateAddedSource);
+      const daysInBin = Math.floor(
+        (new Date().getTime() - dateAdded.getTime()) / (1000 * 60 * 60 * 24)
+      );
 
       let statusColor: "green" | "yellow" | "red" = "green";
       if (daysInBin > 14) statusColor = "red";
@@ -71,11 +88,30 @@ export async function getWaitingBinItems({
         ? `${fill.prescription.patient.firstName} ${fill.prescription.patient.lastName}`
         : "Unknown";
 
-      const drug = fill.prescription.item?.name || fill.prescription.formula?.name || "Unknown";
+      // Drug name fallback: same chain as /pickup (item.name →
+      // genericName → brandName → NDC → "Unknown drug") so the two
+      // surfaces don't disagree about what's on the bottle.
+      const itemForDisplay = fill.item ?? fill.prescription.item ?? null;
+      const drug = itemForDisplay
+        ? itemForDisplay.name
+          || itemForDisplay.genericName
+          || itemForDisplay.brandName
+          || (itemForDisplay.ndc ? `NDC ${itemForDisplay.ndc}` : null)
+          || fill.prescription.formula?.name
+          || "Unknown drug"
+        : (fill.prescription.formula?.name || "Unknown drug");
+
+      // binLocation resolution: modern metadata → fill.binLocation
+      // column (set by Save Bin pre-metadata) → "—". Never throw away
+      // the row just because the location is missing — the operator
+      // still needs to see "this Rx is somewhere in the bin and is N
+      // days old, please figure out where" rather than "no items".
+      const binLocation =
+        waitingBinData?.location ?? fill.binLocation ?? "—";
 
       return {
         id: fill.id,
-        binLocation: waitingBinData.location,
+        binLocation,
         patient,
         rxNumber: fill.prescription.rxNumber,
         drug,
