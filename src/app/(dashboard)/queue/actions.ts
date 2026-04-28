@@ -161,9 +161,7 @@ async function getRefillRenewals(page: number, limit: number, label: string) {
       fillId: r.id,
       // Show the pharmacy-facing Rx# rather than the UUID.
       rxId: r.prescription?.rxNumber || "—",
-      patientName: r.prescription?.patient
-        ? `${r.prescription.patient.firstName} ${r.prescription.patient.lastName}`
-        : "Unknown",
+      patientName: formatPatientName(r.prescription?.patient) || "Unknown",
       phone: null,
       itemName: r.prescription?.item?.name || "Unknown",
       status: "Renewal Pending",

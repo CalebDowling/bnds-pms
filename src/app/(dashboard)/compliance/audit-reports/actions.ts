@@ -3,6 +3,24 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
+import { formatPatientName, formatPrescriberName } from "@/lib/utils/formatters";
+
+// Compliance reports show staff actor names ("filler", "verifier",
+// "compounder"). These are User rows whose firstName/lastName are
+// internal, not DRX-imported, so artifact stripping is a no-op here —
+// but we still route through the centralized formatter for
+// consistency, title-casing, and to keep this file in line with the
+// rest of the codebase. The formatter accepts any { firstName, lastName }
+// shape, including User rows.
+function formatStaffName(
+  user: { firstName?: string | null; lastName?: string | null } | null | undefined
+): string {
+  if (!user) return "";
+  return formatPatientName({
+    firstName: user.firstName ?? null,
+    lastName: user.lastName ?? null,
+  });
+}
 
 /**
  * Get dispensing log for Board of Pharmacy audits
@@ -70,7 +88,7 @@ export async function getDispensingLog(
   return fills.map((fill) => ({
     id: fill.id,
     rxNumber: fill.prescription.rxNumber,
-    patientName: `${fill.prescription.patient.firstName} ${fill.prescription.patient.lastName}`,
+    patientName: formatPatientName(fill.prescription.patient),
     patientMrn: fill.prescription.patient.mrn,
     drugName: fill.item?.name || "N/A",
     ndc: fill.item?.ndc,
@@ -78,12 +96,8 @@ export async function getDispensingLog(
     dosageForm: fill.item?.dosageForm,
     quantity: Number(fill.quantity),
     daysSupply: fill.daysSupply,
-    filledBy: fill.filler
-      ? `${fill.filler.firstName} ${fill.filler.lastName}`
-      : "N/A",
-    verifiedBy: fill.verifier
-      ? `${fill.verifier.firstName} ${fill.verifier.lastName}`
-      : "N/A",
+    filledBy: formatStaffName(fill.filler) || "N/A",
+    verifiedBy: formatStaffName(fill.verifier) || "N/A",
     dispensedDate: fill.dispensedAt || fill.createdAt,
     filledDate: fill.filledAt,
     verifiedDate: fill.verifiedAt,
@@ -178,10 +192,8 @@ export async function getControlledSubstanceReport(
         ndc: fill.item?.ndc,
         schedule: fill.item?.deaSchedule,
         quantity: Number(fill.quantity),
-        patientName: `${fill.prescription.patient.firstName} ${fill.prescription.patient.lastName}`,
-        verifiedBy: fill.verifier
-          ? `${fill.verifier.firstName} ${fill.verifier.lastName}`
-          : "N/A",
+        patientName: formatPatientName(fill.prescription.patient),
+        verifiedBy: formatStaffName(fill.verifier) || "N/A",
         dispensedDate: fill.dispensedAt,
       })),
     };
@@ -249,13 +261,11 @@ export async function getPharmacistVerificationLog(
     return {
       id: fill.id,
       rxNumber: fill.prescription.rxNumber,
-      patientName: `${fill.prescription.patient.firstName} ${fill.prescription.patient.lastName}`,
+      patientName: formatPatientName(fill.prescription.patient),
       drugName: fill.item?.name || "N/A",
       strength: fill.item?.strength,
       quantity: Number(fill.quantity),
-      verifiedBy: fill.verifier
-        ? `${fill.verifier.firstName} ${fill.verifier.lastName}`
-        : "N/A",
+      verifiedBy: formatStaffName(fill.verifier) || "N/A",
       licenseNumber: fill.verifier?.licenseNumber || "N/A",
       verifiedDate: fill.verifiedAt,
       filledDate: filledAt,
@@ -339,13 +349,9 @@ export async function getCompoundingLog(
       unit: batch.unit,
       budDate: batch.budDate,
       status: batch.status,
-      compoundedBy: compounder
-        ? `${compounder.firstName} ${compounder.lastName}`
-        : "N/A",
+      compoundedBy: formatStaffName(compounder) || "N/A",
       compoundedDate: batch.compoundedAt,
-      verifiedBy: verifier
-        ? `${verifier.firstName} ${verifier.lastName}`
-        : "Not yet verified",
+      verifiedBy: formatStaffName(verifier) || "Not yet verified",
       verifiedDate: batch.verifiedAt,
       ingredients: batch.ingredients.map((bi) => ({
         itemName: "Unknown",

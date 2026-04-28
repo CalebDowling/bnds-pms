@@ -1,5 +1,11 @@
 "use server";
 
+import {
+  formatPatientName,
+  formatPrescriberName,
+  formatItemDisplayName,
+} from "@/lib/utils/formatters";
+
 interface RefillRequest {
   id: string;
   patientName: string;
@@ -62,6 +68,9 @@ export async function getRefillRequests(
           item: {
             select: {
               name: true,
+              genericName: true,
+              brandName: true,
+              ndc: true,
             },
           },
           formula: {
@@ -75,21 +84,30 @@ export async function getRefillRequests(
     orderBy: { requestedAt: "desc" },
   });
 
-  return requests.map((r) => ({
-    id: r.id,
-    patientName: `${r.patient.firstName} ${r.patient.lastName}`,
-    rxNumber: r.prescription.rxNumber,
-    drugName: r.prescription.item?.name || r.prescription.formula?.name || "Unknown",
-    lastFillDate: r.prescription.dateFilled?.toISOString() || null,
-    requestedDate: r.requestedAt.toISOString(),
-    status: r.status as "pending" | "approved" | "rejected",
-    refillsRemaining: r.prescription.refillsRemaining,
-    daysSupply: r.prescription.daysSupply,
-    prescriberName: r.prescription.prescriber
-      ? `${r.prescription.prescriber.firstName} ${r.prescription.prescriber.lastName}`
-      : undefined,
-    source: r.source as "internal" | "prescriber_portal",
-  }));
+  return requests.map((r) => {
+    // Drug fallback chain: prescription.item.name → genericName →
+    // brandName → NDC → "Unknown drug" so the refill list doesn't
+    // show "Unknown" for the 170k DRX rows that have an Item but
+    // no name string.
+    const drugName = r.prescription.item
+      ? formatItemDisplayName(r.prescription.item)
+      : (r.prescription.formula?.name || "Unknown drug");
+    return {
+      id: r.id,
+      patientName: formatPatientName(r.patient),
+      rxNumber: r.prescription.rxNumber,
+      drugName,
+      lastFillDate: r.prescription.dateFilled?.toISOString() || null,
+      requestedDate: r.requestedAt.toISOString(),
+      status: r.status as "pending" | "approved" | "rejected",
+      refillsRemaining: r.prescription.refillsRemaining,
+      daysSupply: r.prescription.daysSupply,
+      prescriberName: r.prescription.prescriber
+        ? formatPrescriberName(r.prescription.prescriber)
+        : undefined,
+      source: r.source as "internal" | "prescriber_portal",
+    };
+  });
 }
 
 export async function getRefillStats(): Promise<RefillStats> {

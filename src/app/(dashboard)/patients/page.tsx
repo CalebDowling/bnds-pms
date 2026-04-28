@@ -9,6 +9,7 @@
  */
 import { getPatients, getPatientCounts, type PatientFilter } from "./actions";
 import PatientsClient, { type PatientRow } from "./PatientsClient";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default async function PatientsListPage({ searchParams }: PageProps) {
     return {
       id: p.id as string,
       mrn: p.mrn as string,
-      name: `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || "Unknown",
+      name: formatPatientName(p) || "Unknown",
       dob: p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().slice(0, 10) : "—",
       phone,
       insurance,

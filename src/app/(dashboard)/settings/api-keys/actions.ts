@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { requirePermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { generateApiKey, type ApiKeyEnvironment } from "@/lib/api/api-key";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 export interface ApiKeyListItem {
   id: string;
@@ -41,7 +42,7 @@ export async function listApiKeys(): Promise<ApiKeyListItem[]> {
     description: k.description,
     environment: k.environment,
     scopes: Array.isArray(k.scopes) ? (k.scopes as string[]) : [],
-    createdByName: k.createdBy ? `${k.createdBy.firstName} ${k.createdBy.lastName}` : null,
+    createdByName: k.createdBy ? formatPatientName(k.createdBy) : null,
     createdAt: k.createdAt.toISOString(),
     lastUsedAt: k.lastUsedAt?.toISOString() ?? null,
     expiresAt: k.expiresAt?.toISOString() ?? null,

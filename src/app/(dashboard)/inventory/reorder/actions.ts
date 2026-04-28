@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Decimal } from "@prisma/client/runtime/library";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 // ───────────────────────────────────────────
 // TYPES
@@ -290,7 +291,7 @@ export async function getReorderHistory(
     status: order.status,
     itemCount: order._count.items,
     createdAt: order.createdAt,
-    createdBy: `${order.creator.firstName} ${order.creator.lastName}`,
+    createdBy: formatPatientName(order.creator) || "—",
   }));
 }
 

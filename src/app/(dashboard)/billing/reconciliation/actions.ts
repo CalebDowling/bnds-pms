@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 // ═══════════════════════════════════════════════
 // CASH RECONCILIATION
@@ -61,9 +62,7 @@ export async function getCashReconciliation({
     return {
       id: item.id,
       saleNumber: item.transaction.id,
-      patient: item.transaction.patient
-        ? `${item.transaction.patient.firstName} ${item.transaction.patient.lastName}`
-        : "Unknown",
+      patient: formatPatientName(item.transaction.patient) || "Unknown",
       expectedAmount,
       receivedAmount,
       difference,
@@ -136,9 +135,7 @@ export async function getInsuranceReconciliation({
     return {
       id: claim.id,
       claimNumber: claim.claimNumber || "",
-      patient: claim.insurance?.patient
-        ? `${claim.insurance.patient.firstName} ${claim.insurance.patient.lastName}`
-        : "Unknown",
+      patient: formatPatientName(claim.insurance?.patient) || "Unknown",
       expectedAmount,
       receivedAmount,
       difference,

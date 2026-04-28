@@ -7,6 +7,7 @@ import {
   type RouteStop,
   type OptimizedRoute,
 } from "@/lib/delivery/route-optimizer";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -259,7 +260,7 @@ export async function getRouteHistory(): Promise<RouteRecord[]> {
     id: r.id,
     routeName: r.routeName,
     routeDate: r.routeDate.toISOString(),
-    driverName: r.driver ? `${r.driver.firstName} ${r.driver.lastName}` : null,
+    driverName: r.driver ? formatPatientName(r.driver) : null,
     driverId: r.driverId,
     status: r.status,
     stopCount: r.deliveries.length,
@@ -281,7 +282,7 @@ export async function getDrivers(): Promise<DriverOption[]> {
 
   return users.map((u) => ({
     id: u.id,
-    name: `${u.firstName} ${u.lastName}`,
+    name: formatPatientName(u),
   }));
 }
 

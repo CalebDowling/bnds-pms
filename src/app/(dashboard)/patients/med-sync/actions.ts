@@ -1,5 +1,7 @@
 'use server';
 
+import { formatPatientName } from "@/lib/utils/formatters";
+
 interface PatientMedSync {
   enrolled: boolean;
   syncDay: number;
@@ -75,7 +77,7 @@ export async function enrollPatient(
 
     return {
       success: true,
-      message: `Enrolled ${patient.firstName} ${patient.lastName} in med sync`,
+      message: `Enrolled ${formatPatientName(patient)} in med sync`,
       data: updated,
     };
   } catch (error) {
@@ -344,7 +346,7 @@ export async function getSyncCalendar() {
     if (!calendarData[day]) calendarData[day] = [];
     calendarData[day].push({
       patientId: patient.id,
-      name: `${patient.firstName} ${patient.lastName}`,
+      name: formatPatientName(patient),
       medCount: medSync.medications?.length || 0,
     });
   }

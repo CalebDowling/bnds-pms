@@ -1,5 +1,7 @@
 "use server";
 
+import { formatPatientName } from "@/lib/utils/formatters";
+
 export async function getDashboardData() {
   const { prisma } = await import("@/lib/prisma");
   const today = new Date();
@@ -122,9 +124,10 @@ export async function getRecentActivity(
       seen.add(e.fillId);
 
       const rx = e.fill.prescription;
-      const patient = rx?.patient
-        ? `${rx.patient.firstName || ""} ${rx.patient.lastName || ""}`.trim() || "Unknown"
-        : "Unknown";
+      // formatPatientName cleans DRX artifacts and title-cases the name
+      // so the dashboard activity feed matches the queue / pickup
+      // surfaces.
+      const patient = formatPatientName(rx?.patient) || "Unknown";
 
       // Translate the event into something a pharmacist actually wants to
       // read. status_change events get the status label; the others get a
@@ -154,7 +157,9 @@ export async function getRecentActivity(
         rxNum: rx?.rxNumber || "—",
         patient,
         eventLabel,
-        performer: `${e.performer.firstName || ""} ${e.performer.lastName || ""}`.trim() || "—",
+        // Performer is a User row (internal), but funneling through the
+        // shared formatter keeps title-casing consistent across surfaces.
+        performer: formatPatientName(e.performer) || "—",
         copay: e.fill.copayAmount ? `$${Number(e.fill.copayAmount).toFixed(2)}` : null,
         minutesAgo,
       });

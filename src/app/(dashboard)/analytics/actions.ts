@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -445,7 +446,7 @@ export async function getProductivityMetrics(preset: string = "30d"): Promise<Pr
         select: { firstName: true, lastName: true },
       });
       return {
-        name: user ? `${user.firstName} ${user.lastName}` : "Unknown",
+        name: formatPatientName(user) || "Unknown",
         fills: tf._count.id,
       };
     })

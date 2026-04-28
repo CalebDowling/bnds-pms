@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 const DEA_SCHEDULES = ["II", "III", "IV", "V"];
 
@@ -85,7 +86,7 @@ export async function getControlledSubstanceLog({
         drugName: `${fill.item?.name || ""}${fill.item?.strength ? ` ${fill.item.strength}` : ""}`,
         schedule: fill.item?.deaSchedule,
         quantity: Number(fill.quantity),
-        pharmacist: fill.verifier ? `${fill.verifier.firstName} ${fill.verifier.lastName}` : "—",
+        pharmacist: formatPatientName(fill.verifier) || "—",
         runningBalance,
         flagged,
         flagNotes: metadata && metadata.discrepancyNotes ? (metadata.discrepancyNotes as string) : null,

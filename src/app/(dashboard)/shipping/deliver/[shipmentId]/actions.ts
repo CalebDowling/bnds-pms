@@ -9,6 +9,7 @@ import {
   type GpsCoordinates,
   type IdVerification,
 } from "@/lib/delivery/signature-capture";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -107,7 +108,7 @@ export async function getDeliveryDetail(
 
   return {
     id: shipment.id,
-    patientName: `${shipment.patient.firstName} ${shipment.patient.lastName}`,
+    patientName: formatPatientName(shipment.patient),
     patientMrn: shipment.patient.mrn,
     address: shipment.address
       ? {

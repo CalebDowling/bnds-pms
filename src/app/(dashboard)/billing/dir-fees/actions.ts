@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import { formatPatientName } from "@/lib/utils/formatters";
 
 // ═══════════════════════════════════════════════
 // DIR FEES
@@ -80,9 +81,7 @@ export async function getDIRFees({
       id: claim.id,
       date: claim.createdAt,
       claimNumber: claim.claimNumber,
-      patient: claim.insurance?.patient
-        ? `${claim.insurance.patient.firstName} ${claim.insurance.patient.lastName}`
-        : "Unknown",
+      patient: formatPatientName(claim.insurance?.patient) || "Unknown",
       drug: claim.fills[0]?.prescription?.item?.name || claim.fills[0]?.prescription?.formula?.name || "Unknown",
       originalPaid: amountPaid,
       dirFeeAmount,
