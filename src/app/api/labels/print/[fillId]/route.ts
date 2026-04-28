@@ -78,39 +78,44 @@ export async function GET(
     // Build data from fill record
     const data = await buildTemplateDataFromFill(fillId);
 
-    // Generate PDF
-    const buffer = await generateTemplatePreviewPDF(template, data);
-
-    const download = request.nextUrl.searchParams.get("download") === "true";
-
-    // Use the rxNumber for the filename so the browser tab title and
-    // download name read like "label-Rx9990008.pdf" instead of the raw
-    // fillId UUID. Fall back to fillId if the lookup fails.
-    let filename = `label-${fillId}.pdf`;
+    // Look up rxNumber so we can use it in BOTH the
+    // Content-Disposition filename (download name + Firefox/Safari
+    // tab title) and the PDF /Info Title (Chrome PDFium tab title).
+    // Chrome's PDF viewer ignores Content-Disposition for inline
+    // rendering and reads the embedded /Title metadata instead, so
+    // setting one but not the other only fixes some browsers.
+    let rxNumber: string | null = null;
     try {
       const fill = await prisma.prescriptionFill.findUnique({
         where: { id: fillId },
         select: { prescription: { select: { rxNumber: true } } },
       });
-      const rxNumber = fill?.prescription?.rxNumber;
-      if (rxNumber) {
-        // Strip characters that aren't safe in a Content-Disposition
-        // filename token (RFC 6266 + most browsers' tolerance window).
-        const safeRx = rxNumber.replace(/[^A-Za-z0-9._-]/g, "");
-        filename = `label-Rx${safeRx}.pdf`;
-      }
+      rxNumber = fill?.prescription?.rxNumber ?? null;
     } catch {
-      // Non-fatal — keep the fillId fallback.
+      // Non-fatal — falls back to fillId.
     }
+
+    // Generate PDF with embedded /Info metadata so Chrome's tab title
+    // reads "Rx Label - 9990001" instead of the URL UUID.
+    const buffer = await generateTemplatePreviewPDF(template, data, undefined, {
+      Title: rxNumber ? `Rx Label - ${rxNumber}` : `Rx Label - ${fillId}`,
+      Subject: rxNumber ? `Prescription label for Rx ${rxNumber}` : "Prescription label",
+    });
+
+    const download = request.nextUrl.searchParams.get("download") === "true";
+
+    // Strip characters that aren't safe in a Content-Disposition
+    // filename token (RFC 6266 + most browsers' tolerance window).
+    const safeRx = rxNumber ? rxNumber.replace(/[^A-Za-z0-9._-]/g, "") : null;
+    const filename = safeRx ? `label-Rx${safeRx}.pdf` : `label-${fillId}.pdf`;
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        // Include the filename in BOTH download and inline dispositions.
-        // Browsers use the Content-Disposition filename for inline PDFs
-        // as the tab title and the default save-as name. Without it,
-        // the URL path is used → which contains the fillId UUID.
+        // Include the filename in BOTH download and inline dispositions
+        // for Firefox/Safari (and as the default save-as name in Chrome).
+        // Chrome's tab title comes from the PDF /Info Title set above.
         "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,
         "Cache-Control": "no-cache, no-store, must-revalidate",
       },

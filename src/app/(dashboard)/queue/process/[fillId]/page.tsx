@@ -1603,7 +1603,25 @@ export default function FillProcessPage() {
                       <input
                         type="checkbox"
                         checked={pickup.counselOffered}
-                        onChange={(e) => setPickup((p) => ({ ...p, counselOffered: e.target.checked }))}
+                        onChange={(e) => {
+                          // Auto-link counselAccepted to counselOffered.
+                          // The sub-checkbox label says "uncheck if
+                          // declined" — i.e. the assumed default when a
+                          // counsel is offered is that the patient
+                          // accepted it. Without this, every fill ships
+                          // "Counseling accepted ✗" in the audit log
+                          // because the sub-checkbox starts at false
+                          // and the cashier never clicks it. When the
+                          // operator unchecks Counseling offered, also
+                          // reset counselAccepted to keep the state
+                          // self-consistent.
+                          const offered = e.target.checked;
+                          setPickup((p) => ({
+                            ...p,
+                            counselOffered: offered,
+                            counselAccepted: offered,
+                          }));
+                        }}
                         className="w-4 h-4"
                       />
                       Counseling offered (OBRA-90)

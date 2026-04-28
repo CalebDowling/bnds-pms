@@ -15,20 +15,43 @@
 // ─── Names ────────────────────────────────────────────────────────────
 
 /**
+ * Known DRX category suffixes — patient bucket / wristband-color tags
+ * the legacy feed sometimes glues onto the lastName. Treated as
+ * trailing artifacts regardless of whether they're separated by a
+ * space-dash-space (`Richie - white`) or a bare dash (`Richie-white`).
+ *
+ * Kept as an explicit allowlist so legitimate hyphenated surnames
+ * ("Hardwick-Smith", "Smith-Jones", "Day-Lewis") and short legitimate
+ * tokens that happen to be lowercase ("de la Cruz") never get clipped.
+ * Add new tokens here only after confirming with the operator that
+ * they're a DRX bucket, not part of someone's actual name.
+ */
+const DRX_CATEGORY_SUFFIXES = new Set([
+  "white",
+  "red",
+  "blue",
+  "green",
+  "yellow",
+  "group",
+]);
+
+/**
  * Strip DRX-import artifacts that the legacy feed embeds inside name
- * fields. We've observed two shapes in real data:
+ * fields. Two shapes seen in real data:
  *
  *   1. `*WORD*` ALL-CAPS asterisk-wrapped tokens used as specialty /
  *      group / form markers. Example: "Boston *SP**GROUP*",
  *      "Stanga *SYR**SP*". These belong in a separate metadata field
  *      but DRX sometimes splices them into firstName / lastName.
  *
- *   2. Trailing ` - lowercase-word` categorization. Example:
- *      "Bridget Richie - white". The " - white" is a DRX patient
- *      bucket (probably for label / wristband color), not part of
- *      the legal name. Hyphenated surnames like "Smith-Jones" are
- *      preserved because they have no surrounding spaces and the
- *      suffix isn't all-lowercase.
+ *   2. Trailing `-categoryword` patient-bucket tags. Examples:
+ *      "Bridget Richie - white"   (space-dash-space)
+ *      "Bridget Richie-white"     (bare dash, no spaces)
+ *      The "white"/"red"/"group"/etc. is a DRX patient bucket
+ *      (probably for label / wristband color), not part of the legal
+ *      name. We strip both shapes when the suffix matches a known
+ *      DRX_CATEGORY_SUFFIX, so legitimate hyphenated surnames
+ *      ("Hardwick-Smith", "Day-Lewis") survive untouched.
  *
  * Called by formatPatientName / formatPrescriberName so every UI
  * surface that goes through the standard formatters automatically
@@ -37,18 +60,21 @@
  */
 export function cleanDrxArtifacts(s: string | null | undefined): string {
   if (!s) return "";
-  return s
+  let out = s
     // *WORD* … *WORD* … runs anywhere in the string. Match a sequence of
     // asterisk-delimited ALL-CAPS tokens (with the optional leading
     // whitespace consumed too) so "Boston *SP**GROUP*" → "Boston".
-    .replace(/\s*(?:\*[A-Z][A-Z0-9_]*\*+)+/g, " ")
-    // Trailing " - lowercase-word" suffix. Only matches when the dash
-    // is surrounded by spaces AND the suffix is all-lowercase letters,
-    // so legitimate hyphenated surnames ("Smith-Jones", "Hardwick-Smith")
-    // survive untouched.
-    .replace(/\s+-\s+[a-z]+\s*$/, "")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/\s*(?:\*[A-Z][A-Z0-9_]*\*+)+/g, " ");
+
+  // Trailing DRX category suffix — both space-dash-space and bare-dash
+  // shapes. Only strip when the suffix is in the known DRX bucket set,
+  // so hyphenated surnames are preserved.
+  const suffixMatch = out.match(/^(.*?)\s*-\s*([a-z]+)\s*$/);
+  if (suffixMatch && DRX_CATEGORY_SUFFIXES.has(suffixMatch[2])) {
+    out = suffixMatch[1];
+  }
+
+  return out.replace(/\s+/g, " ").trim();
 }
 
 /**

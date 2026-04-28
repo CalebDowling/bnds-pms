@@ -977,7 +977,13 @@ export async function renderDRXTemplate(
 export async function generateTemplatePreviewPDF(
   template: DRXTemplate,
   data: Record<string, string>,
-  layoutOverrides?: LayoutOverride[]
+  layoutOverrides?: LayoutOverride[],
+  // Optional PDF /Info metadata. The Title is what Chrome's PDF
+  // viewer uses for the browser tab title (Content-Disposition's
+  // filename is ignored for inline rendering on PDFium-based
+  // browsers). Pass `{ Title: "Rx Label - 9990001" }` to get a
+  // useful tab title instead of the raw URL.
+  pdfInfo?: { Title?: string; Author?: string; Subject?: string }
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const useLandscape = needsLandscapeTransform(template);
@@ -994,6 +1000,13 @@ export async function generateTemplatePreviewPDF(
     const doc = new PDFDocument({
       size: [pageWidth, pageHeight],
       margin: 0,
+      // Standard PDF /Info metadata. PDFKit accepts these as a top-
+      // level `info` option; they get embedded in the document's
+      // Info dictionary and Chrome reads `Title` for the tab title.
+      info: {
+        Producer: "BNDS Pharmacy Management System",
+        ...pdfInfo,
+      },
     });
 
     const chunks: Uint8Array[] = [];

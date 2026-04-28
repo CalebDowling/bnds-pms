@@ -3,6 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
+import {
+  formatPatientName,
+  formatItemDisplayName,
+  formatDrugWithStrength,
+} from "@/lib/utils/formatters";
 
 export interface WaitingBinItem {
   id: string;
@@ -51,15 +56,15 @@ export async function getWaitingBinItems({
     include: {
       prescription: {
         include: {
-          patient: { select: { firstName: true, lastName: true } },
+          patient: { select: { firstName: true, lastName: true, middleName: true } },
           item: {
-            select: { name: true, genericName: true, brandName: true, ndc: true },
+            select: { name: true, genericName: true, brandName: true, ndc: true, strength: true },
           },
           formula: { select: { name: true } },
         },
       },
       item: {
-        select: { name: true, genericName: true, brandName: true, ndc: true },
+        select: { name: true, genericName: true, brandName: true, ndc: true, strength: true },
       },
     },
   });
@@ -84,21 +89,23 @@ export async function getWaitingBinItems({
       if (daysInBin > 14) statusColor = "red";
       else if (daysInBin >= 7) statusColor = "yellow";
 
-      const patient = fill.prescription.patient
-        ? `${fill.prescription.patient.firstName} ${fill.prescription.patient.lastName}`
-        : "Unknown";
+      // formatPatientName cleans DRX import artifacts ("- white" suffix
+      // and "*SP**GROUP*" markers) and title-cases the all-caps DRX
+      // values. Without this, the cashier sees "BRIDGET RICHIE-WHITE"
+      // and similar legacy-import noise on the waiting-bin row.
+      const patient = formatPatientName(fill.prescription.patient) || "Unknown";
 
-      // Drug name fallback: same chain as /pickup (item.name →
-      // genericName → brandName → NDC → "Unknown drug") so the two
-      // surfaces don't disagree about what's on the bottle.
+      // Drug name: route through formatItemDisplayName so the fallback
+      // chain (name → genericName → brandName → NDC → Unknown drug)
+      // matches /pickup and /prescriptions exactly. formatDrugWithStrength
+      // appends the strength when it's not already embedded in the name.
       const itemForDisplay = fill.item ?? fill.prescription.item ?? null;
       const drug = itemForDisplay
-        ? itemForDisplay.name
-          || itemForDisplay.genericName
-          || itemForDisplay.brandName
-          || (itemForDisplay.ndc ? `NDC ${itemForDisplay.ndc}` : null)
-          || fill.prescription.formula?.name
-          || "Unknown drug"
+        ? formatDrugWithStrength(
+            formatItemDisplayName(itemForDisplay),
+            (fill.item as { strength?: string | null } | null)?.strength
+              ?? (fill.prescription.item as { strength?: string | null } | null)?.strength
+          )
         : (fill.prescription.formula?.name || "Unknown drug");
 
       // binLocation resolution: modern metadata → fill.binLocation
