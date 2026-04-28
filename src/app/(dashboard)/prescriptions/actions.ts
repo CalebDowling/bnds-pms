@@ -344,25 +344,39 @@ export async function createPrescription(data: PrescriptionFormData) {
 
       // Stamp a `fill_created` event on the initial fill so the
       // /queue/process Activity Log has a non-empty starting point.
-      // Fire-and-forget: a failure here is purely cosmetic (the fill
-      // and Rx are already committed), so we log + swallow rather than
-      // 500ing the New Rx form.
+      //
+      // Previously this was fire-and-forget ("a failure is purely
+      // cosmetic, log + swallow"). That's wrong on Vercel/serverless:
+      // the lambda freezes after the response is sent, so the
+      // unawaited promise dies before the DB round-trip completes.
+      // Result: brand-new fills shipped without their fill_created
+      // event, and the activity-log card on /queue/process showed only
+      // the backfilled placeholder ("Backfilled fill_created event —
+      // legacy fill predates Phase 2 starter-event writes") on rows
+      // created today, which is misleading.
+      //
+      // Now awaited inline. The cost is one extra round-trip; the
+      // benefit is a deterministic audit row. Failures still don't
+      // 500 the form (we wrap in try/catch and log) because the Rx
+      // and fill are already committed.
       const initialFill = prescription.fills?.[0];
       if (initialFill) {
         const creator = await getCurrentUser();
         if (creator?.id) {
-          prisma.fillEvent.create({
-            data: {
-              fillId: initialFill.id,
-              eventType: "fill_created",
-              fromValue: null,
-              toValue: initialFill.status,
-              performedBy: creator.id,
-              notes: `Rx created via New Rx form (source: ${data.source})`,
-            },
-          }).catch((err) => {
+          try {
+            await prisma.fillEvent.create({
+              data: {
+                fillId: initialFill.id,
+                eventType: "fill_created",
+                fromValue: null,
+                toValue: initialFill.status,
+                performedBy: creator.id,
+                notes: `Rx created via New Rx form (source: ${data.source})`,
+              },
+            });
+          } catch (err) {
             console.warn("[createPrescription] failed to log fill_created event", err);
-          });
+          }
         }
       }
 
@@ -669,23 +683,27 @@ export async function createFill(
 
   // ─── Stamp `fill_created` FillEvent so the queue/process Activity
   // Log has a starting point for refills too. Without this, refill
-  // fills (#1+) show "No events yet" until the first status_change
-  // — same root cause as the new-fill case fixed in createPrescription
-  // and convertToPrescription. Non-blocking; refills should always
-  // run with a logged-in user, but we guard for safety.
+  // fills (#1+) show "No events yet" until the first status_change.
+  //
+  // Awaited (not fire-and-forget) because Vercel/serverless freezes
+  // the lambda after the response is sent — unawaited Prisma
+  // promises die before the DB write completes. See the matching
+  // comment in createPrescription for the longer explanation.
   if (user) {
-    prisma.fillEvent.create({
-      data: {
-        fillId: fill.id,
-        eventType: "fill_created",
-        fromValue: null,
-        toValue: fill.status,
-        performedBy: user.id,
-        notes: `Refill #${nextFillNumber} created`,
-      },
-    }).catch((err) => {
+    try {
+      await prisma.fillEvent.create({
+        data: {
+          fillId: fill.id,
+          eventType: "fill_created",
+          fromValue: null,
+          toValue: fill.status,
+          performedBy: user.id,
+          notes: `Refill #${nextFillNumber} created`,
+        },
+      });
+    } catch (err) {
       console.warn("[createFill] failed to log fill_created event", err);
-    });
+    }
   }
 
   revalidatePath(`/prescriptions/${prescriptionId}`);

@@ -288,23 +288,29 @@ export async function convertToPrescription(
     // Stamp a `fill_created` FillEvent on the initial fill so the
     // queue/process Activity Log has a non-empty starting point. The eRx
     // auto-convert path runs without a logged-in user, so we fall back
-    // through the same chain the status-log uses (#6 — Activity Log
-    // empty for fresh fills).
+    // through the same chain the status-log uses.
+    //
+    // Awaited (not fire-and-forget) — Vercel freezes the lambda after
+    // the response is sent, so an unawaited Prisma promise often dies
+    // before the DB write completes. See createPrescription for the
+    // longer explanation.
     const initialFill = prescription.fills?.[0];
     const performer = user?.id || intakeItem.createdBy;
     if (initialFill && performer) {
-      prisma.fillEvent.create({
-        data: {
-          fillId: initialFill.id,
-          eventType: "fill_created",
-          fromValue: null,
-          toValue: initialFill.status,
-          performedBy: performer,
-          notes: `Auto-created from eRx intake (${intakeItem.source})`,
-        },
-      }).catch((err) => {
+      try {
+        await prisma.fillEvent.create({
+          data: {
+            fillId: initialFill.id,
+            eventType: "fill_created",
+            fromValue: null,
+            toValue: initialFill.status,
+            performedBy: performer,
+            notes: `Auto-created from eRx intake (${intakeItem.source})`,
+          },
+        });
+      } catch (err) {
         console.warn("[convertToPrescription] failed to log fill_created event", err);
-      });
+      }
     }
 
     // Link prescription back to intake item
