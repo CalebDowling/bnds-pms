@@ -1,147 +1,103 @@
-"use client";
+/**
+ * /insurance — Claims list (real data).
+ *
+ * Replaces the previous mock-data Insurance page (CLM-44210 etc.) with
+ * a real Claim query via the new getClaims() action. Tabs filter by
+ * status bucket; search hits claim number / patient / plan.
+ */
+import { getClaims, getClaimStats } from "./actions";
+import {
+  formatPatientName,
+  formatItemDisplayName,
+  formatDrugWithStrength,
+  formatDate,
+} from "@/lib/utils/formatters";
+import InsuranceClient, { type InsuranceClaimRow } from "./InsuranceClient";
 
-import * as React from "react";
-import { DesignPage, I, StatusPill, Toolbar } from "@/components/design";
+export const dynamic = "force-dynamic";
 
-// ── Mock claims (mirrors design-reference/screens/financial.jsx Insurance) ──
-type ClaimStatus = "paid" | "rejected" | "pending" | "partial";
-
-interface Claim {
-  id: string;
-  patient: string;
-  plan: string;
-  drug: string;
-  billed: number;
-  paid: number;
-  status: ClaimStatus;
-  code: string;
-  submitted: string;
+interface PageProps {
+  searchParams?: Promise<{ tab?: string; q?: string; search?: string; page?: string }>;
 }
 
-const CLAIMS: Claim[] = [
-  { id: "CLM-44210", patient: "James Hebert", plan: "BCBS Louisiana", drug: "Atorvastatin 20mg", billed: 78.4, paid: 0, status: "rejected", code: "PA req", submitted: "04/26" },
-  { id: "CLM-44209", patient: "Marie Comeaux", plan: "Medicare Pt D", drug: "Lisinopril 10mg", billed: 14.8, paid: 14.8, status: "paid", code: "—", submitted: "04/26" },
-  { id: "CLM-44208", patient: "Yvette Robichaux", plan: "Medicare Pt D", drug: "Ozempic 0.5mg", billed: 932.0, paid: 0, status: "rejected", code: "NDC not covered", submitted: "04/26" },
-  { id: "CLM-44207", patient: "Beau Thibodeaux", plan: "United HC", drug: "Oxycodone 5mg", billed: 32.0, paid: 0, status: "pending", code: "In review", submitted: "04/26" },
-  { id: "CLM-44206", patient: "Pierre Boudreaux", plan: "Medicare Pt D", drug: "Metformin HCl", billed: 18.4, paid: 18.4, status: "paid", code: "—", submitted: "04/25" },
-  { id: "CLM-44205", patient: "Annette LeBlanc", plan: "BCBS Louisiana", drug: "Levothyroxine", billed: 12.0, paid: 8.0, status: "partial", code: "Copay applied", submitted: "04/25" },
-  { id: "CLM-44204", patient: "Camille Fontenot", plan: "Cash", drug: "Amoxicillin 500mg", billed: 22.0, paid: 0, status: "rejected", code: "No coverage", submitted: "04/24" },
-  { id: "CLM-44203", patient: "Marcus Guidry", plan: "Cigna", drug: "Sertraline 50mg", billed: 18.0, paid: 18.0, status: "paid", code: "—", submitted: "04/24" },
-];
+export default async function InsurancePage({ searchParams }: PageProps) {
+  const sp = (await searchParams) ?? {};
+  const tab = ((sp.tab ?? "rejected") as "rejected" | "pending" | "paid" | "all");
+  const search = (sp.q ?? sp.search ?? "").trim();
+  const page = Number(sp.page ?? 1);
 
-const TABS = [
-  { id: "rejected", label: "Need action", count: 3 },
-  { id: "pending", label: "Pending", count: 1 },
-  { id: "paid", label: "Paid", count: 412 },
-  { id: "all", label: "All" },
-];
+  const [{ claims, total, pages }, stats] = await Promise.all([
+    getClaims({ filter: tab, search, limit: 50, page }),
+    getClaimStats(),
+  ]);
 
-const TONE: Record<ClaimStatus, "ok" | "danger" | "warn" | "info"> = {
-  paid: "ok",
-  rejected: "danger",
-  pending: "warn",
-  partial: "info",
-};
+  const rows: InsuranceClaimRow[] = claims.map((c: any) => {
+    const patient = c.insurance?.patient
+      ? formatPatientName(c.insurance.patient)
+      : "Unknown";
+    const plan = c.insurance?.thirdPartyPlan?.planName ?? "Cash / no plan";
+    // Claim has a fills array (schema is 1-to-many); the include limits
+    // it to the first row for display purposes.
+    const firstFill = Array.isArray(c.fills) ? c.fills[0] : null;
+    const drug = firstFill?.item
+      ? formatDrugWithStrength(formatItemDisplayName(firstFill.item), firstFill.item.strength ?? null)
+      : "—";
 
-const LBL: Record<ClaimStatus, string> = {
-  paid: "Paid",
-  rejected: "Rejected",
-  pending: "Pending",
-  partial: "Partial",
-};
+    // Map raw status → UI bucket. Submitted/pending both render "pending".
+    const uiStatus: InsuranceClaimRow["status"] =
+      c.status === "paid"
+        ? "paid"
+        : c.status === "rejected"
+        ? "rejected"
+        : c.status === "partial"
+        ? "partial"
+        : "pending";
 
-export default function InsurancePage() {
-  const [tab, setTab] = React.useState("rejected");
-  const [search, setSearch] = React.useState("");
+    // Show first rejection code or first message snippet so the
+    // operator knows what to act on. Falls back to "—".
+    let codeLabel = "—";
+    if (uiStatus === "rejected" || uiStatus === "pending") {
+      const codes = Array.isArray(c.rejectionCodes) ? c.rejectionCodes : null;
+      if (codes && codes.length > 0) codeLabel = String(codes[0]);
+      else if (c.rejectionMessages && typeof c.rejectionMessages === "object") {
+        const firstKey = Object.keys(c.rejectionMessages)[0];
+        if (firstKey) codeLabel = firstKey;
+      }
+    }
+
+    return {
+      id: c.id,
+      claimNumber: c.claimNumber ?? c.id.slice(0, 8),
+      rxNumber: firstFill?.prescription?.rxNumber ?? null,
+      patient,
+      plan,
+      drug,
+      billed: Number(c.amountBilled ?? 0),
+      paid: Number(c.amountPaid ?? 0),
+      status: uiStatus,
+      codeLabel,
+      submitted: c.submittedAt ? formatDate(c.submittedAt) : "—",
+    };
+  });
+
+  // Tab counts come from getClaimStats — but for the operator's
+  // "needs action" tab we want rejected only. Let getClaims own
+  // the page-level total so pagination is accurate.
+  const tabCounts = {
+    rejected: stats.rejected,
+    pending: stats.pending + stats.submitted,
+    paid: stats.paid,
+  };
 
   return (
-    <DesignPage
-      sublabel="Financial"
-      title="Insurance"
-      subtitle="3 claims need attention · 1 PA in progress"
-      actions={
-        <>
-          <a href="/insurance/plans" className="btn btn-secondary btn-sm" style={{ textDecoration: "none" }}>
-            Plan formulary
-          </a>
-          <button className="btn btn-secondary btn-sm">
-            <I.Refill className="ic-sm" /> Re-submit batch
-          </button>
-          <button className="btn btn-primary btn-sm">
-            <I.Plus /> Submit claim
-          </button>
-        </>
-      }
-    >
-      <Toolbar
-        tabs={TABS}
-        active={tab}
-        onChange={setTab}
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search claim, patient, plan…"
-        filters={[
-          { label: "Plan" },
-          { label: "Date", value: "Last 30d" },
-        ]}
-      />
-
-      <div className="card" style={{ overflow: "hidden" }}>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Claim #</th>
-              <th>Patient</th>
-              <th>Plan</th>
-              <th>Drug</th>
-              <th className="t-num" style={{ textAlign: "right" }}>
-                Billed
-              </th>
-              <th className="t-num" style={{ textAlign: "right" }}>
-                Paid
-              </th>
-              <th>Status / Reason</th>
-              <th>Submitted</th>
-              <th style={{ width: 36 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {CLAIMS.map((c) => (
-              <tr key={c.id} style={{ cursor: "pointer" }}>
-                <td className="bnds-mono" style={{ fontSize: 12, color: "var(--bnds-forest)", fontWeight: 500 }}>
-                  {c.id}
-                </td>
-                <td style={{ fontWeight: 500 }}>{c.patient}</td>
-                <td className="t-xs">{c.plan}</td>
-                <td className="t-xs">{c.drug}</td>
-                <td className="t-num" style={{ textAlign: "right" }}>
-                  ${c.billed.toFixed(2)}
-                </td>
-                <td
-                  className="t-num"
-                  style={{
-                    textAlign: "right",
-                    fontWeight: 500,
-                    color: c.paid > 0 ? "var(--ok)" : "var(--ink-4)",
-                  }}
-                >
-                  ${c.paid.toFixed(2)}
-                </td>
-                <td>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <StatusPill tone={TONE[c.status]} label={LBL[c.status]} />
-                    {c.code !== "—" && <span className="t-xs">{c.code}</span>}
-                  </div>
-                </td>
-                <td className="t-xs">{c.submitted}</td>
-                <td>
-                  <I.ChevR style={{ color: "var(--ink-4)" }} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </DesignPage>
+    <InsuranceClient
+      rows={rows}
+      total={total}
+      page={page}
+      totalPages={pages}
+      tab={tab}
+      search={search}
+      tabCounts={tabCounts}
+    />
   );
 }
