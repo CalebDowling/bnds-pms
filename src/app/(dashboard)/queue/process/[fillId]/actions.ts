@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { advanceFillStatus, canTransition, getNextStatuses, getHappyPathNext } from "@/lib/workflow/fill-status";
 import {
@@ -607,6 +608,21 @@ export async function recordVerifyChecklist(
 
   const existingMetadata = (fill.metadata as Record<string, unknown>) || {};
 
+  // Build the audit payload. PDMP is only relevant for controlled
+  // substances — when included for a non-controlled drug, the activity
+  // log shows "PDMP checked ✗" with no corresponding UI checkbox the
+  // user could have toggled, which is misleading.
+  const auditPayload: Record<string, unknown> = {
+    drugCorrect: checklist.drugCorrect,
+    quantityCorrect: checklist.quantityCorrect,
+    sigCorrect: checklist.sigCorrect,
+    noInteractions: checklist.noInteractions,
+    ndcVerified: checklist.ndcVerified,
+  };
+  if (isControlled) {
+    auditPayload.pdmpChecked = checklist.pdmpChecked;
+  }
+
   await prisma.$transaction([
     prisma.prescriptionFill.update({
       where: { id: fillId },
@@ -628,7 +644,7 @@ export async function recordVerifyChecklist(
         fromValue: null,
         toValue: "all_checked",
         performedBy: user.id,
-        notes: JSON.stringify(checklist),
+        notes: JSON.stringify(auditPayload),
       },
     }),
   ]);
@@ -789,7 +805,45 @@ export async function recordPickupChecklist(
 
   const existingMetadata = (fill.metadata as Record<string, unknown>) || {};
 
-  await prisma.$transaction([
+  // Build the audit payload. Only include controlled-substance fields
+  // (counselAccepted, idVerified) when they're meaningful for this drug.
+  // Without this filter, the activity log shows "Counseling accepted ✗ ·
+  // ID verified ✗" for ANY non-controlled fill, even though those fields
+  // never had a UI checkbox for the user to toggle.
+  const auditPayload: Record<string, unknown> = {
+    counselOffered: checklist.counselOffered,
+    signatureCaptured: checklist.signatureCaptured,
+    paymentReceived: checklist.paymentReceived,
+  };
+  // counselAccepted is only relevant when counselOffered=true (otherwise
+  // there's nothing to accept/decline). Always log it when offered so we
+  // capture the patient's response.
+  if (checklist.counselOffered) {
+    auditPayload.counselAccepted = checklist.counselAccepted;
+  }
+  // idVerified only matters for controlled substances (DEA Schedule II–V).
+  if (isControlled) {
+    auditPayload.idVerified = !!checklist.idVerified;
+  }
+  if (checklist.pickupNotes) {
+    auditPayload.pickupNotes = checklist.pickupNotes;
+  }
+  const auditNotes = JSON.stringify(auditPayload);
+
+  // Dedupe: this server action gets called twice in the happy path —
+  // once from the explicit "Save Pickup Checklist" click, once from the
+  // "Advance to Sold" flow which re-validates before transitioning.
+  // The second call had been writing a duplicate identical event. If the
+  // most-recent pickup_checklist event for this fill already has the
+  // same payload, skip the write.
+  const lastEvent = await prisma.fillEvent.findFirst({
+    where: { fillId, eventType: "pickup_checklist" },
+    orderBy: { createdAt: "desc" },
+    select: { notes: true },
+  });
+  const isDuplicate = lastEvent?.notes === auditNotes;
+
+  const writes: Prisma.PrismaPromise<unknown>[] = [
     prisma.prescriptionFill.update({
       where: { id: fillId },
       data: {
@@ -803,24 +857,22 @@ export async function recordPickupChecklist(
         },
       },
     }),
-    prisma.fillEvent.create({
-      data: {
-        fillId,
-        eventType: "pickup_checklist",
-        fromValue: null,
-        toValue: "all_checked",
-        performedBy: user.id,
-        notes: JSON.stringify({
-          counselOffered: checklist.counselOffered,
-          counselAccepted: checklist.counselAccepted,
-          signatureCaptured: checklist.signatureCaptured,
-          paymentReceived: checklist.paymentReceived,
-          idVerified: !!checklist.idVerified,
-          pickupNotes: checklist.pickupNotes || null,
-        }),
-      },
-    }),
-  ]);
+  ];
+  if (!isDuplicate) {
+    writes.push(
+      prisma.fillEvent.create({
+        data: {
+          fillId,
+          eventType: "pickup_checklist",
+          fromValue: null,
+          toValue: "all_checked",
+          performedBy: user.id,
+          notes: auditNotes,
+        },
+      })
+    );
+  }
+  await prisma.$transaction(writes);
 
   revalidatePath(`/queue/process/${fillId}`);
 
@@ -1087,6 +1139,42 @@ export async function verifyScan(
     if (expectedSet.has(candidate)) {
       match = true;
       break;
+    }
+  }
+
+  // Audit-log the successful match. Without this the activity log skips
+  // from "Adjudicating → Print" to "Print → Scan" with no record of WHO
+  // physically scanned the bottle. We deliberately don't log failed
+  // scans (a typo shouldn't leave a permanent audit footprint), but we
+  // dedupe successful scans so re-clicking Verify NDC after a match
+  // doesn't write multiple identical events.
+  if (match) {
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        const auditNotes = `NDC ${scannedNdc} matched expected ${expectedNdc}`;
+        const lastEvent = await prisma.fillEvent.findFirst({
+          where: { fillId, eventType: "ndc_verified" },
+          orderBy: { createdAt: "desc" },
+          select: { notes: true },
+        });
+        if (lastEvent?.notes !== auditNotes) {
+          await prisma.fillEvent.create({
+            data: {
+              fillId,
+              eventType: "ndc_verified",
+              fromValue: null,
+              toValue: expectedNdc,
+              performedBy: user.id,
+              notes: auditNotes,
+            },
+          });
+        }
+      }
+    } catch (e) {
+      // Non-fatal — the verify result still goes back to the user; we
+      // just lose the audit row. Log so we can investigate.
+      console.error("[verifyScan] failed to write ndc_verified event:", e);
     }
   }
 

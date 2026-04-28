@@ -277,7 +277,7 @@ export async function submitClaim(submission: ClaimSubmission, userId?: string):
       );
     }
 
-    // Audit log
+    // Audit log (system-level — used by the compliance reporting page).
     if (userId) {
       await logAudit({
         userId,
@@ -289,6 +289,51 @@ export async function submitClaim(submission: ClaimSubmission, userId?: string):
           insuranceId,
           status: response.status,
           transactionId: response.transactionId,
+        },
+      });
+
+      // Activity-log event on the fill itself. Without this, the Activity
+      // Log card on /queue/process/[fillId] skips straight from
+      // "fill_created" to "Adjudicating → Print" with no record of when
+      // the claim was submitted or what the payer responded — a real
+      // pharmacy-compliance gap. Map the response.status onto a
+      // canonical event_type so downstream filters can pivot on it.
+      const eventType =
+        response.status === "paid" ? "claim_paid"
+        : response.status === "rejected" ? "claim_rejected"
+        : "claim_submitted";
+      // Plain-text notes so the activity log renders them verbatim
+      // (formatEventNotes() passes non-JSON strings through).
+      const noteParts: string[] = [];
+      if (response.status === "paid") {
+        const paid = response.paidAmount != null ? `$${response.paidAmount.toFixed(2)}` : "—";
+        const copay = response.copayAmount != null ? `$${response.copayAmount.toFixed(2)}` : "—";
+        noteParts.push(`Paid ${paid}`, `Copay ${copay}`);
+      } else if (response.status === "rejected") {
+        if (response.rejectionCodes?.length) {
+          noteParts.push(`Rejection codes: ${response.rejectionCodes.join(", ")}`);
+        }
+        if (response.rejectionMessages) {
+          // rejectionMessages is { [code]: message }, not an array.
+          // Flatten to "code: message" pairs.
+          const msgs = Object.entries(response.rejectionMessages)
+            .map(([code, msg]) => `${code}: ${msg}`);
+          if (msgs.length) noteParts.push(msgs.join("; "));
+        }
+        if (noteParts.length === 0) noteParts.push("Rejected");
+      } else {
+        noteParts.push(`Status: ${response.status}`);
+      }
+      if (response.transactionId) noteParts.push(`Txn ${response.transactionId}`);
+      const auditNotes = noteParts.join(" · ");
+      await prisma.fillEvent.create({
+        data: {
+          fillId,
+          eventType,
+          fromValue: existingClaim ? existingClaim.status : null,
+          toValue: response.status,
+          performedBy: userId,
+          notes: auditNotes,
         },
       });
     }
